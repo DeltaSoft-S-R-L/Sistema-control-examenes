@@ -193,3 +193,5 @@ ALTER TABLE ONLY public.rol_permiso
 ALTER TABLE ONLY public.usuario
     ADD CONSTRAINT fk_usuario_rol FOREIGN KEY (id_rol) REFERENCES public.rol(id_rol);
 
+ALTER TABLE ingreso 
+    ADD CONSTRAINT uq_ingreso_habilitacion_examen UNIQUE (id_habilitacion, id_examen);
