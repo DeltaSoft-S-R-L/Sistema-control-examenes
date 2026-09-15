@@ -10,7 +10,7 @@
     "prisma:migrate": "prisma migrate dev"
   },
   "dependencies": {
-    "@prisma/client": "latest",
+    "@prisma/client": "^6.19.3",
     "cors": "latest",
     "dotenv": "latest",
     "express": "latest",
@@ -20,7 +20,7 @@
     "@types/cors": "latest",
     "@types/express": "latest",
     "@types/node": "latest",
-    "prisma": "latest",
+    "prisma": "^6.19.3",
     "tsx": "latest",
     "typescript": "latest"
   }

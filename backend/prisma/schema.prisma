@@ -7,11 +7,227 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Examen {
-  id          String   @id @default(cuid())
-  titulo      String
-  descripcion String?
-  fecha       DateTime
-  creadoEn    DateTime @default(now())
-  actualizadoEn DateTime @updatedAt
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model ambiente {
+  id_ambiente         BigInt                @id(map: "pk_ambiente") @default(autoincrement())
+  codigo              String                @unique(map: "uq_ambiente_codigo") @db.VarChar(30)
+  nombre              String                @db.VarChar(100)
+  ubicacion           String?               @db.VarChar(150)
+  capacidad           Int
+  estado              String                @db.VarChar(20)
+  asignacion_ambiente asignacion_ambiente[]
+
+  @@index([estado], map: "idx_ambiente_estado")
+}
+
+model asignacion_ambiente {
+  id_asignacion_ambiente BigInt            @id(map: "pk_asignacion_ambiente") @default(autoincrement())
+  id_examen              BigInt
+  id_ambiente            BigInt
+  ambiente               ambiente          @relation(fields: [id_ambiente], references: [id_ambiente], onDelete: NoAction, onUpdate: NoAction, map: "fk_asignacion_ambiente")
+  examen                 examen            @relation(fields: [id_examen], references: [id_examen], onDelete: NoAction, onUpdate: NoAction, map: "fk_asignacion_examen")
+  ingreso                ingreso[]
+  intento_ingreso        intento_ingreso[]
+
+  @@unique([id_asignacion_ambiente, id_examen], map: "uq_asignacion_ambiente_examen")
+  @@unique([id_examen, id_ambiente], map: "uq_asignacion_examen_ambiente")
+  @@index([id_examen, id_ambiente], map: "idx_asignacion_ambiente_examen")
+}
+
+model asignatura {
+  id_asignatura BigInt   @id(map: "pk_asignatura") @default(autoincrement())
+  codigo        String   @unique(map: "uq_asignatura_codigo") @db.VarChar(30)
+  nombre        String   @db.VarChar(150)
+  descripcion   String?
+  examen        examen[]
+}
+
+model auditoria {
+  id_auditoria BigInt   @id(map: "pk_auditoria") @default(autoincrement())
+  id_usuario   BigInt
+  accion       String   @db.VarChar(100)
+  entidad      String   @db.VarChar(100)
+  id_registro  BigInt?
+  fecha_hora   DateTime @default(now()) @db.Timestamptz(6)
+  resultado    String?  @db.VarChar(20)
+  descripcion  String?
+  usuario      usuario  @relation(fields: [id_usuario], references: [id_usuario], onDelete: NoAction, onUpdate: NoAction, map: "fk_auditoria_usuario")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model estudiante {
+  id_estudiante        BigInt            @id(map: "pk_estudiante") @default(autoincrement())
+  ci                   String            @unique(map: "uq_estudiante_ci") @db.VarChar(20)
+  nombre               String            @db.VarChar(100)
+  apellido             String            @db.VarChar(100)
+  codigo_universitario String            @unique(map: "uq_estudiante_codigo") @db.VarChar(50)
+  correo               String?           @db.VarChar(150)
+  estado               String            @db.VarChar(20)
+  habilitacion         habilitacion[]
+  incidencia           incidencia[]
+  intento_ingreso      intento_ingreso[]
+
+  @@index([estado], map: "idx_estudiante_estado")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model examen {
+  id_examen           BigInt                @id(map: "pk_examen") @default(autoincrement())
+  id_asignatura       BigInt
+  nombre              String                @db.VarChar(150)
+  fecha               DateTime              @db.Date
+  hora_inicio         DateTime              @db.Time(6)
+  duracion_minutos    Int
+  descripcion         String?
+  estado              String                @db.VarChar(20)
+  asignacion_ambiente asignacion_ambiente[]
+  asignatura          asignatura            @relation(fields: [id_asignatura], references: [id_asignatura], onDelete: NoAction, onUpdate: NoAction, map: "fk_examen_asignatura")
+  habilitacion        habilitacion[]
+  incidencia          incidencia[]
+  intento_ingreso     intento_ingreso[]
+  regla_examen        regla_examen[]
+
+  @@index([estado], map: "idx_examen_estado")
+  @@index([fecha, hora_inicio], map: "idx_examen_fecha_hora")
+}
+
+model expulsion {
+  id_expulsion BigInt   @id(map: "pk_expulsion") @default(autoincrement())
+  id_ingreso   BigInt   @unique(map: "uq_expulsion_ingreso")
+  id_usuario   BigInt
+  motivo       String
+  fecha_hora   DateTime @default(now()) @db.Timestamptz(6)
+  ingreso      ingreso  @relation(fields: [id_ingreso], references: [id_ingreso], onDelete: NoAction, onUpdate: NoAction, map: "fk_expulsion_ingreso")
+  usuario      usuario  @relation(fields: [id_usuario], references: [id_usuario], onDelete: NoAction, onUpdate: NoAction, map: "fk_expulsion_usuario")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model habilitacion {
+  id_habilitacion  BigInt             @id(map: "pk_habilitacion") @default(autoincrement())
+  id_estudiante    BigInt
+  id_examen        BigInt
+  estado           String             @db.VarChar(20)
+  motivo           String?
+  estudiante       estudiante         @relation(fields: [id_estudiante], references: [id_estudiante], onDelete: NoAction, onUpdate: NoAction, map: "fk_habilitacion_estudiante")
+  examen           examen             @relation(fields: [id_examen], references: [id_examen], onDelete: NoAction, onUpdate: NoAction, map: "fk_habilitacion_examen")
+  ingreso          ingreso?
+  regla_individual regla_individual[]
+
+  @@unique([id_estudiante, id_examen], map: "uq_habilitacion_estudiante_examen")
+  @@unique([id_habilitacion, id_examen], map: "uq_habilitacion_id_examen")
+  @@index([estado], map: "idx_habilitacion_estado")
+  @@index([id_examen], map: "idx_habilitacion_examen")
+}
+
+model incidencia {
+  id_incidencia BigInt      @id(map: "pk_incidencia") @default(autoincrement())
+  id_estudiante BigInt?
+  id_examen     BigInt
+  id_usuario    BigInt
+  tipo          String      @db.VarChar(50)
+  descripcion   String
+  fecha_hora    DateTime    @default(now()) @db.Timestamptz(6)
+  estudiante    estudiante? @relation(fields: [id_estudiante], references: [id_estudiante], onDelete: NoAction, onUpdate: NoAction, map: "fk_incidencia_estudiante")
+  examen        examen      @relation(fields: [id_examen], references: [id_examen], onDelete: NoAction, onUpdate: NoAction, map: "fk_incidencia_examen")
+  usuario       usuario     @relation(fields: [id_usuario], references: [id_usuario], onDelete: NoAction, onUpdate: NoAction, map: "fk_incidencia_usuario")
+
+  @@index([id_examen], map: "idx_incidencia_examen")
+  @@index([tipo], map: "idx_incidencia_tipo")
+}
+
+model ingreso {
+  id_ingreso             BigInt              @id(map: "pk_ingreso") @default(autoincrement())
+  id_examen              BigInt
+  id_habilitacion        BigInt              @unique(map: "uq_ingreso_habilitacion")
+  id_asignacion_ambiente BigInt
+  id_usuario             BigInt
+  fecha_hora             DateTime            @default(now()) @db.Timestamptz(6)
+  expulsion              expulsion?
+  asignacion_ambiente    asignacion_ambiente @relation(fields: [id_asignacion_ambiente, id_examen], references: [id_asignacion_ambiente, id_examen], onDelete: NoAction, onUpdate: NoAction, map: "fk_ingreso_asignacion_ambiente")
+  habilitacion           habilitacion        @relation(fields: [id_habilitacion, id_examen], references: [id_habilitacion, id_examen], onDelete: NoAction, onUpdate: NoAction, map: "fk_ingreso_habilitacion_examen")
+  usuario                usuario             @relation(fields: [id_usuario], references: [id_usuario], onDelete: NoAction, onUpdate: NoAction, map: "fk_ingreso_usuario")
+
+  @@unique([id_habilitacion, id_examen], map: "uq_ingreso_habilitacion_examen")
+}
+
+model intento_ingreso {
+  id_intento             BigInt              @id(map: "pk_intento_ingreso") @default(autoincrement())
+  id_estudiante          BigInt?
+  id_examen              BigInt
+  id_asignacion_ambiente BigInt
+  id_usuario             BigInt
+  fecha_hora             DateTime            @default(now()) @db.Timestamptz(6)
+  motivo                 String
+  estudiante             estudiante?         @relation(fields: [id_estudiante], references: [id_estudiante], onDelete: NoAction, onUpdate: NoAction, map: "fk_intento_estudiante")
+  examen                 examen              @relation(fields: [id_examen], references: [id_examen], onDelete: NoAction, onUpdate: NoAction, map: "fk_intento_examen")
+  asignacion_ambiente    asignacion_ambiente @relation(fields: [id_asignacion_ambiente, id_examen], references: [id_asignacion_ambiente, id_examen], onDelete: NoAction, onUpdate: NoAction, map: "fk_intento_ingreso_asignacion_ambiente")
+  usuario                usuario             @relation(fields: [id_usuario], references: [id_usuario], onDelete: NoAction, onUpdate: NoAction, map: "fk_intento_usuario")
+}
+
+model permiso {
+  id_permiso  BigInt        @id(map: "pk_permiso") @default(autoincrement())
+  nombre      String        @unique(map: "uq_permiso_nombre") @db.VarChar(100)
+  descripcion String?       @db.VarChar(255)
+  rol_permiso rol_permiso[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model regla_examen {
+  id_regla_examen BigInt @id(map: "pk_regla_examen") @default(autoincrement())
+  id_examen       BigInt
+  descripcion     String
+  estado          String @db.VarChar(20)
+  examen          examen @relation(fields: [id_examen], references: [id_examen], onDelete: NoAction, onUpdate: NoAction, map: "fk_regla_examen_examen")
+
+  @@index([estado], map: "idx_regla_examen_estado")
+  @@index([id_examen], map: "idx_regla_examen_examen")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model regla_individual {
+  id_regla_individual BigInt       @id(map: "pk_regla_individual") @default(autoincrement())
+  id_habilitacion     BigInt
+  descripcion         String
+  estado              String       @db.VarChar(20)
+  habilitacion        habilitacion @relation(fields: [id_habilitacion], references: [id_habilitacion], onDelete: NoAction, onUpdate: NoAction, map: "fk_regla_individual_habilitacion")
+
+  @@index([estado], map: "idx_regla_individual_estado")
+  @@index([id_habilitacion], map: "idx_regla_individual_habilitacion")
+}
+
+model rol {
+  id_rol      BigInt        @id(map: "pk_rol") @default(autoincrement())
+  nombre      String        @unique(map: "uq_rol_nombre") @db.VarChar(50)
+  descripcion String?       @db.VarChar(255)
+  rol_permiso rol_permiso[]
+  usuario     usuario[]
+}
+
+model rol_permiso {
+  id_rol     BigInt
+  id_permiso BigInt
+  permiso    permiso @relation(fields: [id_permiso], references: [id_permiso], onDelete: Cascade, onUpdate: NoAction, map: "fk_rol_permiso_permiso")
+  rol        rol     @relation(fields: [id_rol], references: [id_rol], onDelete: Cascade, onUpdate: NoAction, map: "fk_rol_permiso_rol")
+
+  @@id([id_rol, id_permiso], map: "pk_rol_permiso")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model usuario {
+  id_usuario      BigInt            @id(map: "pk_usuario") @default(autoincrement())
+  nombre          String            @db.VarChar(100)
+  apellido        String            @db.VarChar(100)
+  correo          String            @unique(map: "uq_usuario_correo") @db.VarChar(150)
+  username        String            @unique(map: "uq_usuario_username") @db.VarChar(50)
+  password_hash   String            @db.VarChar(255)
+  id_rol          BigInt
+  estado          String            @db.VarChar(20)
+  auditoria       auditoria[]
+  expulsion       expulsion[]
+  incidencia      incidencia[]
+  ingreso         ingreso[]
+  intento_ingreso intento_ingreso[]
+  rol             rol               @relation(fields: [id_rol], references: [id_rol], onDelete: NoAction, onUpdate: NoAction, map: "fk_usuario_rol")
+
+  @@index([estado], map: "idx_usuario_estado")
 }
