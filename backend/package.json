@@ -11,12 +11,14 @@
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
+    "bcryptjs": "^3.0.3",
     "cors": "latest",
     "dotenv": "latest",
     "express": "latest",
     "zod": "latest"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/cors": "latest",
     "@types/express": "latest",
     "@types/node": "latest",
