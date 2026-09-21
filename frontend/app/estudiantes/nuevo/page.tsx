@@ -15,12 +15,12 @@ type ErroresFormulario = {
 export default function NuevoEstudiantePage() {
   const [errores, setErrores] = useState<ErroresFormulario>({});
   const [mensaje, setMensaje] = useState("");
+  const [estadoSeleccionado, setEstadoSeleccionado] = useState("ACTIVO");
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const form = event.currentTarget;
-    const formData = new FormData(form);
+    const formData = new FormData(event.currentTarget);
 
     const ci = String(formData.get("ci") ?? "").trim();
 
@@ -36,11 +36,11 @@ export default function NuevoEstudiantePage() {
     const nuevosErrores: ErroresFormulario = {};
 
     /*
-     * CI
+     * Formatos permitidos
      */
-    if (!ci) {
-      nuevosErrores.ci = "El documento de identidad es obligatorio.";
-    }
+    const formatoIdentificador = /^[A-Za-z0-9-]+$/;
+    const formatoNombre = /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s'-]+$/;
+    const formatoCorreo = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     /*
      * Código universitario
@@ -48,21 +48,31 @@ export default function NuevoEstudiantePage() {
     if (!codigoUniversitario) {
       nuevosErrores.codigoUniversitario =
         "El código universitario es obligatorio.";
+    } else if (codigoUniversitario.length > 15) {
+      nuevosErrores.codigoUniversitario =
+        "El código universitario no puede superar los 15 caracteres.";
+    } else if (!formatoIdentificador.test(codigoUniversitario)) {
+      nuevosErrores.codigoUniversitario =
+        "El código solo puede contener letras, números y guiones.";
     }
 
     /*
-     * Nombre y apellido
-     *
-     * Permitimos:
-     * - Letras
-     * - Tildes
-     * - Ñ
-     * - Espacios
-     * - Apóstrofes
-     * - Guiones
+     * Documento de identidad
      */
-    const formatoNombre = /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s'-]+$/;
+    if (!ci) {
+      nuevosErrores.ci =
+        "El documento de identidad es obligatorio.";
+    } else if (ci.length > 15) {
+      nuevosErrores.ci =
+        "El CI no puede superar los 15 caracteres.";
+    } else if (!formatoIdentificador.test(ci)) {
+      nuevosErrores.ci =
+        "El CI solo puede contener letras, números y guiones.";
+    }
 
+    /*
+     * Nombre
+     */
     if (!nombre) {
       nuevosErrores.nombre = "El nombre es obligatorio.";
     } else if (!formatoNombre.test(nombre)) {
@@ -70,6 +80,9 @@ export default function NuevoEstudiantePage() {
         "El nombre solo puede contener letras, espacios, apóstrofes y guiones.";
     }
 
+    /*
+     * Apellido
+     */
     if (!apellido) {
       nuevosErrores.apellido = "El apellido es obligatorio.";
     } else if (!formatoNombre.test(apellido)) {
@@ -78,41 +91,38 @@ export default function NuevoEstudiantePage() {
     }
 
     /*
-     * Correo
+     * Correo electrónico
      *
-     * Es opcional, pero si el usuario escribe uno
-     * debe tener un formato válido.
+     * Es opcional, pero si se ingresa debe tener
+     * un formato de correo válido.
      */
-    if (correo) {
-      const formatoCorreo = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-      if (!formatoCorreo.test(correo)) {
-        nuevosErrores.correo =
-          "Ingresa un correo electrónico válido.";
-      }
+    if (correo && !formatoCorreo.test(correo)) {
+      nuevosErrores.correo =
+        "Ingresa un correo electrónico válido.";
     }
 
     /*
      * Estado
      */
     if (!estado) {
-      nuevosErrores.estado = "Debes seleccionar un estado.";
+      nuevosErrores.estado =
+        "Debes seleccionar un estado.";
     }
 
     setErrores(nuevosErrores);
     setMensaje("");
 
     /*
-     * Si existe algún error detenemos el envío.
+     * Si existe algún error, detenemos el proceso.
      */
     if (Object.keys(nuevosErrores).length > 0) {
       return;
     }
 
     /*
-     * Por ahora NO se envían datos al backend.
-     * Únicamente confirmamos que el formulario
-     * pasó las validaciones del frontend.
+     * Por ahora el frontend solamente valida.
+     * Cuando exista el endpoint correspondiente,
+     * aquí se enviarán los datos al backend.
      */
     setMensaje(
       "Datos validados correctamente. El registro aún no se ha enviado al servidor."
@@ -121,57 +131,73 @@ export default function NuevoEstudiantePage() {
 
   return (
     <main className={styles.page}>
-      <div className={styles.container}>
-        <div className={styles.header}>
+      {/* Fondo provisional.
+          Se reemplazará por la pantalla real cuando
+          se integre el formulario con el resto del sistema. */}
+      <div className={styles.backgroundContent}>
+        <div className={styles.fakeHeader}>
           <div>
-            <p className={styles.section}>ESTUDIANTES</p>
+            <span className={styles.fakeSection}>
+              ESTUDIANTES
+            </span>
 
-            <h1>Registrar estudiante</h1>
+            <h1>Gestión de estudiantes</h1>
 
-            <p className={styles.description}>
-              Ingresa los datos del estudiante que participará en los exámenes.
+            <p>
+              Administra los estudiantes registrados en el sistema.
             </p>
+          </div>
+
+          <div className={styles.fakeButton}>
+            + Nuevo estudiante
           </div>
         </div>
 
-        <div className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h2>Datos del estudiante</h2>
+        <div className={styles.fakeTable}>
+          <div />
+          <div />
+          <div />
+          <div />
+        </div>
+      </div>
 
-            <p>
-              Los campos marcados con <span>*</span> son obligatorios.
-            </p>
+      {/* Modal */}
+      <div className={styles.overlay}>
+        <section
+          className={styles.modal}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-title"
+        >
+          {/* Encabezado */}
+          <div className={styles.modalHeader}>
+            <div className={styles.title}>
+              <div className={styles.icon}>
+                ♙
+              </div>
+
+              <h1 id="modal-title">
+                Nuevo Estudiante
+              </h1>
+            </div>
+
+            <button
+              type="button"
+              className={styles.closeButton}
+              onClick={() => window.history.back()}
+              aria-label="Cerrar formulario"
+            >
+              ×
+            </button>
           </div>
 
+          {/* Formulario */}
           <form
             className={styles.form}
             onSubmit={handleSubmit}
             noValidate
           >
             <div className={styles.grid}>
-
-              {/* CI */}
-              <div className={styles.field}>
-                <label htmlFor="ci">
-                  Documento de identidad (CI) <span>*</span>
-                </label>
-
-                <input
-                  id="ci"
-                  name="ci"
-                  type="text"
-                  placeholder="Ej. 12345678"
-                  maxLength={20}
-                  className={errores.ci ? styles.inputError : ""}
-                />
-
-                {errores.ci && (
-                  <p className={styles.errorMessage}>
-                    {errores.ci}
-                  </p>
-                )}
-              </div>
-
               {/* Código universitario */}
               <div className={styles.field}>
                 <label htmlFor="codigoUniversitario">
@@ -183,7 +209,8 @@ export default function NuevoEstudiantePage() {
                   name="codigoUniversitario"
                   type="text"
                   placeholder="Ej. 202401234"
-                  maxLength={50}
+                  maxLength={15}
+                  autoComplete="off"
                   className={
                     errores.codigoUniversitario
                       ? styles.inputError
@@ -194,6 +221,34 @@ export default function NuevoEstudiantePage() {
                 {errores.codigoUniversitario && (
                   <p className={styles.errorMessage}>
                     {errores.codigoUniversitario}
+                  </p>
+                )}
+              </div>
+
+              {/* CI */}
+              <div className={styles.field}>
+                <label htmlFor="ci">
+                  Documento de identidad (CI){" "}
+                  <span>*</span>
+                </label>
+
+                <input
+                  id="ci"
+                  name="ci"
+                  type="text"
+                  placeholder="Ej. 12345678"
+                  maxLength={15}
+                  autoComplete="off"
+                  className={
+                    errores.ci
+                      ? styles.inputError
+                      : ""
+                  }
+                />
+
+                {errores.ci && (
+                  <p className={styles.errorMessage}>
+                    {errores.ci}
                   </p>
                 )}
               </div>
@@ -210,8 +265,11 @@ export default function NuevoEstudiantePage() {
                   type="text"
                   placeholder="Ej. Juan"
                   maxLength={100}
+                  autoComplete="given-name"
                   className={
-                    errores.nombre ? styles.inputError : ""
+                    errores.nombre
+                      ? styles.inputError
+                      : ""
                   }
                 />
 
@@ -234,8 +292,11 @@ export default function NuevoEstudiantePage() {
                   type="text"
                   placeholder="Ej. Pérez"
                   maxLength={100}
+                  autoComplete="family-name"
                   className={
-                    errores.apellido ? styles.inputError : ""
+                    errores.apellido
+                      ? styles.inputError
+                      : ""
                   }
                 />
 
@@ -260,8 +321,11 @@ export default function NuevoEstudiantePage() {
                   type="email"
                   placeholder="Ej. estudiante@universidad.edu"
                   maxLength={150}
+                  autoComplete="email"
                   className={
-                    errores.correo ? styles.inputError : ""
+                    errores.correo
+                      ? styles.inputError
+                      : ""
                   }
                 />
 
@@ -273,7 +337,9 @@ export default function NuevoEstudiantePage() {
               </div>
 
               {/* Estado */}
-              <div className={styles.field}>
+              <div
+                className={`${styles.field} ${styles.fullWidth}`}
+              >
                 <label htmlFor="estado">
                   Estado <span>*</span>
                 </label>
@@ -281,17 +347,32 @@ export default function NuevoEstudiantePage() {
                 <select
                   id="estado"
                   name="estado"
-                  defaultValue="ACTIVO"
-                  className={
-                    errores.estado ? styles.inputError : ""
+                  value={estadoSeleccionado}
+                  onChange={(event) =>
+                    setEstadoSeleccionado(event.target.value)
                   }
+                  className={`${styles.estadoSelect} ${
+                    estadoSeleccionado === "ACTIVO"
+                      ? styles.estadoActivo
+                      : styles.estadoInactivo
+                  } ${
+                    errores.estado
+                      ? styles.inputError
+                      : ""
+                  }`}
                 >
-                  <option value="ACTIVO">
-                    Activo
+                  <option
+                    value="ACTIVO"
+                    className={styles.opcionActiva}
+                  >
+                    ● Activo
                   </option>
 
-                  <option value="INACTIVO">
-                    Inactivo
+                  <option
+                    value="INACTIVO"
+                    className={styles.opcionInactiva}
+                  >
+                    ● Inactivo
                   </option>
                 </select>
 
@@ -303,14 +384,26 @@ export default function NuevoEstudiantePage() {
               </div>
             </div>
 
-            {/* Mensaje de validación correcta */}
+            {/* Información */}
+            <div className={styles.infoBox}>
+              <span className={styles.infoIcon}>
+                ⓘ
+              </span>
+
+              <p>
+                El estudiante quedará disponible en el
+                sistema una vez completado el registro.
+              </p>
+            </div>
+
+            {/* Mensaje temporal */}
             {mensaje && (
               <div className={styles.message}>
                 {mensaje}
               </div>
             )}
 
-            {/* Botones */}
+            {/* Acciones */}
             <div className={styles.actions}>
               <button
                 type="button"
@@ -324,11 +417,11 @@ export default function NuevoEstudiantePage() {
                 type="submit"
                 className={styles.submitButton}
               >
-                Registrar estudiante
+                Guardar estudiante
               </button>
             </div>
           </form>
-        </div>
+        </section>
       </div>
     </main>
   );
