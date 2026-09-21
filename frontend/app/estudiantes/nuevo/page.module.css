@@ -191,6 +191,18 @@
   color: #98a2b3;
 }
 
+/*
+ * Select deshabilitado.
+ * Se utiliza para Carrera antes de seleccionar Facultad
+ * y para el Rol automático.
+ */
+.field select:disabled {
+  background: #f2f4f7;
+  color: #667085;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
 .fullWidth {
   grid-column: 1 / -1;
 }
@@ -211,8 +223,28 @@
   line-height: 1.35;
 }
 
-/* Estado del estudiante */
+/*
+ * Texto auxiliar utilizado debajo del Rol.
+ */
+.helperText {
+  margin: 0;
+  color: #667085;
+  font-size: 11px;
+  line-height: 1.35;
+}
 
+/*
+ * Rol automático del formulario de estudiante.
+ */
+.rolSelect {
+  background: #f2f4f7 !important;
+  color: #344054 !important;
+  font-weight: 500;
+}
+
+/*
+ * Estado del estudiante
+ */
 .estadoSelect {
   font-weight: 500;
 }

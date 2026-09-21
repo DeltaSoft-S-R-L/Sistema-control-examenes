@@ -9,29 +9,158 @@ type ErroresFormulario = {
   nombre?: string;
   apellido?: string;
   correo?: string;
+  facultad?: string;
+  carrera?: string;
+  rol?: string;
   estado?: string;
+};
+
+type Facultad = {
+  nombre: string;
+  carreras: string[];
+};
+
+/*
+ * Datos temporales para el frontend.
+ *
+ * Cuando el backend implemente la administración de facultades
+ * y carreras, estos datos podrán obtenerse desde la API.
+ */
+const facultades: Record<string, Facultad> = {
+  CIENCIAS_TECNOLOGIA: {
+    nombre: "Facultad de Ciencias y Tecnología",
+    carreras: [
+      "Ingeniería de Sistemas",
+      "Ingeniería Informática",
+      "Ingeniería Electrónica",
+      "Ingeniería Civil",
+      "Ingeniería Industrial",
+    ],
+  },
+
+  CIENCIAS_ECONOMICAS: {
+    nombre: "Facultad de Ciencias Económicas",
+    carreras: [
+      "Administración de Empresas",
+      "Economía",
+      "Contaduría Pública",
+      "Ingeniería Comercial",
+      "Ingeniería Financiera",
+    ],
+  },
+
+  CIENCIAS_SALUD: {
+    nombre: "Facultad de Ciencias de la Salud",
+    carreras: [
+      "Medicina",
+      "Enfermería",
+      "Nutrición y Dietética",
+      "Fisioterapia y Kinesiología",
+      "Odontología",
+    ],
+  },
+
+  HUMANIDADES: {
+    nombre: "Facultad de Humanidades",
+    carreras: [
+      "Psicología",
+      "Ciencias de la Educación",
+      "Lingüística",
+      "Trabajo Social",
+      "Comunicación Social",
+    ],
+  },
 };
 
 export default function NuevoEstudiantePage() {
   const [errores, setErrores] = useState<ErroresFormulario>({});
   const [mensaje, setMensaje] = useState("");
-  const [estadoSeleccionado, setEstadoSeleccionado] = useState("ACTIVO");
+
+  const [estadoSeleccionado, setEstadoSeleccionado] =
+    useState("ACTIVO");
+
+  const [facultadSeleccionada, setFacultadSeleccionada] =
+    useState("");
+
+  const [carreraSeleccionada, setCarreraSeleccionada] =
+    useState("");
+
+  /*
+   * Obtiene las carreras correspondientes
+   * a la facultad seleccionada.
+   */
+  const carrerasDisponibles = facultadSeleccionada
+    ? facultades[facultadSeleccionada]?.carreras ?? []
+    : [];
+
+  /*
+   * Cuando cambia la facultad, se limpia la carrera
+   * anteriormente seleccionada.
+   */
+  const handleFacultadChange = (
+    event: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    setFacultadSeleccionada(event.target.value);
+    setCarreraSeleccionada("");
+
+    setErrores((erroresActuales) => ({
+      ...erroresActuales,
+      facultad: undefined,
+      carrera: undefined,
+    }));
+  };
+
+  const handleCarreraChange = (
+    event: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    setCarreraSeleccionada(event.target.value);
+
+    setErrores((erroresActuales) => ({
+      ...erroresActuales,
+      carrera: undefined,
+    }));
+  };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const formData = new FormData(event.currentTarget);
 
-    const ci = String(formData.get("ci") ?? "").trim();
+    const ci = String(
+      formData.get("ci") ?? ""
+    ).trim();
 
     const codigoUniversitario = String(
       formData.get("codigoUniversitario") ?? ""
     ).trim();
 
-    const nombre = String(formData.get("nombre") ?? "").trim();
-    const apellido = String(formData.get("apellido") ?? "").trim();
-    const correo = String(formData.get("correo") ?? "").trim();
-    const estado = String(formData.get("estado") ?? "").trim();
+    const nombre = String(
+      formData.get("nombre") ?? ""
+    ).trim();
+
+    const apellido = String(
+      formData.get("apellido") ?? ""
+    ).trim();
+
+    const correo = String(
+      formData.get("correo") ?? ""
+    ).trim();
+
+    const facultad = String(
+      formData.get("facultad") ?? ""
+    ).trim();
+
+    const carrera = String(
+      formData.get("carrera") ?? ""
+    ).trim();
+
+    const rol = String(
+      formData.get("rol") ?? ""
+    ).trim();
+
+    const estado = String(
+      formData.get("estado") ?? ""
+    ).trim();
 
     const nuevosErrores: ErroresFormulario = {};
 
@@ -39,8 +168,12 @@ export default function NuevoEstudiantePage() {
      * Formatos permitidos
      */
     const formatoIdentificador = /^[A-Za-z0-9-]+$/;
-    const formatoNombre = /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s'-]+$/;
-    const formatoCorreo = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    const formatoNombre =
+      /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s'-]+$/;
+
+    const formatoCorreo =
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     /*
      * Código universitario
@@ -51,7 +184,9 @@ export default function NuevoEstudiantePage() {
     } else if (codigoUniversitario.length > 15) {
       nuevosErrores.codigoUniversitario =
         "El código universitario no puede superar los 15 caracteres.";
-    } else if (!formatoIdentificador.test(codigoUniversitario)) {
+    } else if (
+      !formatoIdentificador.test(codigoUniversitario)
+    ) {
       nuevosErrores.codigoUniversitario =
         "El código solo puede contener letras, números y guiones.";
     }
@@ -74,7 +209,8 @@ export default function NuevoEstudiantePage() {
      * Nombre
      */
     if (!nombre) {
-      nuevosErrores.nombre = "El nombre es obligatorio.";
+      nuevosErrores.nombre =
+        "El nombre es obligatorio.";
     } else if (!formatoNombre.test(nombre)) {
       nuevosErrores.nombre =
         "El nombre solo puede contener letras, espacios, apóstrofes y guiones.";
@@ -84,7 +220,8 @@ export default function NuevoEstudiantePage() {
      * Apellido
      */
     if (!apellido) {
-      nuevosErrores.apellido = "El apellido es obligatorio.";
+      nuevosErrores.apellido =
+        "El apellido es obligatorio.";
     } else if (!formatoNombre.test(apellido)) {
       nuevosErrores.apellido =
         "El apellido solo puede contener letras, espacios, apóstrofes y guiones.";
@@ -93,12 +230,39 @@ export default function NuevoEstudiantePage() {
     /*
      * Correo electrónico
      *
-     * Es opcional, pero si se ingresa debe tener
-     * un formato de correo válido.
+     * Es opcional, pero si se ingresa
+     * debe tener un formato válido.
      */
     if (correo && !formatoCorreo.test(correo)) {
       nuevosErrores.correo =
         "Ingresa un correo electrónico válido.";
+    }
+
+    /*
+     * Facultad
+     */
+    if (!facultad) {
+      nuevosErrores.facultad =
+        "Debes seleccionar una facultad.";
+    }
+
+    /*
+     * Carrera
+     */
+    if (!carrera) {
+      nuevosErrores.carrera =
+        "Debes seleccionar una carrera.";
+    }
+
+    /*
+     * Rol
+     *
+     * En esta HU el registro corresponde
+     * exclusivamente a estudiantes.
+     */
+    if (!rol) {
+      nuevosErrores.rol =
+        "El rol del estudiante es obligatorio.";
     }
 
     /*
@@ -113,7 +277,8 @@ export default function NuevoEstudiantePage() {
     setMensaje("");
 
     /*
-     * Si existe algún error, detenemos el proceso.
+     * Si existe algún error,
+     * detenemos el proceso.
      */
     if (Object.keys(nuevosErrores).length > 0) {
       return;
@@ -121,6 +286,7 @@ export default function NuevoEstudiantePage() {
 
     /*
      * Por ahora el frontend solamente valida.
+     *
      * Cuando exista el endpoint correspondiente,
      * aquí se enviarán los datos al backend.
      */
@@ -131,9 +297,7 @@ export default function NuevoEstudiantePage() {
 
   return (
     <main className={styles.page}>
-      {/* Fondo provisional.
-          Se reemplazará por la pantalla real cuando
-          se integre el formulario con el resto del sistema. */}
+      {/* Fondo provisional */}
       <div className={styles.backgroundContent}>
         <div className={styles.fakeHeader}>
           <div>
@@ -336,6 +500,132 @@ export default function NuevoEstudiantePage() {
                 )}
               </div>
 
+              {/* Facultad */}
+              <div className={styles.field}>
+                <label htmlFor="facultad">
+                  Facultad <span>*</span>
+                </label>
+
+                <select
+                  id="facultad"
+                  name="facultad"
+                  value={facultadSeleccionada}
+                  onChange={handleFacultadChange}
+                  className={
+                    errores.facultad
+                      ? styles.inputError
+                      : ""
+                  }
+                >
+                  <option value="">
+                    Seleccionar facultad...
+                  </option>
+
+                  {Object.entries(facultades).map(
+                    ([codigo, facultad]) => (
+                      <option
+                        key={codigo}
+                        value={codigo}
+                      >
+                        {facultad.nombre}
+                      </option>
+                    )
+                  )}
+                </select>
+
+                {errores.facultad && (
+                  <p className={styles.errorMessage}>
+                    {errores.facultad}
+                  </p>
+                )}
+              </div>
+
+              {/* Carrera */}
+              <div className={styles.field}>
+                <label htmlFor="carrera">
+                  Carrera <span>*</span>
+                </label>
+
+                <select
+                  id="carrera"
+                  name="carrera"
+                  value={carreraSeleccionada}
+                  onChange={handleCarreraChange}
+                  disabled={!facultadSeleccionada}
+                  className={
+                    errores.carrera
+                      ? styles.inputError
+                      : ""
+                  }
+                >
+                  <option value="">
+                    {facultadSeleccionada
+                      ? "Seleccionar carrera..."
+                      : "Primero selecciona una facultad"}
+                  </option>
+
+                  {carrerasDisponibles.map(
+                    (carrera) => (
+                      <option
+                        key={carrera}
+                        value={carrera}
+                      >
+                        {carrera}
+                      </option>
+                    )
+                  )}
+                </select>
+
+                {errores.carrera && (
+                  <p className={styles.errorMessage}>
+                    {errores.carrera}
+                  </p>
+                )}
+              </div>
+
+              {/* Rol */}
+              <div
+                className={`${styles.field} ${styles.fullWidth}`}
+              >
+                <label htmlFor="rol">
+                  Rol <span>*</span>
+                </label>
+
+                <select
+                  id="rol"
+                  name="rol"
+                  value="ESTUDIANTE"
+                  disabled
+                  className={styles.rolSelect}
+                >
+                  <option value="ESTUDIANTE">
+                    Estudiante
+                  </option>
+                </select>
+
+                {/*
+                  Los controles disabled no forman parte de FormData.
+                  Este input oculto permite conservar ESTUDIANTE
+                  como valor del formulario.
+                */}
+                <input
+                  type="hidden"
+                  name="rol"
+                  value="ESTUDIANTE"
+                />
+
+                <p className={styles.helperText}>
+                  El rol se asigna automáticamente al registrar
+                  un estudiante.
+                </p>
+
+                {errores.rol && (
+                  <p className={styles.errorMessage}>
+                    {errores.rol}
+                  </p>
+                )}
+              </div>
+
               {/* Estado */}
               <div
                 className={`${styles.field} ${styles.fullWidth}`}
@@ -349,7 +639,9 @@ export default function NuevoEstudiantePage() {
                   name="estado"
                   value={estadoSeleccionado}
                   onChange={(event) =>
-                    setEstadoSeleccionado(event.target.value)
+                    setEstadoSeleccionado(
+                      event.target.value
+                    )
                   }
                   className={`${styles.estadoSelect} ${
                     estadoSeleccionado === "ACTIVO"
