@@ -3,6 +3,7 @@ import cors from "cors";
 import "dotenv/config";
 import express from "express";
 import authRoutes from "./routes/auth.routes";
+import userRoutes from "./routes/user.routes";
 import { errorHandler } from "./middlewares/error.middleware";
 
 const app = express();
@@ -19,6 +20,7 @@ app.get("/health", (_request, response) => {
 
 // Rutas de la API
 app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
 
 // Middleware centralizado de manejo de errores (debe ser el último)
 app.use(errorHandler);
