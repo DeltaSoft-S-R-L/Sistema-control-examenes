@@ -168,6 +168,21 @@
   background: #124936;
   border-color: #124936;
 }
+.inputError {
+  border-color: #dc2626 !important;
+}
+
+.inputError:focus {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1) !important;
+}
+
+.errorMessage {
+  margin: 0;
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 500;
+}
 
 @media (max-width: 700px) {
   .page {
