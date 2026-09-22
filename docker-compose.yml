@@ -1,34 +1,19 @@
 services:
-  frontend:
-    build: ./frontend
-    ports:
-      - "3000:3000"
-    environment:
-      NEXT_PUBLIC_API_URL: http://localhost:4000
-    depends_on:
-      - backend
-
-  backend:
-    build: ./backend
-    ports:
-      - "4000:4000"
-    environment:
-      PORT: 4000
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/examenes?schema=public
-    depends_on:
-      - db
-
   db:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: examenes
+      POSTGRES_DB: control_examenes
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./database/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+      - ./database/02_constraints.sql:/docker-entrypoint-initdb.d/02_constraints.sql
+      - ./database/03_triggers.sql:/docker-entrypoint-initdb.d/03_triggers.sql
+      - ./database/04_seed.sql:/docker-entrypoint-initdb.d/04_seed.sql
 
 volumes:
   postgres_data:
