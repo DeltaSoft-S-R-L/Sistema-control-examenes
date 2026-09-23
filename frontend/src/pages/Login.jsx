@@ -31,17 +31,40 @@ export default function Login() {
   };
 
   return (
-    <div className="container d-flex align-items-center justify-content-center min-vh-100">
-      <div className="col-12 col-sm-8 col-md-6 col-lg-4">
-        <div className="card shadow-lg border-0 rounded-4">
-          <div className="card-body p-4 p-md-5">
-            <div className="text-center mb-4">
-              <div className="bg-primary text-white d-inline-flex align-items-center justify-content-center rounded-circle p-3 mb-2 shadow">
-                <i className="bi bi-mortarboard-fill fs-2"></i>
-              </div>
-              <h4 className="fw-bold mt-2">Control de Exámenes</h4>
-              <p className="text-muted small">Ingrese sus credenciales de acceso</p>
-            </div>
+    <div className="container-fluid vh-100 d-flex flex-column flex-md-row p-0">
+      {/* Sección Izquierda: Branding CampusGate */}
+      <div className="col-12 col-md-7 text-white d-flex flex-column justify-content-center p-5" style={{ backgroundColor: '#0A3123' }}>
+        <h1 className="display-4 fw-bold mb-3">
+          Cada estudiante.<br />
+          En el aula correcta.<br />
+          A tiempo.
+        </h1>
+        <p className="lead mb-5">
+          Control rápido y seguro para exámenes universitarios masivos. Verifica identidades, habilitaciones y registra ingresos en tiempo real.
+        </p>
+        
+        {/* Stats*/}
+        <div className="d-flex gap-4">
+          <div className="p-3 border rounded border-success border-opacity-50" style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}>
+            <small className="d-block text-uppercase text-muted">Aula Magna A</small>
+            <span className="fs-3 fw-bold">412 / 412</span>
+            <small className="d-block text-muted">Ingreso completado</small>
+          </div>
+          <div className="p-3 border rounded border-success border-opacity-50" style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}>
+            <small className="d-block text-uppercase text-muted">Centro de Cómputo</small>
+            <span className="fs-3 fw-bold">184 / 200</span>
+            <small className="d-block text-muted">Ingreso en proceso</small>
+          </div>
+        </div>
+      </div>
+
+      {/* Sección Derecha: Formulario */}
+      <div className="col-12 col-md-5 d-flex align-items-center justify-content-center" style={{ backgroundColor: '#072419' }}>
+        <div className="card shadow-lg w-100 mx-4 mx-md-5 border-0 rounded-4" style={{ maxWidth: '450px' }}>
+          <div className="card-body p-5">
+            <small className="text-muted text-uppercase fw-bold">Acceso Seguro</small>
+            <h2 className="card-title fw-bold mb-4">Bienvenido</h2>
+            <p className="text-muted small mb-4">Inicia sesión para gestionar el control de este recinto.</p>
 
             {error && (
               <div className="alert alert-danger py-2 d-flex align-items-center" role="alert">
@@ -52,50 +75,41 @@ export default function Login() {
 
             <form onSubmit={handleSubmit}>
               <div className="mb-3">
-                <label className="form-label fw-semibold">Usuario</label>
-                <div className="input-group">
-                  <span className="input-group-text bg-light"><i className="bi bi-person"></i></span>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="admin"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    required
-                    autoFocus
-                  />
-                </div>
+                <label className="form-label small fw-bold">Correo institucional o usuario</label>
+                <input 
+                  type="text" 
+                  className="form-control bg-light" 
+                  placeholder="nombre@cuentas.umss.edu.bo"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required 
+                  autoFocus
+                />
               </div>
-
               <div className="mb-4">
-                <label className="form-label fw-semibold">Contraseña</label>
-                <div className="input-group">
-                  <span className="input-group-text bg-light"><i className="bi bi-lock"></i></span>
-                  <input
-                    type="password"
-                    className="form-control"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                </div>
+                <label className="form-label small fw-bold">Contraseña</label>
+                <input 
+                  type="password" 
+                  className="form-control bg-light" 
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required 
+                />
               </div>
-
-              <button
-                type="submit"
-                className="btn btn-primary w-100 py-2 fw-semibold shadow-sm"
+              <button 
+                type="submit" 
+                className="btn w-100 text-white fw-bold py-2 shadow-sm" 
+                style={{ backgroundColor: '#0A3123' }}
                 disabled={loading}
               >
                 {loading ? (
                   <>
                     <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                    Ingresando...
+                    Verificando...
                   </>
                 ) : (
-                  <>
-                    <i className="bi bi-box-arrow-in-right me-1"></i> Iniciar Sesión
-                  </>
+                  'Iniciar sesión →'
                 )}
               </button>
             </form>
