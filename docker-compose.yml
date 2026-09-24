@@ -13,8 +13,18 @@ services:
     ports:
       - "4000:4000"
     environment:
-      PORT: 4000
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/examenes?schema=public
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_KEY: base64:PyV0f7GsfsxHUgDeldMTNFsGS5P6ugPdiDi2fsNb+Wk=
+      APP_URL: http://localhost:4000
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: examenes
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+    volumes:
+      - ./backend:/var/www/html
     depends_on:
       - db
 
@@ -29,6 +39,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./database:/docker-entrypoint-initdb.d:ro
 
 volumes:
   postgres_data:

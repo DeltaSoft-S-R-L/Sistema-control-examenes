@@ -1,29 +1,17 @@
 {
-  "name": "sistema-control-examenes-backend",
-  "version": "1.0.0",
-  "private": true,
-  "scripts": {
-    "dev": "tsx watch src/app.ts",
-    "build": "tsc",
-    "start": "node dist/app.js",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev"
-  },
-  "dependencies": {
-    "@prisma/client": "^6.19.3",
-    "bcryptjs": "^3.0.3",
-    "cors": "latest",
-    "dotenv": "latest",
-    "express": "latest",
-    "zod": "latest"
-  },
-  "devDependencies": {
-    "@types/bcryptjs": "^2.4.6",
-    "@types/cors": "latest",
-    "@types/express": "latest",
-    "@types/node": "latest",
-    "prisma": "^6.19.3",
-    "tsx": "latest",
-    "typescript": "latest"
-  }
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "vite build",
+        "dev": "vite"
+    },
+    "devDependencies": {
+        "autoprefixer": "^10.4.20",
+        "axios": "^1.7.4",
+        "concurrently": "^9.0.1",
+        "laravel-vite-plugin": "^1.2.0",
+        "postcss": "^8.4.47",
+        "tailwindcss": "^3.4.13",
+        "vite": "^6.0.11"
+    }
 }
