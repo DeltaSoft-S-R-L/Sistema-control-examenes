@@ -39,4 +39,32 @@ class UsuarioController extends Controller
             ],
         ], 201);
     }
+
+    /**
+     * Listar usuarios de forma paginada.
+     */
+    public function index()
+    {
+        $usuarios = Usuario::with('rol')
+            ->orderBy('apellido')
+            ->paginate(20);
+
+        return response()->json($usuarios);
+    }
+
+    /**
+     * Mostrar el detalle de un usuario.
+     */
+    public function show(string $id)
+    {
+        $usuario = Usuario::with('rol')->find($id);
+
+        if (!$usuario) {
+            return response()->json([
+                'message' => 'Usuario no encontrado.',
+            ], 404);
+        }
+
+        return response()->json($usuario);
+    }
 }
