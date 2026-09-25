@@ -17,7 +17,7 @@ Sistema integral para el control de asistencia, verificación de habilitación, 
   - PHP 8.2+
   - Laravel Sanctum (Autenticación API)
 - **Base de Datos:**
-  - PostgreSQL 16 (con soporte a esquemas, triggers y constraints)
+  - PostgreSQL 15 (con soporte a esquemas, triggers y constraints)
 
 ---
 

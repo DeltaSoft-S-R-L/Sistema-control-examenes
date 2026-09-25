@@ -1,61 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 
-const facultades = {
-  CIENCIAS_TECNOLOGIA: {
-    nombre: 'Facultad de Ciencias y Tecnología',
-    carreras: [
-      'Ingeniería de Sistemas',
-      'Ingeniería Informática',
-      'Ingeniería Electrónica',
-      'Ingeniería Civil',
-      'Ingeniería Industrial',
-    ],
-  },
-
-  CIENCIAS_ECONOMICAS: {
-    nombre: 'Facultad de Ciencias Económicas',
-    carreras: [
-      'Administración de Empresas',
-      'Economía',
-      'Contaduría Pública',
-      'Ingeniería Comercial',
-      'Ingeniería Financiera',
-    ],
-  },
-
-  CIENCIAS_SALUD: {
-    nombre: 'Facultad de Ciencias de la Salud',
-    carreras: [
-      'Medicina',
-      'Enfermería',
-      'Nutrición y Dietética',
-      'Fisioterapia y Kinesiología',
-      'Odontología',
-    ],
-  },
-
-  HUMANIDADES: {
-    nombre: 'Facultad de Humanidades',
-    carreras: [
-      'Psicología',
-      'Ciencias de la Educación',
-      'Lingüística',
-      'Trabajo Social',
-      'Comunicación Social',
-    ],
-  },
-};
-
 const estadoInicial = {
   ci: '',
   codigoUniversitario: '',
   nombre: '',
   apellido: '',
   correo: '',
-  facultad: '',
-  carrera: '',
-  estado: 'activo',
+  estado: 'ACTIVO',
 };
 
 export default function NuevoEstudianteModal({
@@ -80,17 +32,12 @@ export default function NuevoEstudianteModal({
     return null;
   }
 
-  const carrerasDisponibles = formulario.facultad
-    ? facultades[formulario.facultad]?.carreras || []
-    : [];
-
   const handleChange = (e) => {
     const { name, value } = e.target;
 
     setFormulario((actual) => ({
       ...actual,
       [name]: value,
-      ...(name === 'facultad' ? { carrera: '' } : {}),
     }));
 
     setErrores((actual) => ({
@@ -161,16 +108,13 @@ export default function NuevoEstudianteModal({
         'El correo no puede superar los 150 caracteres.';
     }
 
-    if (!formulario.facultad) {
-      nuevosErrores.facultad = 'Seleccione una facultad.';
-    }
-
-    if (!formulario.carrera) {
-      nuevosErrores.carrera = 'Seleccione una carrera.';
-    }
-
     if (!formulario.estado) {
       nuevosErrores.estado = 'Seleccione un estado.';
+    } else if (
+      formulario.estado !== 'ACTIVO' &&
+      formulario.estado !== 'INACTIVO'
+    ) {
+      nuevosErrores.estado = 'Seleccione un estado válido.';
     }
 
     setErrores(nuevosErrores);
@@ -189,13 +133,6 @@ export default function NuevoEstudianteModal({
     setErrorGeneral('');
 
     try {
-      /*
-       * Facultad, carrera y rol todavía no existen en el modelo
-       * Estudiante del backend actual.
-       *
-       * Por ahora enviamos únicamente los campos que Laravel
-       * acepta para no romper el registro.
-       */
       const payload = {
         ci: formulario.ci.trim(),
         codigo_universitario:
@@ -278,7 +215,7 @@ export default function NuevoEstudianteModal({
               maxHeight: 'calc(100vh - 1rem)',
             }}
           >
-            {/* ENCABEZADO AZUL */}
+            {/* ENCABEZADO */}
             <div className="modal-header px-3 px-md-4 py-3 bg-primary text-white">
               <div className="pe-3">
                 <h5 className="modal-title fw-bold">
@@ -305,7 +242,6 @@ export default function NuevoEstudianteModal({
               noValidate
               className="d-flex flex-column overflow-hidden"
             >
-              {/* CONTENIDO CON SCROLL */}
               <div
                 className="modal-body px-3 px-md-4 py-4"
                 style={{
@@ -477,88 +413,17 @@ export default function NuevoEstudianteModal({
 
                 <hr className="my-4" />
 
-                {/* INFORMACIÓN ACADÉMICA */}
-                <div className="mb-4">
+                {/* CONFIGURACIÓN DEL ESTUDIANTE */}
+                <div className="mb-2">
                   <h6 className="fw-bold mb-1">
-                    Información académica
+                    Configuración del estudiante
                   </h6>
 
                   <p className="text-muted small mb-3">
-                    Facultad y carrera a la que pertenece.
+                    Rol y estado dentro del sistema.
                   </p>
 
                   <div className="row g-3">
-                    {/* FACULTAD */}
-                    <div className="col-12 col-md-6">
-                      <label className="form-label fw-semibold">
-                        Facultad{' '}
-                        <span className="text-danger">*</span>
-                      </label>
-
-                      <select
-                        name="facultad"
-                        className={`form-select ${
-                          errores.facultad ? 'is-invalid' : ''
-                        }`}
-                        value={formulario.facultad}
-                        onChange={handleChange}
-                      >
-                        <option value="">
-                          Seleccione una facultad
-                        </option>
-
-                        {Object.entries(facultades).map(
-                          ([clave, facultad]) => (
-                            <option key={clave} value={clave}>
-                              {facultad.nombre}
-                            </option>
-                          )
-                        )}
-                      </select>
-
-                      {errores.facultad && (
-                        <div className="invalid-feedback">
-                          {errores.facultad}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* CARRERA */}
-                    <div className="col-12 col-md-6">
-                      <label className="form-label fw-semibold">
-                        Carrera{' '}
-                        <span className="text-danger">*</span>
-                      </label>
-
-                      <select
-                        name="carrera"
-                        className={`form-select ${
-                          errores.carrera ? 'is-invalid' : ''
-                        }`}
-                        value={formulario.carrera}
-                        onChange={handleChange}
-                        disabled={!formulario.facultad}
-                      >
-                        <option value="">
-                          {formulario.facultad
-                            ? 'Seleccione una carrera'
-                            : 'Primero seleccione una facultad'}
-                        </option>
-
-                        {carrerasDisponibles.map((carrera) => (
-                          <option key={carrera} value={carrera}>
-                            {carrera}
-                          </option>
-                        ))}
-                      </select>
-
-                      {errores.carrera && (
-                        <div className="invalid-feedback">
-                          {errores.carrera}
-                        </div>
-                      )}
-                    </div>
-
                     {/* ROL */}
                     <div className="col-12 col-md-6">
                       <label className="form-label fw-semibold">
@@ -593,11 +458,8 @@ export default function NuevoEstudianteModal({
                         value={formulario.estado}
                         onChange={handleChange}
                       >
-                        <option value="activo">Activo</option>
-                        <option value="inactivo">Inactivo</option>
-                        <option value="suspendido">
-                          Suspendido
-                        </option>
+                        <option value="ACTIVO">Activo</option>
+                        <option value="INACTIVO">Inactivo</option>
                       </select>
 
                       {errores.estado && (

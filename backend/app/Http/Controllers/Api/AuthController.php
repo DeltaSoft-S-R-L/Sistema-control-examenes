@@ -4,15 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Usuario;
+use App\Utilities\PasswordHasher;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    /**
-     * Login: devuelve token Sanctum.
-     */
     public function login(Request $request)
     {
         $request->validate([
@@ -24,7 +21,7 @@ class AuthController extends Controller
             ->where('estado', 'activo')
             ->first();
 
-        if (! $usuario || ! Hash::check($request->password, $usuario->password_hash)) {
+        if (! $usuario || ! PasswordHasher::verify($request->password, $usuario->password_hash)) {
             throw ValidationException::withMessages([
                 'username' => ['Las credenciales son incorrectas.'],
             ]);
@@ -45,9 +42,6 @@ class AuthController extends Controller
         ]);
     }
 
-    /**
-     * Logout: revoca el token actual.
-     */
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
@@ -55,9 +49,6 @@ class AuthController extends Controller
         return response()->json(['message' => 'Sesión cerrada correctamente.']);
     }
 
-    /**
-     * Devuelve los datos del usuario autenticado.
-     */
     public function me(Request $request)
     {
         $usuario = $request->user()->load('rol');
@@ -72,3 +63,4 @@ class AuthController extends Controller
         ]);
     }
 }
+

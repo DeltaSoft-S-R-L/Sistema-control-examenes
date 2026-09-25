@@ -4,6 +4,7 @@ import NuevoEstudianteModal from '../components/estudiantes/NuevoEstudianteModal
 
 export default function Estudiantes() {
   const [estudiantes, setEstudiantes] = useState([]);
+  const [totalEstudiantes, setTotalEstudiantes] = useState(0);
   const [loading, setLoading] = useState(true);
   const [buscar, setBuscar] = useState('');
   const [mostrarModal, setMostrarModal] = useState(false);
@@ -17,10 +18,14 @@ export default function Estudiantes() {
         params: search ? { buscar: search } : {},
       });
 
-      setEstudiantes(res.data.data || res.data || []);
+      const datos = res.data.data || res.data || [];
+
+      setEstudiantes(datos);
+      setTotalEstudiantes(res.data.total ?? datos.length);
     } catch (err) {
       console.error('Error al obtener estudiantes:', err);
       setEstudiantes([]);
+      setTotalEstudiantes(0);
     } finally {
       setLoading(false);
     }
@@ -50,14 +55,11 @@ export default function Estudiantes() {
   };
 
   const obtenerClaseEstado = (estado) => {
-    switch (estado?.toLowerCase()) {
-      case 'activo':
+    switch (estado?.toUpperCase()) {
+      case 'ACTIVO':
         return 'bg-success';
 
-      case 'suspendido':
-        return 'bg-warning text-dark';
-
-      case 'inactivo':
+      case 'INACTIVO':
         return 'bg-secondary';
 
       default:
@@ -169,8 +171,8 @@ export default function Estudiantes() {
 
             {!loading && (
               <span className="badge text-bg-light border">
-                {estudiantes.length}{' '}
-                {estudiantes.length === 1
+                {totalEstudiantes}{' '}
+                {totalEstudiantes === 1
                   ? 'estudiante'
                   : 'estudiantes'}
               </span>
