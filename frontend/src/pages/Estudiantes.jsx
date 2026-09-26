@@ -1,25 +1,39 @@
 import React, { useEffect, useState } from 'react';
 import api from '../services/api';
-import NuevoEstudianteModal from '../components/estudiantes/NuevoEstudianteModal';
+import NuevoEstudianteModal   from '../components/estudiantes/NuevoEstudianteModal';
+import EditarEstudianteModal  from '../components/estudiantes/EditarEstudianteModal';
+import CargaMasivaModal       from '../components/estudiantes/CargaMasivaModal';
 
 export default function Estudiantes() {
-  const [estudiantes, setEstudiantes] = useState([]);
+  const [estudiantes,      setEstudiantes]      = useState([]);
   const [totalEstudiantes, setTotalEstudiantes] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [buscar, setBuscar] = useState('');
-  const [mostrarModal, setMostrarModal] = useState(false);
-  const [mensaje, setMensaje] = useState('');
+  const [loading,          setLoading]          = useState(true);
 
-  const fetchEstudiantes = async (search = '') => {
+  // Búsqueda
+  const [buscar,     setBuscar]     = useState('');
+  const [filtroCi,   setFiltroCi]   = useState('');
+  const [filtroCodigo, setFiltroCodigo] = useState('');
+
+  // Modales
+  const [mostrarNuevo,        setMostrarNuevo]        = useState(false);
+  const [mostrarEditar,       setMostrarEditar]       = useState(false);
+  const [mostrarCargaMasiva,  setMostrarCargaMasiva]  = useState(false);
+  const [estudianteEditando,  setEstudianteEditando]  = useState(null);
+
+  // Notificaciones
+  const [notificacion, setNotificacion] = useState({ visible: false, tipo: '', mensaje: '' });
+
+  // ────────────────────────────────────────────
+  const mostrarNotificacion = (tipo, mensaje) => {
+    setNotificacion({ visible: true, tipo, mensaje });
+    window.setTimeout(() => setNotificacion({ visible: false, tipo: '', mensaje: '' }), 5000);
+  };
+
+  const fetchEstudiantes = async (params = {}) => {
     try {
       setLoading(true);
-
-      const res = await api.get('/estudiantes', {
-        params: search ? { buscar: search } : {},
-      });
-
+      const res  = await api.get('/estudiantes', { params });
       const datos = res.data.data || res.data || [];
-
       setEstudiantes(datos);
       setTotalEstudiantes(res.data.total ?? datos.length);
     } catch (err) {
@@ -31,150 +45,179 @@ export default function Estudiantes() {
     }
   };
 
-  useEffect(() => {
-    fetchEstudiantes();
-  }, []);
+  useEffect(() => { fetchEstudiantes(); }, []);
 
-  const handleSearch = (e) => {
+  // ── Búsqueda general ──
+  const handleBusquedaGeneral = (e) => {
     e.preventDefault();
-    fetchEstudiantes(buscar);
+    const params = {};
+    if (buscar.trim())      params.buscar     = buscar.trim();
+    if (filtroCi.trim())    params.ci         = filtroCi.trim();
+    if (filtroCodigo.trim()) params.codigo_sis = filtroCodigo.trim();
+    fetchEstudiantes(params);
   };
 
   const limpiarBusqueda = () => {
     setBuscar('');
+    setFiltroCi('');
+    setFiltroCodigo('');
     fetchEstudiantes();
   };
 
+  // ── Callbacks de modales ──
   const handleRegistrado = () => {
-    setMensaje('Estudiante registrado correctamente.');
-    fetchEstudiantes(buscar);
-
-    window.setTimeout(() => {
-      setMensaje('');
-    }, 4000);
+    mostrarNotificacion('success', 'Estudiante registrado correctamente.');
+    fetchEstudiantes();
   };
 
-  const obtenerClaseEstado = (estado) => {
-    switch (estado?.toUpperCase()) {
-      case 'ACTIVO':
-        return 'bg-success';
-
-      case 'INACTIVO':
-        return 'bg-secondary';
-
-      default:
-        return 'bg-secondary';
-    }
+  const handleActualizado = (estudianteActualizado) => {
+    setEstudiantes((prev) =>
+      prev.map((e) =>
+        e.id_estudiante === estudianteActualizado.id_estudiante ? estudianteActualizado : e
+      )
+    );
+    mostrarNotificacion('success', 'Datos del estudiante actualizados correctamente.');
   };
+
+  const handleCargaCompletada = () => {
+    fetchEstudiantes();
+  };
+
+  const abrirEditar = (est) => {
+    setEstudianteEditando(est);
+    setMostrarEditar(true);
+  };
+
+  // ── Estado → badge ──
+  const claseEstado = (estado) =>
+    estado?.toUpperCase() === 'ACTIVO' ? 'bg-success' : 'bg-secondary';
 
   return (
     <div>
-      {/* Encabezado */}
+      {/* ── Encabezado ── */}
       <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <div>
           <h2 className="fw-bold mb-1">Estudiantes</h2>
-
           <p className="text-muted mb-0">
             Directorio de estudiantes habilitados para rendir exámenes
           </p>
         </div>
 
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => setMostrarModal(true)}
-        >
-          <i className="bi bi-person-plus me-2"></i>
-          Nuevo estudiante
-        </button>
+        <div className="d-flex gap-2 flex-wrap">
+          <button
+            type="button"
+            className="btn btn-outline-success"
+            onClick={() => setMostrarCargaMasiva(true)}
+          >
+            <i className="bi bi-cloud-upload me-2"></i>Carga masiva CSV
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => setMostrarNuevo(true)}
+          >
+            <i className="bi bi-person-plus me-2"></i>Nuevo estudiante
+          </button>
+        </div>
       </div>
 
-      {/* Mensaje de éxito */}
-      {mensaje && (
+      {/* ── Notificación ── */}
+      {notificacion.visible && (
         <div
-          className="alert alert-success alert-dismissible fade show"
+          className={`alert alert-${notificacion.tipo} alert-dismissible fade show`}
           role="alert"
         >
-          <i className="bi bi-check-circle-fill me-2"></i>
-
-          {mensaje}
-
+          <i className={`bi ${notificacion.tipo === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'} me-2`}></i>
+          {notificacion.mensaje}
           <button
             type="button"
             className="btn-close"
-            onClick={() => setMensaje('')}
+            onClick={() => setNotificacion({ visible: false, tipo: '', mensaje: '' })}
             aria-label="Cerrar"
-          ></button>
+          />
         </div>
       )}
 
-      {/* Buscador */}
+      {/* ── Buscador ── */}
       <div className="card border-0 shadow-sm rounded-3 mb-4">
         <div className="card-body">
-          <form
-            onSubmit={handleSearch}
-            className="row g-2 align-items-center"
-          >
-            <div className="col-12 col-lg-6">
+          <form onSubmit={handleBusquedaGeneral} className="row g-2 align-items-end">
+
+            {/* Búsqueda general */}
+            <div className="col-12 col-lg-4">
+              <label className="form-label small fw-semibold mb-1">Búsqueda general</label>
               <div className="input-group">
                 <span className="input-group-text bg-light">
                   <i className="bi bi-search"></i>
                 </span>
-
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="Buscar por nombre, CI o código..."
+                  placeholder="Nombre, CI o código..."
                   value={buscar}
                   onChange={(e) => setBuscar(e.target.value)}
                 />
               </div>
             </div>
 
-            <div className="col-auto">
-              <button
-                type="submit"
-                className="btn btn-primary"
-              >
-                Buscar
-              </button>
+            {/* Filtro CI exacto */}
+            <div className="col-12 col-md-4 col-lg-3">
+              <label className="form-label small fw-semibold mb-1">CI exacto</label>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Ej. 12345678"
+                value={filtroCi}
+                onChange={(e) => setFiltroCi(e.target.value)}
+              />
             </div>
 
-            {buscar && (
-              <div className="col-auto">
+            {/* Filtro código SIS exacto */}
+            <div className="col-12 col-md-4 col-lg-3">
+              <label className="form-label small fw-semibold mb-1">Código SIS exacto</label>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Ej. 202012345"
+                value={filtroCodigo}
+                onChange={(e) => setFiltroCodigo(e.target.value)}
+              />
+            </div>
+
+            {/* Botones */}
+            <div className="col-12 col-lg-2 d-flex gap-2">
+              <button type="submit" className="btn btn-primary flex-fill">
+                Buscar
+              </button>
+              {(buscar || filtroCi || filtroCodigo) && (
                 <button
                   type="button"
                   className="btn btn-outline-secondary"
                   onClick={limpiarBusqueda}
+                  title="Limpiar filtros"
                 >
-                  Limpiar
+                  <i className="bi bi-x-lg"></i>
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </form>
         </div>
       </div>
 
-      {/* Tabla */}
+      {/* ── Tabla ── */}
       <div className="card border-0 shadow-sm rounded-3">
         <div className="card-header bg-white border-0 px-4 pt-4 pb-3">
           <div className="d-flex justify-content-between align-items-center">
             <div>
-              <h5 className="fw-bold mb-1">
-                Estudiantes registrados
-              </h5>
-
+              <h5 className="fw-bold mb-1">Estudiantes registrados</h5>
               <p className="text-muted small mb-0">
                 Información de estudiantes disponibles en el sistema
               </p>
             </div>
-
             {!loading && (
               <span className="badge text-bg-light border">
                 {totalEstudiantes}{' '}
-                {totalEstudiantes === 1
-                  ? 'estudiante'
-                  : 'estudiantes'}
+                {totalEstudiantes === 1 ? 'estudiante' : 'estudiantes'}
               </span>
             )}
           </div>
@@ -185,48 +228,35 @@ export default function Estudiantes() {
             <table className="table table-hover align-middle mb-0">
               <thead className="table-light">
                 <tr>
-                  <th className="ps-4">Código</th>
+                  <th className="ps-4">Código SIS</th>
                   <th>CI</th>
                   <th>Nombre completo</th>
                   <th>Correo</th>
                   <th>Estado</th>
+                  <th className="text-center">Acciones</th>
                 </tr>
               </thead>
 
               <tbody>
                 {loading ? (
                   <tr>
-                    <td
-                      colSpan="5"
-                      className="text-center py-5"
-                    >
+                    <td colSpan="6" className="text-center py-5">
                       <div className="spinner-border spinner-border-sm text-primary me-2"></div>
                       Cargando estudiantes...
                     </td>
                   </tr>
                 ) : estudiantes.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan="5"
-                      className="text-center py-5"
-                    >
+                    <td colSpan="6" className="text-center py-5">
                       <div
                         className="bg-primary-subtle text-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
-                        style={{
-                          width: '48px',
-                          height: '48px',
-                        }}
+                        style={{ width: 48, height: 48 }}
                       >
                         <i className="bi bi-people fs-5"></i>
                       </div>
-
-                      <h6 className="fw-semibold">
-                        No se encontraron estudiantes
-                      </h6>
-
+                      <h6 className="fw-semibold">No se encontraron estudiantes</h6>
                       <p className="text-muted small mb-0">
-                        Registre un estudiante o cambie los criterios
-                        de búsqueda.
+                        Registre un estudiante o cambie los criterios de búsqueda.
                       </p>
                     </td>
                   </tr>
@@ -236,27 +266,25 @@ export default function Estudiantes() {
                       <td className="ps-4 fw-semibold text-primary">
                         {est.codigo_universitario}
                       </td>
-
                       <td>{est.ci}</td>
-
                       <td>
-                        <div className="fw-semibold">
-                          {est.nombre} {est.apellido}
-                        </div>
+                        <div className="fw-semibold">{est.nombre} {est.apellido}</div>
                       </td>
-
-                      <td className="text-muted">
-                        {est.correo || '-'}
-                      </td>
-
+                      <td className="text-muted">{est.correo || '-'}</td>
                       <td>
-                        <span
-                          className={`badge ${obtenerClaseEstado(
-                            est.estado
-                          )}`}
-                        >
+                        <span className={`badge ${claseEstado(est.estado)}`}>
                           {est.estado || 'Sin estado'}
                         </span>
+                      </td>
+                      <td className="text-center">
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-warning"
+                          title="Editar estudiante"
+                          onClick={() => abrirEditar(est)}
+                        >
+                          <i className="bi bi-pencil-square me-1"></i>Editar
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -267,11 +295,24 @@ export default function Estudiantes() {
         </div>
       </div>
 
-      {/* Modal para registrar estudiante */}
+      {/* ── Modales ── */}
       <NuevoEstudianteModal
-        mostrar={mostrarModal}
-        onCerrar={() => setMostrarModal(false)}
+        mostrar={mostrarNuevo}
+        onCerrar={() => setMostrarNuevo(false)}
         onRegistrado={handleRegistrado}
+      />
+
+      <EditarEstudianteModal
+        mostrar={mostrarEditar}
+        estudiante={estudianteEditando}
+        onCerrar={() => { setMostrarEditar(false); setEstudianteEditando(null); }}
+        onActualizado={handleActualizado}
+      />
+
+      <CargaMasivaModal
+        mostrar={mostrarCargaMasiva}
+        onCerrar={() => setMostrarCargaMasiva(false)}
+        onCargaCompletada={handleCargaCompletada}
       />
     </div>
   );

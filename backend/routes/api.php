@@ -33,6 +33,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
 
+    // Estudiantes — rutas específicas antes del apiResource
+    Route::get('/estudiantes/buscar',      [EstudianteController::class, 'buscarPorIdentificador']);
+    Route::post('/estudiantes/carga-masiva', [EstudianteController::class, 'cargaMasiva']);
+
     // Recursos principales
     Route::apiResource('estudiantes',    EstudianteController::class);
     Route::apiResource('examenes',       ExamenController::class);
