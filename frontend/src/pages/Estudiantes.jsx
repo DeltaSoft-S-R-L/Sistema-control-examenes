@@ -1,20 +1,26 @@
-import React, { useEffect, useState } from 'react';
-import api from '../services/api';
-import NuevoEstudianteModal from '../components/estudiantes/NuevoEstudianteModal';
+import React, { useEffect, useState } from "react";
+import api from "../services/api";
+import ImportarEstudiantesModal from "../components/estudiantes/ImportarEstudiantesModal";
+import EditarEstudianteModal from "../components/estudiantes/EditarEstudianteModal";
 
 export default function Estudiantes() {
   const [estudiantes, setEstudiantes] = useState([]);
   const [totalEstudiantes, setTotalEstudiantes] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [buscar, setBuscar] = useState('');
-  const [mostrarModal, setMostrarModal] = useState(false);
-  const [mensaje, setMensaje] = useState('');
+  const [buscar, setBuscar] = useState("");
 
-  const fetchEstudiantes = async (search = '') => {
+  const [mostrarModal, setMostrarModal] = useState(false);
+
+  const [mostrarEditarModal, setMostrarEditarModal] = useState(false);
+  const [estudianteSeleccionado, setEstudianteSeleccionado] = useState(null);
+
+  const [mensaje, setMensaje] = useState("");
+
+  const fetchEstudiantes = async (search = "") => {
     try {
       setLoading(true);
 
-      const res = await api.get('/estudiantes', {
+      const res = await api.get("/estudiantes", {
         params: search ? { buscar: search } : {},
       });
 
@@ -23,7 +29,7 @@ export default function Estudiantes() {
       setEstudiantes(datos);
       setTotalEstudiantes(res.data.total ?? datos.length);
     } catch (err) {
-      console.error('Error al obtener estudiantes:', err);
+      console.error("Error al obtener estudiantes:", err);
       setEstudiantes([]);
       setTotalEstudiantes(0);
     } finally {
@@ -41,29 +47,56 @@ export default function Estudiantes() {
   };
 
   const limpiarBusqueda = () => {
-    setBuscar('');
+    setBuscar("");
     fetchEstudiantes();
   };
 
-  const handleRegistrado = () => {
-    setMensaje('Estudiante registrado correctamente.');
+  const handleImportado = (resultado) => {
+    setMensaje(
+      `${resultado.importados} ${
+        resultado.importados === 1
+          ? "estudiante importado"
+          : "estudiantes importados"
+      } correctamente.`,
+    );
+
     fetchEstudiantes(buscar);
 
     window.setTimeout(() => {
-      setMensaje('');
+      setMensaje("");
+    }, 4000);
+  };
+
+  const abrirEditar = (estudiante) => {
+    setEstudianteSeleccionado(estudiante);
+    setMostrarEditarModal(true);
+  };
+
+  const cerrarEditar = () => {
+    setMostrarEditarModal(false);
+    setEstudianteSeleccionado(null);
+  };
+
+  const handleActualizado = () => {
+    setMensaje("Estudiante actualizado correctamente.");
+
+    fetchEstudiantes(buscar);
+
+    window.setTimeout(() => {
+      setMensaje("");
     }, 4000);
   };
 
   const obtenerClaseEstado = (estado) => {
     switch (estado?.toUpperCase()) {
-      case 'ACTIVO':
-        return 'bg-success';
+      case "ACTIVO":
+        return "bg-success";
 
-      case 'INACTIVO':
-        return 'bg-secondary';
+      case "INACTIVO":
+        return "bg-secondary";
 
       default:
-        return 'bg-secondary';
+        return "bg-secondary";
     }
   };
 
@@ -84,8 +117,8 @@ export default function Estudiantes() {
           className="btn btn-primary"
           onClick={() => setMostrarModal(true)}
         >
-          <i className="bi bi-person-plus me-2"></i>
-          Nuevo estudiante
+          <i className="bi bi-upload me-2"></i>
+          Importar estudiantes
         </button>
       </div>
 
@@ -102,7 +135,7 @@ export default function Estudiantes() {
           <button
             type="button"
             className="btn-close"
-            onClick={() => setMensaje('')}
+            onClick={() => setMensaje("")}
             aria-label="Cerrar"
           ></button>
         </div>
@@ -111,10 +144,7 @@ export default function Estudiantes() {
       {/* Buscador */}
       <div className="card border-0 shadow-sm rounded-3 mb-4">
         <div className="card-body">
-          <form
-            onSubmit={handleSearch}
-            className="row g-2 align-items-center"
-          >
+          <form onSubmit={handleSearch} className="row g-2 align-items-center">
             <div className="col-12 col-lg-6">
               <div className="input-group">
                 <span className="input-group-text bg-light">
@@ -132,10 +162,7 @@ export default function Estudiantes() {
             </div>
 
             <div className="col-auto">
-              <button
-                type="submit"
-                className="btn btn-primary"
-              >
+              <button type="submit" className="btn btn-primary">
                 Buscar
               </button>
             </div>
@@ -160,9 +187,7 @@ export default function Estudiantes() {
         <div className="card-header bg-white border-0 px-4 pt-4 pb-3">
           <div className="d-flex justify-content-between align-items-center">
             <div>
-              <h5 className="fw-bold mb-1">
-                Estudiantes registrados
-              </h5>
+              <h5 className="fw-bold mb-1">Estudiantes registrados</h5>
 
               <p className="text-muted small mb-0">
                 Información de estudiantes disponibles en el sistema
@@ -171,10 +196,8 @@ export default function Estudiantes() {
 
             {!loading && (
               <span className="badge text-bg-light border">
-                {totalEstudiantes}{' '}
-                {totalEstudiantes === 1
-                  ? 'estudiante'
-                  : 'estudiantes'}
+                {totalEstudiantes}{" "}
+                {totalEstudiantes === 1 ? "estudiante" : "estudiantes"}
               </span>
             )}
           </div>
@@ -190,31 +213,26 @@ export default function Estudiantes() {
                   <th>Nombre completo</th>
                   <th>Correo</th>
                   <th>Estado</th>
+                  <th className="text-center">Acciones</th>
                 </tr>
               </thead>
 
               <tbody>
                 {loading ? (
                   <tr>
-                    <td
-                      colSpan="5"
-                      className="text-center py-5"
-                    >
+                    <td colSpan="6" className="text-center py-5">
                       <div className="spinner-border spinner-border-sm text-primary me-2"></div>
                       Cargando estudiantes...
                     </td>
                   </tr>
                 ) : estudiantes.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan="5"
-                      className="text-center py-5"
-                    >
+                    <td colSpan="6" className="text-center py-5">
                       <div
                         className="bg-primary-subtle text-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
                         style={{
-                          width: '48px',
-                          height: '48px',
+                          width: "48px",
+                          height: "48px",
                         }}
                       >
                         <i className="bi bi-people fs-5"></i>
@@ -225,8 +243,7 @@ export default function Estudiantes() {
                       </h6>
 
                       <p className="text-muted small mb-0">
-                        Registre un estudiante o cambie los criterios
-                        de búsqueda.
+                        Importe estudiantes o cambie los criterios de búsqueda.
                       </p>
                     </td>
                   </tr>
@@ -246,17 +263,27 @@ export default function Estudiantes() {
                       </td>
 
                       <td className="text-muted">
-                        {est.correo || '-'}
+                        {est.correo || "-"}
                       </td>
 
                       <td>
                         <span
-                          className={`badge ${obtenerClaseEstado(
-                            est.estado
-                          )}`}
+                          className={`badge ${obtenerClaseEstado(est.estado)}`}
                         >
-                          {est.estado || 'Sin estado'}
+                          {est.estado || "Sin estado"}
                         </span>
+                      </td>
+
+                      <td className="text-center">
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-primary"
+                          onClick={() => abrirEditar(est)}
+                          title="Editar estudiante"
+                        >
+                          <i className="bi bi-pencil-square me-1"></i>
+                          Editar
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -267,11 +294,19 @@ export default function Estudiantes() {
         </div>
       </div>
 
-      {/* Modal para registrar estudiante */}
-      <NuevoEstudianteModal
+      {/* Modal para importar estudiantes */}
+      <ImportarEstudiantesModal
         mostrar={mostrarModal}
         onCerrar={() => setMostrarModal(false)}
-        onRegistrado={handleRegistrado}
+        onImportado={handleImportado}
+      />
+
+      {/* Modal para editar estudiantes */}
+      <EditarEstudianteModal
+        mostrar={mostrarEditarModal}
+        estudiante={estudianteSeleccionado}
+        onCerrar={cerrarEditar}
+        onActualizado={handleActualizado}
       />
     </div>
   );

@@ -34,6 +34,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
 
     // Recursos principales
+    Route::post('/estudiantes/importar', [EstudianteController::class, 'importar']);
     Route::apiResource('estudiantes',    EstudianteController::class);
     Route::apiResource('examenes',       ExamenController::class);
     Route::apiResource('ambientes',      AmbienteController::class);
