@@ -101,6 +101,13 @@ class EstudianteController extends Controller
             '',
             $encabezados[0]
         );
+        // Quitar columnas vacías adicionales al final generadas por Excel.
+        while (
+            count($encabezados) > 0 &&
+            trim((string) end($encabezados)) === ''
+            ) {
+            array_pop($encabezados);
+        }
 
         $columnasEsperadas = [
             'ci',
@@ -134,6 +141,13 @@ class EstudianteController extends Controller
             )) !== false
         ) {
             $fila++;
+            // Quitar columnas vacías adicionales al final generadas por Excel.
+        while (
+            count($datos) > 0 &&
+            trim((string) end($datos)) === ''
+            ) {
+            array_pop($datos);
+        }
 
             // Ignorar filas completamente vacías.
             if (
