@@ -237,7 +237,9 @@ class EstudianteController extends Controller
             'correo'               => 'nullable|email|max:150',
             'estado'               => 'sometimes|in:ACTIVO,INACTIVO',
         ]);
-
+        if (isset($data['estado'])) {
+            $data['estado'] = strtoupper($data['estado']);
+        }
         $estudiante->update($data);
 
         return response()->json($estudiante);

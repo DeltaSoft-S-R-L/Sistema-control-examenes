@@ -228,8 +228,8 @@ export default function EditarEstudianteModal({
                       onChange={handleChange}
                       required
                     >
-                      <option value="ACTIVO">Activo</option>
-                      <option value="INACTIVO">Inactivo</option>
+                      <option value="ACTIVO">ACTIVO</option>
+                      <option value="INACTIVO">INACTIVO</option>
                     </select>
                   </div>
                 </div>
