@@ -36,7 +36,7 @@ class EstudianteController extends Controller
             'apellido'             => 'required|string|max:100',
             'codigo_universitario' => 'required|string|max:50|unique:estudiante,codigo_universitario',
             'correo'               => 'nullable|email|max:150',
-            'estado'               => 'required|in:activo,inactivo,suspendido',
+            'estado'               => 'required|in:ACTIVO,INACTIVO',
         ]);
 
         $estudiante = Estudiante::create($data);
@@ -235,7 +235,7 @@ class EstudianteController extends Controller
             'apellido'             => 'sometimes|string|max:100',
             'codigo_universitario' => "sometimes|string|max:50|unique:estudiante,codigo_universitario,{$id},id_estudiante",
             'correo'               => 'nullable|email|max:150',
-            'estado'               => 'sometimes|in:activo,inactivo,suspendido',
+            'estado'               => 'sometimes|in:ACTIVO,INACTIVO',
         ]);
 
         $estudiante->update($data);
