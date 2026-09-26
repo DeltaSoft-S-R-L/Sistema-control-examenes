@@ -49,7 +49,7 @@ class UsuarioController extends Controller
             ],
         ]);
 
-        $datos['estado'] = strtolower($datos['estado']);
+        $datos['estado'] = strtoupper($datos['estado']);
 
         $usuario->update($datos);
 
