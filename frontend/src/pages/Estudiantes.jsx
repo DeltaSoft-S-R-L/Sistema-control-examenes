@@ -2,32 +2,38 @@ import React, { useEffect, useState } from "react";
 import api from "../services/api";
 import ImportarEstudiantesModal from "../components/estudiantes/ImportarEstudiantesModal";
 import EditarEstudianteModal from "../components/estudiantes/EditarEstudianteModal";
+import NuevoEstudianteModal from "../components/estudiantes/NuevoEstudianteModal";
 
 export default function Estudiantes() {
   const [estudiantes, setEstudiantes] = useState([]);
   const [totalEstudiantes, setTotalEstudiantes] = useState(0);
   const [loading, setLoading] = useState(true);
   const [buscar, setBuscar] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   const [mostrarModal, setMostrarModal] = useState(false);
+  const [mostrarNuevoModal, setMostrarNuevoModal] = useState(false);
 
   const [mostrarEditarModal, setMostrarEditarModal] = useState(false);
   const [estudianteSeleccionado, setEstudianteSeleccionado] = useState(null);
 
   const [mensaje, setMensaje] = useState("");
 
-  const fetchEstudiantes = async (search = "") => {
+  const fetchEstudiantes = async (search = "", page = 1) => {
     try {
       setLoading(true);
 
-      const res = await api.get("/estudiantes", {
-        params: search ? { buscar: search } : {},
-      });
+      const params = { page };
+      if (search) params.buscar = search;
+
+      const res = await api.get("/estudiantes", { params });
 
       const datos = res.data.data || res.data || [];
 
       setEstudiantes(datos);
       setTotalEstudiantes(res.data.total ?? datos.length);
+      setTotalPages(res.data.last_page ?? 1);
     } catch (err) {
       console.error("Error al obtener estudiantes:", err);
       setEstudiantes([]);
@@ -38,17 +44,19 @@ export default function Estudiantes() {
   };
 
   useEffect(() => {
-    fetchEstudiantes();
-  }, []);
+    fetchEstudiantes(buscar, currentPage);
+  }, [currentPage]);
 
   const handleSearch = (e) => {
     e.preventDefault();
-    fetchEstudiantes(buscar);
+    setCurrentPage(1);
+    fetchEstudiantes(buscar, 1);
   };
 
   const limpiarBusqueda = () => {
     setBuscar("");
-    fetchEstudiantes();
+    setCurrentPage(1);
+    fetchEstudiantes("", 1);
   };
 
   const handleImportado = (resultado) => {
@@ -60,8 +68,16 @@ export default function Estudiantes() {
       } correctamente.`,
     );
 
-    fetchEstudiantes(buscar);
+    fetchEstudiantes(buscar, currentPage);
 
+    window.setTimeout(() => {
+      setMensaje("");
+    }, 4000);
+  };
+
+  const handleRegistrado = () => {
+    setMensaje("Estudiante registrado correctamente.");
+    fetchEstudiantes(buscar, currentPage);
     window.setTimeout(() => {
       setMensaje("");
     }, 4000);
@@ -80,7 +96,7 @@ export default function Estudiantes() {
   const handleActualizado = () => {
     setMensaje("Estudiante actualizado correctamente.");
 
-    fetchEstudiantes(buscar);
+    fetchEstudiantes(buscar, currentPage);
 
     window.setTimeout(() => {
       setMensaje("");
@@ -112,14 +128,25 @@ export default function Estudiantes() {
           </p>
         </div>
 
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => setMostrarModal(true)}
-        >
-          <i className="bi bi-upload me-2"></i>
-          Importar estudiantes
-        </button>
+        <div className="d-flex gap-2">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => setMostrarNuevoModal(true)}
+          >
+            <i className="bi bi-person-plus me-2"></i>
+            Nuevo estudiante
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-outline-primary"
+            onClick={() => setMostrarModal(true)}
+          >
+            <i className="bi bi-upload me-2"></i>
+            Importar CSV
+          </button>
+        </div>
       </div>
 
       {/* Mensaje de éxito */}
@@ -292,6 +319,38 @@ export default function Estudiantes() {
             </table>
           </div>
         </div>
+
+        {!loading && totalPages > 1 && (
+          <div className="card-footer bg-white border-0 py-3">
+            <nav aria-label="Navegación de páginas de estudiantes">
+              <ul className="pagination justify-content-center mb-0">
+                <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+                  <button
+                    className="page-link"
+                    onClick={() => setCurrentPage((p) => p - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    Anterior
+                  </button>
+                </li>
+                <li className="page-item disabled">
+                  <span className="page-link text-muted">
+                    Página {currentPage} de {totalPages}
+                  </span>
+                </li>
+                <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
+                  <button
+                    className="page-link"
+                    onClick={() => setCurrentPage((p) => p + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    Siguiente
+                  </button>
+                </li>
+              </ul>
+            </nav>
+          </div>
+        )}
       </div>
 
       {/* Modal para importar estudiantes */}
@@ -307,6 +366,13 @@ export default function Estudiantes() {
         estudiante={estudianteSeleccionado}
         onCerrar={cerrarEditar}
         onActualizado={handleActualizado}
+      />
+
+      {/* Modal para registrar estudiante individual */}
+      <NuevoEstudianteModal
+        mostrar={mostrarNuevoModal}
+        onCerrar={() => setMostrarNuevoModal(false)}
+        onRegistrado={handleRegistrado}
       />
     </div>
   );
