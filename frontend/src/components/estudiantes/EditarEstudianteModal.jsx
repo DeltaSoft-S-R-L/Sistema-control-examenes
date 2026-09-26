@@ -62,8 +62,8 @@ export default function EditarEstudianteModal({
         apellido: formulario.apellido.trim(),
         correo: formulario.correo.trim() || null,
 
-        // El update actual del backend valida los estados en minúsculas.
-        estado: formulario.estado.toLowerCase(),
+        // El backend valida estados en mayúsculas (ACTIVO/INACTIVO).
+        estado: formulario.estado.toUpperCase(),
       };
 
       const respuesta = await api.put(
