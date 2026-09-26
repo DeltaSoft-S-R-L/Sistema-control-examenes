@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\ExamenController;
 use App\Http\Controllers\Api\HabilitacionController;
 use App\Http\Controllers\Api\IngresoController;
 use App\Http\Controllers\Api\IncidenciaController;
+use App\Http\Controllers\Api\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -34,6 +35,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
 
     // Recursos principales
+    Route::get('/usuarios', [UsuarioController::class, 'index']);
+    Route::put('/usuarios/{usuario}', [UsuarioController::class, 'update']);
+    Route::post('/estudiantes/importar', [EstudianteController::class, 'importar']);
     Route::apiResource('estudiantes',    EstudianteController::class);
     Route::apiResource('examenes',       ExamenController::class);
     Route::apiResource('ambientes',      AmbienteController::class);
