@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import api from '../../services/api';
 
 const roles = [
   {
@@ -45,7 +46,10 @@ export default function EditarUsuarioModal({
         correo: usuario.correo || '',
         username: usuario.username || '',
         id_rol: String(usuario.id_rol || ''),
-        estado: usuario.estado || 'ACTIVO',
+        estado:
+          usuario.estado?.toLowerCase() === 'activo'
+            ? 'ACTIVO'
+            : 'REVOCADO',
       });
 
       setErrores({});
@@ -154,7 +158,7 @@ export default function EditarUsuarioModal({
     return Object.keys(nuevosErrores).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!validar()) {
@@ -163,47 +167,34 @@ export default function EditarUsuarioModal({
 
     setGuardando(true);
 
-    const rolSeleccionado = roles.find(
-      (rol) => rol.id === Number(formulario.id_rol)
-    );
+    try {
+      const response = await api.put(
+        `/usuarios/${usuario.id_usuario}`,
+        {
+          nombre: formulario.nombre.trim(),
+          apellido: formulario.apellido.trim(),
+          correo: formulario.correo.trim(),
+          username: formulario.username.trim(),
+          id_rol: Number(formulario.id_rol),
+          estado: formulario.estado,
+        }
+      );
 
-    const usuarioActualizado = {
-      ...usuario,
+      onActualizado(response.data);
+    } catch (error) {
+      console.error(error);
 
-      nombre: formulario.nombre.trim(),
-      apellido: formulario.apellido.trim(),
-      correo: formulario.correo.trim(),
-      username: formulario.username.trim(),
-
-      id_rol: Number(formulario.id_rol),
-
-      rol: rolSeleccionado?.nombre || '',
-
-      estado: formulario.estado,
-    };
-
-    /*
-      IMPORTANTE:
-
-      Actualmente el backend todavía no tiene
-      UsuarioController ni endpoint para actualizar usuarios.
-
-      Cuando exista el endpoint se reemplazará esta actualización
-      temporal por algo como:
-
-      await api.put(`/usuarios/${usuario.id_usuario}`, {
-        nombre: usuarioActualizado.nombre,
-        apellido: usuarioActualizado.apellido,
-        correo: usuarioActualizado.correo,
-        username: usuarioActualizado.username,
-        id_rol: usuarioActualizado.id_rol,
-        estado: usuarioActualizado.estado,
-      });
-    */
-
-    onActualizado(usuarioActualizado);
-
-    setGuardando(false);
+      if (error.response?.status === 422) {
+        setErrores(error.response.data.errors || {});
+      } else {
+        setErrores({
+          general:
+            'No se pudo actualizar el usuario. Intente nuevamente.',
+        });
+      }
+    } finally {
+      setGuardando(false);
+    }
   };
 
   return (
@@ -259,6 +250,12 @@ export default function EditarUsuarioModal({
                   <i className="bi bi-info-circle me-2 text-primary"></i>
                   Los campos marcados con * son obligatorios.
                 </div>
+
+                {errores.general && (
+                  <div className="alert alert-danger" role="alert">
+                    {errores.general}
+                  </div>
+                )}
 
                 <h6 className="fw-bold mb-3">
                   Información personal
@@ -454,7 +451,9 @@ export default function EditarUsuarioModal({
                     disabled={guardando}
                   >
                     <i className="bi bi-check-lg me-2"></i>
-                    Guardar cambios
+                    {guardando
+                      ? 'Guardando...'
+                      : 'Guardar cambios'}
                   </button>
                 </div>
               </div>

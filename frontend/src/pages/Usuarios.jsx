@@ -222,12 +222,12 @@ export default function Usuarios() {
                         <td>
                           <span
                             className={`badge ${
-                              usuario.estado === 'ACTIVO'
+                              usuario.estado?.toLowerCase() === 'activo'
                                 ? 'bg-success'
                                 : 'bg-secondary'
                             }`}
                           >
-                            {usuario.estado === 'ACTIVO'
+                            {usuario.estado?.toLowerCase() === 'activo'
                               ? 'Activo'
                               : 'Revocado'}
                           </span>
