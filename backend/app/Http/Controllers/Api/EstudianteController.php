@@ -168,7 +168,19 @@ class EstudianteController extends Controller
                 continue;
             }
 
-            $datos = array_map('trim', $datos);
+            $datos = array_map(function ($valor) {
+                $valor = trim($valor);
+
+                if (!mb_check_encoding($valor, 'UTF-8')) {
+                    $valor = mb_convert_encoding(
+                        $valor,
+                        'UTF-8',
+                        'Windows-1252'
+                    );
+                }
+
+                return $valor;
+            }, $datos);
 
             $estudiante = array_combine(
                 $columnasEsperadas,
