@@ -7,6 +7,7 @@ import {
 } from 'react-router-dom';
 
 import Layout from './components/Layout';
+import ProtectedRoute from './components/ProtectedRoute';
 
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -22,52 +23,54 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
 
-        <Route element={<Layout />}>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/examenes" element={<Examenes />} />
-          <Route path="/estudiantes" element={<Estudiantes />} />
-          <Route path="/usuarios" element={<Usuarios />} />
-          <Route path="/ambientes" element={<Ambientes />} />
+        <Route element={<ProtectedRoute />}>
+          <Route element={<Layout />}>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/examenes" element={<Examenes />} />
+            <Route path="/estudiantes" element={<Estudiantes />} />
+            <Route path="/usuarios" element={<Usuarios />} />
+            <Route path="/ambientes" element={<Ambientes />} />
 
-          <Route
-            path="/habilitaciones"
-            element={
-              <ModuloEnConstruccion
-                titulo="Habilitaciones"
-                descripcion="El módulo de habilitaciones se encuentra actualmente en construcción."
-              />
-            }
-          />
+            <Route
+              path="/habilitaciones"
+              element={
+                <ModuloEnConstruccion
+                  titulo="Habilitaciones"
+                  descripcion="El módulo de habilitaciones se encuentra actualmente en construcción."
+                />
+              }
+            />
 
-          <Route
-            path="/control-ingreso"
-            element={
-              <ModuloEnConstruccion
-                titulo="Control de ingreso"
-                descripcion="El módulo de control de ingreso se encuentra actualmente en construcción."
-              />
-            }
-          />
+            <Route
+              path="/control-ingreso"
+              element={
+                <ModuloEnConstruccion
+                  titulo="Control de ingreso"
+                  descripcion="El módulo de control de ingreso se encuentra actualmente en construcción."
+                />
+              }
+            />
 
-          <Route
-            path="/incidencias"
-            element={
-              <ModuloEnConstruccion
-                titulo="Incidencias"
-                descripcion="El módulo de incidencias se encuentra actualmente en construcción."
-              />
-            }
-          />
+            <Route
+              path="/incidencias"
+              element={
+                <ModuloEnConstruccion
+                  titulo="Incidencias"
+                  descripcion="El módulo de incidencias se encuentra actualmente en construcción."
+                />
+              }
+            />
 
-          <Route
-            path="/reportes"
-            element={
-              <ModuloEnConstruccion
-                titulo="Reportes"
-                descripcion="El módulo de reportes se encuentra actualmente en construcción."
-              />
-            }
-          />
+            <Route
+              path="/reportes"
+              element={
+                <ModuloEnConstruccion
+                  titulo="Reportes"
+                  descripcion="El módulo de reportes se encuentra actualmente en construcción."
+                />
+              }
+            />
+          </Route>
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
