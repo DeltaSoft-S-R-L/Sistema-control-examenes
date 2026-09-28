@@ -34,8 +34,8 @@ class AsignaturaController extends Controller
         $asignatura = Asignatura::findOrFail($id);
 
         $data = $request->validate([
-            'codigo'      => "sometimes|string|max:30|unique:asignatura,codigo,{$id},id_asignatura",
-            'nombre'      => 'sometimes|string|max:150',
+            'codigo'      => "sometimes|required|string|max:30|unique:asignatura,codigo,{$id},id_asignatura",
+            'nombre'      => 'sometimes|required|string|max:150',
             'descripcion' => 'nullable|string',
         ]);
 

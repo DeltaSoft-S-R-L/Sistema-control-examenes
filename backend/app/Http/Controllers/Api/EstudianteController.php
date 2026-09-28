@@ -56,12 +56,12 @@ class EstudianteController extends Controller
         $estudiante = Estudiante::findOrFail($id);
 
         $data = $request->validate([
-            'ci'                   => "sometimes|string|max:20|unique:estudiante,ci,{$id},id_estudiante",
-            'nombre'               => 'sometimes|string|max:100',
-            'apellido'             => 'sometimes|string|max:100',
-            'codigo_universitario' => "sometimes|string|max:50|unique:estudiante,codigo_universitario,{$id},id_estudiante",
+            'ci'                   => "sometimes|required|string|max:20|unique:estudiante,ci,{$id},id_estudiante",
+            'nombre'               => 'sometimes|required|string|max:100',
+            'apellido'             => 'sometimes|required|string|max:100',
+            'codigo_universitario' => "sometimes|required|string|max:50|unique:estudiante,codigo_universitario,{$id},id_estudiante",
             'correo'               => 'nullable|email|max:150',
-            'estado'               => 'sometimes|in:activo,inactivo,suspendido',
+            'estado'               => 'sometimes|required|in:activo,inactivo,suspendido',
         ]);
 
         $estudiante->update($data);
