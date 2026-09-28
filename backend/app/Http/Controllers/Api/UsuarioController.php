@@ -19,6 +19,29 @@ class UsuarioController extends Controller
         return response()->json($usuarios);
     }
 
+    public function store(Request $request)
+    {
+        $datos = $request->validate([
+            'nombre'   => ['required', 'string', 'max:100'],
+            'apellido' => ['required', 'string', 'max:100'],
+            'correo'   => ['required', 'email', 'max:150', Rule::unique('usuario', 'correo')],
+            'username' => ['required', 'string', 'max:50', Rule::unique('usuario', 'username')],
+            'password' => ['required', 'string', 'min:6'],
+            'id_rol'   => ['required', 'integer', Rule::in([1, 2, 3])],
+            'estado'   => ['nullable', 'string', Rule::in(['ACTIVO', 'REVOCADO', 'activo', 'revocado'])],
+        ]);
+
+        $datos['estado'] = isset($datos['estado']) ? strtoupper($datos['estado']) : 'ACTIVO';
+        $datos['password_hash'] = \App\Utilities\PasswordHasher::hash($datos['password']);
+        
+        unset($datos['password']);
+
+        $usuario = Usuario::create($datos);
+        $usuario->load('rol');
+
+        return response()->json($usuario, 201);
+    }
+
     public function update(Request $request, Usuario $usuario)
     {
         $datos = $request->validate([
