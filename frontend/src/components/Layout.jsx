@@ -4,11 +4,6 @@ import Navbar from './Navbar';
 import Sidebar from './Sidebar';
 
 export default function Layout() {
-  const token = localStorage.getItem('token');
-
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
 
   return (
     <div className="d-flex flex-column min-vh-100">
