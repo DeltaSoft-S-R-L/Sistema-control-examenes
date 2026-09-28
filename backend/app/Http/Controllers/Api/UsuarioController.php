@@ -9,10 +9,26 @@ use Illuminate\Validation\Rule;
 
 class UsuarioController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $usuarios = Usuario::with('rol')
-            ->orderBy('apellido')
+        $query = Usuario::with('rol');
+
+        if ($request->filled('rol')) {
+            $rolId = $request->input('rol');
+            $query->where('id_rol', $rolId);
+        }
+
+        if ($request->filled('buscar')) {
+            $buscar = $request->input('buscar');
+            $query->where(function ($q) use ($buscar) {
+                $q->where('nombre', 'ilike', '%' . $buscar . '%')
+                  ->orWhere('apellido', 'ilike', '%' . $buscar . '%')
+                  ->orWhere('username', 'ilike', '%' . $buscar . '%')
+                  ->orWhere('correo', 'ilike', '%' . $buscar . '%');
+            });
+        }
+
+        $usuarios = $query->orderBy('apellido')
             ->orderBy('nombre')
             ->paginate(20);
 

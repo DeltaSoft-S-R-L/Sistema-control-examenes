@@ -14,16 +14,23 @@ export default function Usuarios() {
   const [usuarioSeleccionado, setUsuarioSeleccionado] = useState(null);
   const [mostrarModal, setMostrarModal] = useState(false);
 
+  const [buscar, setBuscar] = useState('');
+  const [filtroRol, setFiltroRol] = useState('');
+
   useEffect(() => {
     fetchUsuarios(currentPage);
-  }, [currentPage]);
+  }, [currentPage, buscar, filtroRol]);
 
   const fetchUsuarios = async (page) => {
     setLoading(true);
     setError('');
 
     try {
-      const response = await api.get(`/usuarios?page=${page}`);
+      const params = new URLSearchParams({ page });
+      if (buscar) params.append('buscar', buscar);
+      if (filtroRol) params.append('rol', filtroRol);
+
+      const response = await api.get(`/usuarios?${params.toString()}`);
 
       const data = response.data.data || response.data;
 
@@ -139,6 +146,40 @@ export default function Usuarios() {
         </div>
       )}
 
+      <div className="card shadow-sm border-0 rounded-4 mb-4">
+        <div className="card-body">
+          <div className="row g-3">
+            <div className="col-md-6">
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Buscar por nombre, correo, usuario..."
+                value={buscar}
+                onChange={(e) => {
+                  setBuscar(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
+            <div className="col-md-4">
+              <select
+                className="form-select"
+                value={filtroRol}
+                onChange={(e) => {
+                  setFiltroRol(e.target.value);
+                  setCurrentPage(1);
+                }}
+              >
+                <option value="">Todos los roles</option>
+                <option value="1">Administrador</option>
+                <option value="2">Docente</option>
+                <option value="3">Control de ingreso</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="card shadow-sm border-0 rounded-4">
         <div className="card-header bg-white border-0 px-4 pt-4 pb-3">
           <div className="d-flex justify-content-between align-items-center">
@@ -192,7 +233,7 @@ export default function Usuarios() {
                       colSpan="6"
                       className="text-center py-5 text-muted"
                     >
-                      No se encontraron usuarios registrados.
+                      No se encontraron usuarios que coincidan con los criterios de búsqueda.
                     </td>
                   </tr>
                 ) : (
