@@ -3,10 +3,13 @@ import api from '../services/api';
 
 export default function NuevoUsuarioModal({ isOpen, onClose, onSuccess }) {
     const [formData, setFormData] = useState({
-        codigo: '',
         nombre: '',
-        rol: '',
-        estado: 'Activo'
+        apellido: '',
+        username: '',
+        password: '',
+        correo: '',
+        id_rol: '',
+        estado: 'ACTIVO'
     });
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -24,14 +27,22 @@ export default function NuevoUsuarioModal({ isOpen, onClose, onSuccess }) {
         try {
             await api.post('/usuarios', formData);
             
-            setFormData({ codigo: '', nombre: '', rol: '', estado: 'Activo' });
+            setFormData({
+                nombre: '',
+                apellido: '',
+                username: '',
+                password: '',
+                correo: '',
+                id_rol: '',
+                estado: 'ACTIVO'
+            });
             
             if (onSuccess) onSuccess();
             if (onClose) onClose();
         } catch (err) {
             setError(
                 err.response?.data?.message ||
-                err.response?.data?.errors?.codigo?.[0] ||
+                err.response?.data?.errors?.username?.[0] ||
                 'Error al registrar el usuario. Verifique los datos ingresados.'
             );
         } finally {
@@ -57,25 +68,63 @@ export default function NuevoUsuarioModal({ isOpen, onClose, onSuccess }) {
                                 </div>
                             )}
                             <form id="addUserForm" onSubmit={handleSubmit}>
-                                <div className="mb-3">
-                                    <label className="form-label small fw-bold">Código</label>
-                                    <input 
-                                        type="text" 
-                                        className="form-control bg-light" 
-                                        name="codigo"
-                                        value={formData.codigo}
-                                        onChange={handleChange}
-                                        required 
-                                        autoFocus
-                                    />
+                                <div className="row">
+                                    <div className="col-md-6 mb-3">
+                                        <label className="form-label small fw-bold">Nombre</label>
+                                        <input 
+                                            type="text" 
+                                            className="form-control bg-light" 
+                                            name="nombre"
+                                            value={formData.nombre || ''}
+                                            onChange={handleChange}
+                                            required 
+                                            autoFocus
+                                        />
+                                    </div>
+                                    <div className="col-md-6 mb-3">
+                                        <label className="form-label small fw-bold">Apellido</label>
+                                        <input 
+                                            type="text" 
+                                            className="form-control bg-light" 
+                                            name="apellido"
+                                            value={formData.apellido || ''}
+                                            onChange={handleChange}
+                                            required 
+                                        />
+                                    </div>
+                                </div>
+                                <div className="row">
+                                    <div className="col-md-6 mb-3">
+                                        <label className="form-label small fw-bold">Usuario (username)</label>
+                                        <input 
+                                            type="text" 
+                                            className="form-control bg-light" 
+                                            name="username"
+                                            value={formData.username || ''}
+                                            onChange={handleChange}
+                                            required 
+                                        />
+                                    </div>
+                                    <div className="col-md-6 mb-3">
+                                        <label className="form-label small fw-bold">Contraseña</label>
+                                        <input 
+                                            type="password" 
+                                            className="form-control bg-light" 
+                                            name="password"
+                                            value={formData.password || ''}
+                                            onChange={handleChange}
+                                            required 
+                                            minLength={6}
+                                        />
+                                    </div>
                                 </div>
                                 <div className="mb-3">
-                                    <label className="form-label small fw-bold">Nombre completo</label>
+                                    <label className="form-label small fw-bold">Correo electrónico</label>
                                     <input 
-                                        type="text" 
+                                        type="email" 
                                         className="form-control bg-light" 
-                                        name="nombre"
-                                        value={formData.nombre}
+                                        name="correo"
+                                        value={formData.correo || ''}
                                         onChange={handleChange}
                                         required 
                                     />
@@ -85,15 +134,15 @@ export default function NuevoUsuarioModal({ isOpen, onClose, onSuccess }) {
                                         <label className="form-label small fw-bold">Rol</label>
                                         <select 
                                             className="form-select bg-light" 
-                                            name="rol"
-                                            value={formData.rol}
+                                            name="id_rol"
+                                            value={formData.id_rol || ''}
                                             onChange={handleChange}
                                             required
                                         >
                                             <option value="">Seleccione...</option>
-                                            <option value="Administrador">Administrador</option>
-                                            <option value="Docente">Docente</option>
-                                            <option value="Personal de control de ingreso">Personal de control de ingreso</option>
+                                            <option value="1">Administrador</option>
+                                            <option value="2">Docente</option>
+                                            <option value="3">Control de ingreso</option>
                                         </select>
                                     </div>
                                     <div className="col-md-6 mb-3">
@@ -101,12 +150,12 @@ export default function NuevoUsuarioModal({ isOpen, onClose, onSuccess }) {
                                         <select 
                                             className="form-select bg-light" 
                                             name="estado"
-                                            value={formData.estado}
+                                            value={formData.estado || ''}
                                             onChange={handleChange}
                                             required
                                         >
-                                            <option value="Activo">Activo</option>
-                                            <option value="Inactivo">Inactivo</option>
+                                            <option value="ACTIVO">Activo</option>
+                                            <option value="INACTIVO">Inactivo</option>
                                         </select>
                                     </div>
                                 </div>
