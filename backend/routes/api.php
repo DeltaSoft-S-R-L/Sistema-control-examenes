@@ -34,9 +34,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
 
-    // Recursos principales
+    // Recursos principales - Usuarios
     Route::get('/usuarios', [UsuarioController::class, 'index']);
+    Route::post('/usuarios', [UsuarioController::class, 'store']);
+    Route::get('/usuarios/{id}', [UsuarioController::class, 'show']);
     Route::put('/usuarios/{usuario}', [UsuarioController::class, 'update']);
+
+    // Recursos principales - Otros
     Route::post('/estudiantes/importar', [EstudianteController::class, 'importar']);
     Route::apiResource('estudiantes',    EstudianteController::class);
     Route::apiResource('examenes',       ExamenController::class);
