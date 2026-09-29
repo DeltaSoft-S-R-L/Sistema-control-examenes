@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\Api\UsuarioController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AmbienteController;
 use App\Http\Controllers\Api\AsignaturaController;
@@ -31,9 +30,6 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::middleware('auth:sanctum')->group(function () {
 
     // Auth
-    Route::post('/usuarios', [UsuarioController::class, 'store']);
-    Route::get('/usuarios', [UsuarioController::class, 'index']);
-Route::get('/usuarios/{id}', [UsuarioController::class, 'show']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
 
