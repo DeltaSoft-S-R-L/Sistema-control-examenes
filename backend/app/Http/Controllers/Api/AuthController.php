@@ -18,7 +18,7 @@ class AuthController extends Controller
         ]);
 
         $usuario = Usuario::where('username', $request->username)
-            ->where('estado', 'activo')
+            ->whereIn('estado', ['ACTIVO', 'activo'])
             ->first();
 
         if (! $usuario || ! PasswordHasher::verify($request->password, $usuario->password_hash)) {

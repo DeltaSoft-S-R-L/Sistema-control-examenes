@@ -17,7 +17,7 @@ Sistema integral para el control de asistencia, verificación de habilitación, 
   - PHP 8.2+
   - Laravel Sanctum (Autenticación API)
 - **Base de Datos:**
-  - PostgreSQL 16 (con soporte a esquemas, triggers y constraints)
+  - PostgreSQL 15 (con soporte a esquemas, triggers y constraints)
 
 ---
 
@@ -150,3 +150,22 @@ docker compose up -d
 | `GET/POST` | `/api/habilitaciones` | Control de Habilitaciones | Sí |
 | `GET/POST` | `/api/ingresos` | Registro de Ingreso a examen | Sí |
 | `GET/POST` | `/api/incidencias` | Registro de Incidencias | Sí |
+
+---
+
+## Administrador inicial
+
+Para crear el usuario administrador inicial del sistema:
+
+1. Configura las siguientes variables en `backend/.env`:
+
+   ```env
+   ADMIN_USERNAME=admin
+   ADMIN_PASSWORD=
+
+## Desde la raiz Sistema-control-examenes
+Usar el siguiente comando:
+
+php ./backend/artisan db:seed --class=AdminSeeder
+
+luego a yes
