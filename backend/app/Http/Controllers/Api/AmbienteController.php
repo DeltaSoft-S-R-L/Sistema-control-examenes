@@ -42,11 +42,11 @@ class AmbienteController extends Controller
         $ambiente = Ambiente::findOrFail($id);
 
         $data = $request->validate([
-            'codigo'    => "sometimes|string|max:30|unique:ambiente,codigo,{$id},id_ambiente",
-            'nombre'    => 'sometimes|string|max:100',
+            'codigo'    => "sometimes|required|string|max:30|unique:ambiente,codigo,{$id},id_ambiente",
+            'nombre'    => 'sometimes|required|string|max:100',
             'ubicacion' => 'nullable|string|max:150',
-            'capacidad' => 'sometimes|integer|min:1',
-            'estado'    => 'sometimes|in:disponible,ocupado,mantenimiento',
+            'capacidad' => 'sometimes|required|integer|min:1',
+            'estado'    => 'sometimes|required|in:disponible,ocupado,mantenimiento',
         ]);
 
         $ambiente->update($data);
