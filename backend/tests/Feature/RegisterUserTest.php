@@ -285,4 +285,61 @@ class RegisterUserTest extends TestCase
 
         $response->assertStatus(401);
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // Autorización por Rol (ADMINISTRADOR requerido)
+    // ─────────────────────────────────────────────────────────────
+
+    public function test_usuario_autenticado_con_rol_docente_es_rechazado_con_403(): void
+    {
+        $docenteUser = Usuario::create([
+            'nombre'        => 'Docente',
+            'apellido'      => 'Test',
+            'correo'        => 'docente@test.com',
+            'username'      => 'docente_test',
+            'password_hash' => PasswordHasher::hash('Docente1234'),
+            'id_rol'        => $this->rolDocente->id_rol,
+            'estado'        => 'ACTIVO',
+        ]);
+        $docenteToken = $docenteUser->createToken('docente-token')->plainTextToken;
+
+        $response = $this->postJson('/api/usuarios', $this->validPayload(), [
+            'Authorization' => 'Bearer ' . $docenteToken,
+            'Accept'        => 'application/json',
+        ]);
+
+        $response->assertStatus(403)
+            ->assertJson([
+                'message' => 'No tiene permisos para registrar usuarios. Se requiere rol de ADMINISTRADOR.',
+            ]);
+    }
+
+    public function test_usuario_autenticado_con_rol_control_ingreso_es_rechazado_con_403(): void
+    {
+        $rolControl = Rol::create([
+            'nombre'      => 'CONTROL_INGRESO',
+            'descripcion' => 'Personal de control de ingreso',
+        ]);
+
+        $controlUser = Usuario::create([
+            'nombre'        => 'Control',
+            'apellido'      => 'Test',
+            'correo'        => 'control@test.com',
+            'username'      => 'control_test',
+            'password_hash' => PasswordHasher::hash('Control1234'),
+            'id_rol'        => $rolControl->id_rol,
+            'estado'        => 'ACTIVO',
+        ]);
+        $controlToken = $controlUser->createToken('control-token')->plainTextToken;
+
+        $response = $this->postJson('/api/usuarios', $this->validPayload(), [
+            'Authorization' => 'Bearer ' . $controlToken,
+            'Accept'        => 'application/json',
+        ]);
+
+        $response->assertStatus(403)
+            ->assertJson([
+                'message' => 'No tiene permisos para registrar usuarios. Se requiere rol de ADMINISTRADOR.',
+            ]);
+    }
 }

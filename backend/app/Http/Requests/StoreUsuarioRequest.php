@@ -9,7 +9,16 @@ class StoreUsuarioRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        $user = $this->user();
+
+        return $user !== null && strtoupper($user->rol?->nombre ?? '') === 'ADMINISTRADOR';
+    }
+
+    protected function failedAuthorization(): void
+    {
+        throw new \Illuminate\Auth\Access\AuthorizationException(
+            'No tiene permisos para registrar usuarios. Se requiere rol de ADMINISTRADOR.'
+        );
     }
 
     public function rules(): array
