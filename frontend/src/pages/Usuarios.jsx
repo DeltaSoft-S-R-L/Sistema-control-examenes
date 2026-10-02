@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import EditarUsuarioModal from '../components/usuarios/EditarUsuarioModal';
+import NuevoUsuarioModal from '../components/NuevoUsuarioModal';
 
 export default function Usuarios() {
   const [usuarios, setUsuarios] = useState([]);
@@ -13,6 +14,7 @@ export default function Usuarios() {
 
   const [usuarioSeleccionado, setUsuarioSeleccionado] = useState(null);
   const [mostrarModal, setMostrarModal] = useState(false);
+  const [mostrarNuevoModal, setMostrarNuevoModal] = useState(false);
 
   const [buscar, setBuscar] = useState('');
   const [filtroRol, setFiltroRol] = useState('');
@@ -78,6 +80,17 @@ export default function Usuarios() {
     }, 4000);
   };
 
+  const handleNuevoExito = () => {
+    setMostrarNuevoModal(false);
+    setMensaje('Usuario registrado correctamente.');
+    setCurrentPage(1);
+    fetchUsuarios(1);
+
+    window.setTimeout(() => {
+      setMensaje('');
+    }, 4000);
+  };
+
   const obtenerNombreRol = (usuario) => {
     if (usuario.rol?.nombre) {
       return usuario.rol.nombre;
@@ -121,6 +134,13 @@ export default function Usuarios() {
             Administración de usuarios con acceso al sistema
           </p>
         </div>
+        <button
+          className="btn text-white fw-bold px-4"
+          style={{ backgroundColor: '#0A3123' }}
+          onClick={() => setMostrarNuevoModal(true)}
+        >
+          Nuevo Usuario
+        </button>
       </div>
 
       {mensaje && (
@@ -345,6 +365,12 @@ export default function Usuarios() {
         usuario={usuarioSeleccionado}
         onCerrar={cerrarEdicion}
         onActualizado={handleActualizado}
+      />
+
+      <NuevoUsuarioModal
+        isOpen={mostrarNuevoModal}
+        onClose={() => setMostrarNuevoModal(false)}
+        onSuccess={handleNuevoExito}
       />
     </div>
   );
