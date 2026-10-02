@@ -16,12 +16,13 @@ class EstudianteController extends Controller
             $query->where('estado', $request->estado);
         }
         if ($request->has('buscar')) {
-            $q = $request->buscar;
+            $q = mb_strtolower($request->buscar);
             $query->where(function ($q2) use ($q) {
-                $q2->where('nombre', 'ilike', "%{$q}%")
-                    ->orWhere('apellido', 'ilike', "%{$q}%")
-                    ->orWhere('ci', 'ilike', "%{$q}%")
-                    ->orWhere('codigo_universitario', 'ilike', "%{$q}%");
+                $pattern = "%{$q}%";
+                $q2->whereRaw('LOWER(nombre) LIKE ?', [$pattern])
+                    ->orWhereRaw('LOWER(apellido) LIKE ?', [$pattern])
+                    ->orWhereRaw('LOWER(ci) LIKE ?', [$pattern])
+                    ->orWhereRaw('LOWER(codigo_universitario) LIKE ?', [$pattern]);
             });
         }
 
@@ -249,9 +250,10 @@ class EstudianteController extends Controller
             'apellido'             => 'sometimes|required|string|max:100',
             'codigo_universitario' => "sometimes|required|string|max:50|unique:estudiante,codigo_universitario,{$id},id_estudiante",
             'correo'               => 'nullable|email|max:150',
-            'estado'               => 'sometimes|in:ACTIVO,INACTIVO',
+            'estado'               => 'sometimes|in:ACTIVO,INACTIVO,activo,inactivo',
         ]);
-        if (isset($da'estado'     =>'sometimes|required|in:ACTIVO,INACTIVO',er($data['estado']);
+        if (isset($data['estado'])) {
+            $data['estado'] = strtoupper($data['estado']);
         }
         $estudiante->update($data);
 

@@ -55,12 +55,12 @@ class UsuarioController extends Controller
         }
 
         if ($request->filled('buscar')) {
-            $buscar = $request->input('buscar');
+            $buscar = mb_strtolower($request->input('buscar'));
             $query->where(function ($q) use ($buscar) {
-                $q->where('nombre', 'ilike', '%' . $buscar . '%')
-                  ->orWhere('apellido', 'ilike', '%' . $buscar . '%')
-                  ->orWhere('username', 'ilike', '%' . $buscar . '%')
-                  ->orWhere('correo', 'ilike', '%' . $buscar . '%');
+                $q->whereRaw('LOWER(nombre) LIKE ?', ['%' . $buscar . '%'])
+                  ->orWhereRaw('LOWER(apellido) LIKE ?', ['%' . $buscar . '%'])
+                  ->orWhereRaw('LOWER(username) LIKE ?', ['%' . $buscar . '%'])
+                  ->orWhereRaw('LOWER(correo) LIKE ?', ['%' . $buscar . '%']);
             });
         }
 
