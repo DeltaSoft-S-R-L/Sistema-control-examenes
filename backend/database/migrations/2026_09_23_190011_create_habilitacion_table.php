@@ -32,9 +32,11 @@ return new class extends Migration
                 ->on('examen');
         });
 
-        DB::statement(
-            "ALTER TABLE habilitacion ADD CONSTRAINT habilitacion_estado_check CHECK (estado IN ('HABILITADO', 'NO_HABILITADO'))"
-        );
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement(
+                "ALTER TABLE habilitacion ADD CONSTRAINT habilitacion_estado_check CHECK (estado IN ('HABILITADO', 'NO_HABILITADO'))"
+            );
+        }
     }
 
     public function down(): void
