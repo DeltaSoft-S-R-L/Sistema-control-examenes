@@ -27,9 +27,11 @@ return new class extends Migration
                 ->on('asignatura');
         });
 
-        DB::statement(
-            'ALTER TABLE examen ADD CONSTRAINT examen_duracion_check CHECK (duracion_minutos > 0)'
-        );
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement(
+                'ALTER TABLE examen ADD CONSTRAINT examen_duracion_check CHECK (duracion_minutos > 0)'
+            );
+        }
     }
 
     public function down(): void

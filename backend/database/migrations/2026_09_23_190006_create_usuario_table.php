@@ -26,9 +26,11 @@ return new class extends Migration
                 ->on('rol');
         });
 
-        DB::statement(
-            "ALTER TABLE usuario ADD CONSTRAINT usuario_estado_check CHECK (estado IN ('ACTIVO', 'REVOCADO'))"
-        );
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement(
+                "ALTER TABLE usuario ADD CONSTRAINT usuario_estado_check CHECK (estado IN ('ACTIVO', 'REVOCADO'))"
+            );
+        }
     }
 
     public function down(): void

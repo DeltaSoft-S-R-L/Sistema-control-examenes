@@ -20,9 +20,11 @@ return new class extends Migration
             $table->index('estado');
         });
 
-        DB::statement(
-            'ALTER TABLE ambiente ADD CONSTRAINT ambiente_capacidad_check CHECK (capacidad > 0)'
-        );
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement(
+                'ALTER TABLE ambiente ADD CONSTRAINT ambiente_capacidad_check CHECK (capacidad > 0)'
+            );
+        }
     }
 
     public function down(): void
