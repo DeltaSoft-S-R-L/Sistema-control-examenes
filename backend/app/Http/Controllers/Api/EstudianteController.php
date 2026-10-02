@@ -251,13 +251,14 @@ class EstudianteController extends Controller
             'correo'               => 'nullable|email|max:150',
             'estado'               => 'sometimes|in:ACTIVO,INACTIVO',
         ]);
-        if (isset($da'estado'     =>'sometimes|required|in:ACTIVO,INACTIVO',er($data['estado']);
+        if (isset($data['estado'])) {
+            $data['estado'] = strtoupper($data['estado']);
         }
+
         $estudiante->update($data);
 
         return response()->json($estudiante);
     }
-
     public function destroy(string $id)
     {
         $estudiante = Estudiante::findOrFail($id);
