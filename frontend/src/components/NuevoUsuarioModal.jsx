@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import api from '../services/api';
 
 export default function NuevoUsuarioModal({ isOpen, onClose, onSuccess }) {
-    // 1. El estado ahora coincide exactamente con las variables de Laravel
+    // Se agrego el campo password requerido por el backend
     const [formData, setFormData] = useState({
         username: '',
         correo: '',
         nombre: '',
         apellido: '',
+        password: '', 
         id_rol: '',
         estado: 'ACTIVO' 
     });
@@ -25,10 +26,10 @@ export default function NuevoUsuarioModal({ isOpen, onClose, onSuccess }) {
         setLoading(true);
 
         try {
-            // Se enviará el JSON con la estructura exacta que exige Laravel
             await api.post('/usuarios', formData);
             
-            setFormData({ username: '', correo: '', nombre: '', apellido: '', id_rol: '', estado: 'ACTIVO' });
+            // Se limpia el formulario incluyendo password
+            setFormData({ username: '', correo: '', nombre: '', apellido: '', password: '', id_rol: '', estado: 'ACTIVO' });
             
             if (onSuccess) onSuccess();
             if (onClose) onClose();
@@ -83,22 +84,28 @@ export default function NuevoUsuarioModal({ isOpen, onClose, onSuccess }) {
                                 </div>
                             </div>
 
-                            {/* FILA 3: Rol y Estado */}
+                            {/* FILA 3: Contrasena y Rol */}
                             <div className="row">
+                                <div className="col-md-6 mb-3">
+                                    <label className="form-label small fw-bold">Contraseña</label>
+                                    <input type="password" className="form-control bg-light" name="password" value={formData.password} onChange={handleChange} minLength="8" placeholder="Mínimo 8 caracteres" required />
+                                </div>
                                 <div className="col-md-6 mb-3">
                                     <label className="form-label small fw-bold">Rol</label>
                                     <select className="form-select bg-light" name="id_rol" value={formData.id_rol} onChange={handleChange} required>
                                         <option value="">Seleccione...</option>
-                                        {/* Los values ahora son números, como exige el backend */}
                                         <option value="1">Administrador</option>
                                         <option value="2">Docente</option>
                                         <option value="3">Personal de control</option>
                                     </select>
                                 </div>
+                            </div>
+
+                            {/* FILA 4: Estado */}
+                            <div className="row">
                                 <div className="col-md-6 mb-3">
                                     <label className="form-label small fw-bold">Estado</label>
                                     <select className="form-select bg-light" name="estado" value={formData.estado} onChange={handleChange} required>
-                                        {/* Laravel rechaza "Inactivo", exige "REVOCADO" */}
                                         <option value="ACTIVO">Activo</option>
                                         <option value="REVOCADO">Revocado</option>
                                     </select>
