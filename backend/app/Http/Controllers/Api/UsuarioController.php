@@ -5,40 +5,38 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreUsuarioRequest;
 use App\Models\Usuario;
+use App\Utilities\PasswordHasher;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
 class UsuarioController extends Controller
 {
     /**
-     * Registrar un nuevo usuario.
+     * Registrar un nuevo usuario (USR-01, Tarea #6).
+     *
+     * Integra validación (#5), hashing criptográfico (#2) y
+     * asignación de rol (#7).
      */
     public function store(StoreUsuarioRequest $request)
     {
         $data = $request->validated();
 
         $usuario = Usuario::create([
-            'nombre' => $data['nombre'],
-            'apellido' => $data['apellido'],
-            'correo' => $data['correo'],
-            'username' => $data['username'],
-            'password_hash' => Hash::make($data['password']),
-            'id_rol' => $data['id_rol'],
-            'estado' => strtoupper($data['estado'] ?? 'ACTIVO'),
+            'nombre'        => $data['nombre'],
+            'apellido'      => $data['apellido'],
+            'correo'        => $data['correo'],
+            'username'      => $data['username'],
+            'password_hash' => PasswordHasher::hash($data['password']),
+            'id_rol'        => $data['id_rol'],
+            'estado'        => strtoupper($data['estado'] ?? 'ACTIVO'),
         ]);
+
+        // Cargar la relación de rol para incluirla en la respuesta
+        $usuario->load('rol');
 
         return response()->json([
             'message' => 'Usuario registrado correctamente.',
-            'usuario' => [
-                'id_usuario' => $usuario->id_usuario,
-                'nombre' => $usuario->nombre,
-                'apellido' => $usuario->apellido,
-                'correo' => $usuario->correo,
-                'username' => $usuario->username,
-                'id_rol' => $usuario->id_rol,
-                'estado' => $usuario->estado,
-            ],
+            'usuario' => $usuario,
         ], 201);
     }
 
