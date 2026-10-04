@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreHabilitacionRequest;
 use App\Models\Habilitacion;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 
 class HabilitacionController extends Controller
@@ -22,16 +24,26 @@ class HabilitacionController extends Controller
         return response()->json($query->paginate(20));
     }
 
-    public function store(Request $request)
+    public function store(StoreHabilitacionRequest $request)
     {
-        $data = $request->validate([
-            'id_estudiante' => 'required|exists:estudiante,id_estudiante',
-            'id_examen'     => 'required|exists:examen,id_examen',
-            'estado'        => 'required|in:habilitado,inhabilitado,pendiente',
-            'motivo'        => 'nullable|string',
-        ]);
+        $data = $request->validated();
+        $data['estado'] = strtoupper($data['estado'] ?? 'HABILITADO');
 
-        $habilitacion = Habilitacion::create($data);
+        try {
+            $habilitacion = Habilitacion::create($data);
+        } catch (QueryException $e) {
+            // Manejo de condición de carrera si dos peticiones concurrentes pasan la validación simultáneamente
+            if ($e->getCode() === '23505' || str_contains($e->getMessage(), 'unique') || str_contains($e->getMessage(), 'UNIQUE')) {
+                return response()->json([
+                    'message' => 'El estudiante ya se encuentra asignado a este examen.',
+                    'errors'  => [
+                        'id_estudiante' => ['El estudiante ya se encuentra asignado a este examen.'],
+                    ],
+                ], 422);
+            }
+
+            throw $e;
+        }
 
         return response()->json($habilitacion->load(['estudiante', 'examen']), 201);
     }
