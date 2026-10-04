@@ -56,13 +56,13 @@ class ExamenController extends Controller
         $examen = Examen::findOrFail($id);
 
         $data = $request->validate([
-            'id_asignatura'    => 'sometimes|exists:asignatura,id_asignatura',
-            'nombre'           => 'sometimes|string|max:150',
-            'fecha'            => 'sometimes|date',
-            'hora_inicio'      => 'sometimes|date_format:H:i',
-            'duracion_minutos' => 'sometimes|integer|min:1',
+            'id_asignatura'    => 'sometimes|required|exists:asignatura,id_asignatura',
+            'nombre'           => 'sometimes|required|string|max:150',
+            'fecha'            => 'sometimes|required|date',
+            'hora_inicio'      => 'sometimes|required|date_format:H:i',
+            'duracion_minutos' => 'sometimes|required|integer|min:1',
             'descripcion'      => 'nullable|string',
-            'estado'           => 'sometimes|in:programado,en_curso,finalizado,cancelado',
+            'estado'           => 'sometimes|required|in:programado,en_curso,finalizado,cancelado',
         ]);
 
         $examen->update($data);

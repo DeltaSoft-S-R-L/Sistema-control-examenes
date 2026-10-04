@@ -17,7 +17,7 @@ Sistema integral para el control de asistencia, verificación de habilitación, 
   - PHP 8.2+
   - Laravel Sanctum (Autenticación API)
 - **Base de Datos:**
-  - PostgreSQL 16 (con soporte a esquemas, triggers y constraints)
+  - PostgreSQL 15 (con soporte a esquemas, triggers y constraints)
 
 ---
 
@@ -144,11 +144,7 @@ docker compose up -d
 | `POST` | `/api/logout` | Cierre de sesión y revocación | Sí |
 | `GET` | `/api/me` | Datos del usuario conectado | Sí |
 | `GET/POST` | `/api/examenes` | CRUD de Exámenes | Sí |
-| `GET/POST` | `/api/estudiantes` | Listado con filtros y registro de Estudiantes | Sí |
-| `GET` | `/api/estudiantes/buscar` | Búsqueda exacta por CI o código SIS (`?ci=&codigo_sis=`) | Sí |
-| `PUT/PATCH` | `/api/estudiantes/{id}` | Modificación de datos administrables de estudiante | Sí |
-| `DELETE` | `/api/estudiantes/{id}` | Eliminación de estudiante | Sí |
-| `POST` | `/api/estudiantes/carga-masiva` | Carga masiva de estudiantes desde archivo CSV | Sí |
+| `GET/POST` | `/api/estudiantes` | CRUD de Estudiantes | Sí |
 | `GET/POST` | `/api/ambientes` | CRUD de Ambientes/Aulas | Sí |
 | `GET/POST` | `/api/asignaturas` | CRUD de Asignaturas | Sí |
 | `GET/POST` | `/api/habilitaciones` | Control de Habilitaciones | Sí |
@@ -157,21 +153,19 @@ docker compose up -d
 
 ---
 
-## 📑 Carga Masiva de Estudiantes (CSV / Excel)
+## Administrador inicial
 
-El endpoint `/api/estudiantes/carga-masiva` procesa archivos `.csv` delimitados por coma (desde Excel se puede guardar/exportar como CSV delimitado por comas):
+Para crear el usuario administrador inicial del sistema:
 
-- **Columnas obligatorias:**
-  - `ci`: Cédula de Identidad (máx. 20 caracteres, único).
-  - `nombre`: Nombre del estudiante (máx. 100 caracteres).
-  - `apellido`: Apellido del estudiante (máx. 100 caracteres).
-  - `codigo_universitario`: Código SIS / universitario (máx. 50 caracteres, único).
-- **Columnas opcionales:**
-  - `correo`: Correo electrónico institucional o personal (formato email).
-  - `estado`: `ACTIVO` o `INACTIVO` (por defecto `ACTIVO`).
+1. Configura las siguientes variables en `backend/.env`:
 
-### Reglas de validación:
-1. **Validación de duplicados contra la base de datos:** Si el CI o código universitario ya existen en el sistema, la fila se rechaza con un mensaje claro indicando el motivo exacto.
-2. **Validación de duplicados dentro del mismo archivo:** Si un CI o código viene repetido varias veces en el archivo, se rechazan las ocurrencias posteriores.
-3. **Resumen de respuesta:** Retorna un reporte JSON con el total de filas procesadas, cantidad de insertados, cantidad de rechazados y el detalle fila por fila con el motivo de rechazo.
+   ```env
+   ADMIN_USERNAME=admin
+   ADMIN_PASSWORD=
 
+## Desde la raiz Sistema-control-examenes
+Usar el siguiente comando:
+
+php ./backend/artisan db:seed --class=AdminSeeder
+
+luego a yes

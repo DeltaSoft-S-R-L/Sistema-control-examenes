@@ -49,8 +49,8 @@ class IncidenciaController extends Controller
         $incidencia = Incidencia::findOrFail($id);
 
         $data = $request->validate([
-            'tipo'        => 'sometimes|string|max:50',
-            'descripcion' => 'sometimes|string',
+            'tipo'        => 'sometimes|required|string|max:50',
+            'descripcion' => 'sometimes|required|string',
         ]);
 
         $incidencia->update($data);

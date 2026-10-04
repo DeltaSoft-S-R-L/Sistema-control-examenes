@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\ExamenController;
 use App\Http\Controllers\Api\HabilitacionController;
 use App\Http\Controllers\Api\IngresoController;
 use App\Http\Controllers\Api\IncidenciaController;
+use App\Http\Controllers\Api\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -33,11 +34,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
 
-    // Estudiantes — rutas específicas antes del apiResource
-    Route::get('/estudiantes/buscar',      [EstudianteController::class, 'buscarPorIdentificador']);
-    Route::post('/estudiantes/carga-masiva', [EstudianteController::class, 'cargaMasiva']);
+    // Recursos principales - Usuarios
+    Route::get('/usuarios', [UsuarioController::class, 'index']);
+    Route::post('/usuarios', [UsuarioController::class, 'store']);
+    Route::get('/usuarios/{id}', [UsuarioController::class, 'show']);
+    Route::put('/usuarios/{usuario}', [UsuarioController::class, 'update']);
 
-    // Recursos principales
+    // Recursos principales - Otros
+    Route::post('/estudiantes/importar', [EstudianteController::class, 'importar']);
     Route::apiResource('estudiantes',    EstudianteController::class);
     Route::apiResource('examenes',       ExamenController::class);
     Route::apiResource('ambientes',      AmbienteController::class);

@@ -48,7 +48,7 @@ class HabilitacionController extends Controller
         $habilitacion = Habilitacion::findOrFail($id);
 
         $data = $request->validate([
-            'estado' => 'sometimes|in:habilitado,inhabilitado,pendiente',
+            'estado' => 'sometimes|required|in:habilitado,inhabilitado,pendiente',
             'motivo' => 'nullable|string',
         ]);
 

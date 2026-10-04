@@ -18,7 +18,7 @@ class AuthController extends Controller
         ]);
 
         $usuario = Usuario::where('username', $request->username)
-            ->where('estado', 'activo')
+            ->whereIn('estado', ['ACTIVO', 'activo'])
             ->first();
 
         if (! $usuario || ! PasswordHasher::verify($request->password, $usuario->password_hash)) {
@@ -27,7 +27,8 @@ class AuthController extends Controller
             ]);
         }
 
-        $token = $usuario->createToken('api-token')->plainTextToken;
+        $expiresAt = now()->addMinutes((int) config('sanctum.expiration'));
+        $token = $usuario->createToken('api-token', ['*'], $expiresAt)->plainTextToken;
 
         return response()->json([
             'token' => $token,
@@ -63,4 +64,3 @@ class AuthController extends Controller
         ]);
     }
 }
-

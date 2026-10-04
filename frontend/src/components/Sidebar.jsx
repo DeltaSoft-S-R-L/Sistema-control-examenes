@@ -3,14 +3,51 @@ import { NavLink } from 'react-router-dom';
 
 export default function Sidebar() {
   const links = [
-    { to: '/', label: 'Inicio', icon: 'bi-house-door' },
-    { to: '/examenes', label: 'Exámenes', icon: 'bi-journal-check' },
-    { to: '/estudiantes', label: 'Estudiantes', icon: 'bi-people' },
-    { to: '/ambientes', label: 'Ambientes', icon: 'bi-building' },
-    { to: '/habilitaciones', label: 'Habilitaciones', icon: 'bi-person-check' },
-    { to: '/control-ingreso', label: 'Control de ingreso', icon: 'bi-box-arrow-in-right' },
-    { to: '/incidencias', label: 'Incidencias', icon: 'bi-exclamation-triangle' },
-    { to: '/reportes', label: 'Reportes', icon: 'bi-bar-chart' },
+    {
+      to: '/',
+      label: 'Inicio',
+      icon: 'bi-house-door',
+    },
+    {
+      to: '/examenes',
+      label: 'Exámenes',
+      icon: 'bi-journal-check',
+    },
+    {
+      to: '/estudiantes',
+      label: 'Estudiantes',
+      icon: 'bi-people',
+    },
+    {
+      to: '/usuarios',
+      label: 'Usuarios',
+      icon: 'bi-person-gear',
+    },
+    {
+      to: '/ambientes',
+      label: 'Ambientes',
+      icon: 'bi-building',
+    },
+    {
+      to: '/habilitaciones',
+      label: 'Habilitaciones',
+      icon: 'bi-person-check',
+    },
+    {
+      to: '/control-ingreso',
+      label: 'Control de ingreso',
+      icon: 'bi-box-arrow-in-right',
+    },
+    {
+      to: '/incidencias',
+      label: 'Incidencias',
+      icon: 'bi-exclamation-triangle',
+    },
+    {
+      to: '/reportes',
+      label: 'Reportes',
+      icon: 'bi-bar-chart',
+    },
   ];
 
   return (
@@ -35,7 +72,9 @@ export default function Sidebar() {
               }`
             }
           >
-            <i className={`bi ${link.icon} me-2 fs-5`}></i>
+            <i
+              className={`bi ${link.icon} me-2 fs-5`}
+            ></i>
 
             {link.label}
           </NavLink>
