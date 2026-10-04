@@ -126,4 +126,51 @@ class UsuarioController extends Controller
 
         return response()->json($usuario);
     }
+
+    /**
+     * Revocar acceso a un usuario (USR-03).
+     *
+     * Cambia el estado a 'REVOCADO', invalida todos sus tokens de Sanctum
+     * e impide la auto-revocación del administrador.
+     */
+    public function revocar(Request $request, string $id)
+    {
+        // 1. Validar autorización de rol (solo ADMINISTRADOR)
+        $admin = $request->user();
+        if (!$admin || strtoupper($admin->rol?->nombre ?? '') !== 'ADMINISTRADOR') {
+            return response()->json([
+                'message' => 'No tiene permisos para realizar esta acción.',
+            ], 403);
+        }
+
+        // 2. Validar existencia del usuario objetivo
+        $usuario = Usuario::with('rol')->find($id);
+        if (!$usuario) {
+            return response()->json([
+                'message' => 'Usuario no encontrado.',
+            ], 404);
+        }
+
+        // 3. Impedir auto-revocación
+        if ((int) $admin->id_usuario === (int) $usuario->id_usuario) {
+            return response()->json([
+                'message' => 'No puede revocar su propia cuenta de administrador.',
+            ], 422);
+        }
+
+        // 4. Actualizar estado a REVOCADO
+        $usuario->update([
+            'estado' => 'REVOCADO',
+        ]);
+
+        // 5. Invalidar todas las sesiones / tokens Sanctum del usuario revocado
+        $usuario->tokens()->delete();
+
+        $usuario->load('rol');
+
+        return response()->json([
+            'message' => 'Cuenta revocada exitosamente',
+            'data'    => $usuario,
+        ], 200);
+    }
 }

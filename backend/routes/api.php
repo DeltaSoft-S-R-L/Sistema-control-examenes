@@ -39,6 +39,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/usuarios', [UsuarioController::class, 'store']);
     Route::get('/usuarios/{id}', [UsuarioController::class, 'show']);
     Route::put('/usuarios/{usuario}', [UsuarioController::class, 'update']);
+    Route::match(['patch', 'post'], '/usuarios/{id}/revocar', [UsuarioController::class, 'revocar']);
 
     // Recursos principales - Otros
     Route::post('/estudiantes/importar', [EstudianteController::class, 'importar']);
