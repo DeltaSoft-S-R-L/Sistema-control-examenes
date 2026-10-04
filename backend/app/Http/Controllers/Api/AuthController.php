@@ -17,13 +17,17 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $usuario = Usuario::where('username', $request->username)
-            ->whereIn('estado', ['ACTIVO', 'activo'])
-            ->first();
+        $usuario = Usuario::where('username', $request->username)->first();
 
         if (! $usuario || ! PasswordHasher::verify($request->password, $usuario->password_hash)) {
             throw ValidationException::withMessages([
                 'username' => ['Las credenciales son incorrectas.'],
+            ]);
+        }
+
+        if (strtoupper($usuario->estado) !== 'ACTIVO') {
+            throw ValidationException::withMessages([
+                'username' => ['Su cuenta se encuentra inactiva o revocada. Contacte al administrador.'],
             ]);
         }
 
