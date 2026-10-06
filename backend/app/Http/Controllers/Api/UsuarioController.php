@@ -11,15 +11,16 @@ use Illuminate\Validation\Rule;
 
 class UsuarioController extends Controller
 {
-    /**
-     * Registrar un nuevo usuario (USR-01, Tarea #6).
-     *
-     * Integra validación (#5), hashing criptográfico (#2) y
-     * asignación de rol (#7).
-     */
     public function store(StoreUsuarioRequest $request)
     {
         $data = $request->validated();
+
+        $estado = 'ACTIVO';
+        if (isset($data['is_active'])) {
+            $estado = filter_var($data['is_active'], FILTER_VALIDATE_BOOLEAN) ? 'ACTIVO' : 'REVOCADO';
+        } elseif (isset($data['estado'])) {
+            $estado = strtoupper($data['estado']);
+        }
 
         $usuario = Usuario::create([
             'nombre'        => $data['nombre'],
@@ -28,10 +29,9 @@ class UsuarioController extends Controller
             'username'      => $data['username'],
             'password_hash' => PasswordHasher::hash($data['password']),
             'id_rol'        => $data['id_rol'],
-            'estado'        => strtoupper($data['estado'] ?? 'ACTIVO'),
+            'estado'        => $estado,
         ]);
 
-        // Cargar la relación de rol para incluirla en la respuesta
         $usuario->load('rol');
 
         return response()->json([
@@ -85,9 +85,6 @@ class UsuarioController extends Controller
         return response()->json($usuario);
     }
 
-    /**
-     * Actualizar usuario.
-     */
     public function update(Request $request, Usuario $usuario)
     {
         $datos = $request->validate([
@@ -112,13 +109,18 @@ class UsuarioController extends Controller
                 'integer',
                 Rule::exists('rol', 'id_rol'),
             ],
+            'is_active' => ['sometimes', 'boolean'],
             'estado' => [
-                'required',
+                'sometimes',
                 Rule::in(['ACTIVO', 'REVOCADO', 'activo', 'revocado']),
             ],
         ]);
 
-        $datos['estado'] = strtoupper($datos['estado']);
+        if (array_key_exists('is_active', $datos)) {
+            $datos['estado'] = filter_var($datos['is_active'], FILTER_VALIDATE_BOOLEAN) ? 'ACTIVO' : 'REVOCADO';
+        } elseif (array_key_exists('estado', $datos)) {
+            $datos['estado'] = strtoupper($datos['estado']);
+        }
 
         $usuario->update($datos);
 
