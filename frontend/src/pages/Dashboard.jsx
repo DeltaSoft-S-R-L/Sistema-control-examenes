@@ -1,12 +1,36 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
+import { getRol, getUsuario, ROLES } from '../utils/auth';
+
+function obtenerTotal(response) {
+  const data = response?.data;
+
+  if (typeof data?.total === 'number') {
+    return data.total;
+  }
+
+  if (Array.isArray(data)) {
+    return data.length;
+  }
+
+  if (Array.isArray(data?.data)) {
+    return data.data.length;
+  }
+
+  return 0;
+}
 
 export default function Dashboard() {
+  const rol = getRol();
+  const usuario = getUsuario();
+
   const [stats, setStats] = useState({
     examenes: 0,
     estudiantes: 0,
     ambientes: 0,
+    ingresos: 0,
+    incidencias: 0,
   });
 
   const [loading, setLoading] = useState(true);
@@ -14,105 +38,231 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [resExamenes, resEstudiantes, resAmbientes] =
-          await Promise.allSettled([
-            api.get('/examenes'),
-            api.get('/estudiantes'),
-            api.get('/ambientes'),
-          ]);
+        let peticiones = [];
 
-        setStats({
-          examenes:
-            resExamenes.status === 'fulfilled'
-              ? (resExamenes.value.data.total ??
-                resExamenes.value.data.length ??
-                0)
-              : 0,
+        if (rol === ROLES.ADMINISTRADOR) {
+          peticiones = [
+            ['examenes', api.get('/examenes')],
+            ['estudiantes', api.get('/estudiantes')],
+            ['ambientes', api.get('/ambientes')],
+            ['ingresos', api.get('/ingresos')],
+            ['incidencias', api.get('/incidencias')],
+          ];
+        }
 
-          estudiantes:
-            resEstudiantes.status === 'fulfilled'
-              ? (resEstudiantes.value.data.total ??
-                resEstudiantes.value.data.length ??
-                0)
-              : 0,
+        if (rol === ROLES.DOCENTE) {
+          peticiones = [
+            ['examenes', api.get('/examenes')],
+            ['estudiantes', api.get('/estudiantes')],
+          ];
+        }
 
-          ambientes:
-            resAmbientes.status === 'fulfilled'
-              ? (resAmbientes.value.data.total ??
-                resAmbientes.value.data.length ??
-                0)
-              : 0,
+        if (rol === ROLES.CONTROL_INGRESO) {
+          peticiones = [
+            ['ingresos', api.get('/ingresos')],
+            ['incidencias', api.get('/incidencias')],
+          ];
+        }
+
+        const resultados = await Promise.allSettled(
+          peticiones.map(([, peticion]) => peticion)
+        );
+
+        const nuevosStats = {
+          examenes: 0,
+          estudiantes: 0,
+          ambientes: 0,
+          ingresos: 0,
+          incidencias: 0,
+        };
+
+        resultados.forEach((resultado, index) => {
+          if (resultado.status === 'fulfilled') {
+            const [nombre] = peticiones[index];
+            nuevosStats[nombre] = obtenerTotal(resultado.value);
+          }
         });
-      } catch (err) {
-        console.error('Error fetching dashboard stats', err);
+
+        setStats(nuevosStats);
+      } catch (error) {
+        console.error('Error al cargar el panel:', error);
       } finally {
         setLoading(false);
       }
     };
 
     fetchStats();
-  }, []);
+  }, [rol]);
 
-  const tarjetas = [
-    {
-      titulo: 'Exámenes',
-      valor: stats.examenes,
-      icono: 'bi-journal-check',
-      color: 'primary',
-      detalle: 'Registrados',
+  const configuracion = {
+    [ROLES.ADMINISTRADOR]: {
+      titulo: 'Panel de administración',
+      descripcion: 'Resumen y estado general del sistema de control de exámenes.',
+      tarjetas: [
+        {
+          titulo: 'Exámenes',
+          valor: stats.examenes,
+          icono: 'bi-journal-check',
+          color: 'primary',
+        },
+        {
+          titulo: 'Estudiantes',
+          valor: stats.estudiantes,
+          icono: 'bi-people',
+          color: 'success',
+        },
+        {
+          titulo: 'Ambientes',
+          valor: stats.ambientes,
+          icono: 'bi-building',
+          color: 'warning',
+        },
+        {
+          titulo: 'Ingresos',
+          valor: stats.ingresos,
+          icono: 'bi-box-arrow-in-right',
+          color: 'info',
+        },
+        {
+          titulo: 'Incidencias',
+          valor: stats.incidencias,
+          icono: 'bi-exclamation-circle',
+          color: 'danger',
+        },
+      ],
+      accesos: [
+        {
+          to: '/usuarios',
+          label: 'Gestionar usuarios',
+          icono: 'bi-person-gear',
+        },
+        {
+          to: '/examenes',
+          label: 'Gestionar exámenes',
+          icono: 'bi-journal-check',
+        },
+        {
+          to: '/ambientes',
+          label: 'Gestionar ambientes',
+          icono: 'bi-building',
+        },
+        {
+          to: '/reportes',
+          label: 'Consultar reportes',
+          icono: 'bi-bar-chart',
+        },
+      ],
     },
-    {
-      titulo: 'Estudiantes',
-      valor: stats.estudiantes,
-      icono: 'bi-people',
-      color: 'success',
-      detalle: 'Registrados',
+
+    [ROLES.DOCENTE]: {
+      titulo: 'Panel docente',
+      descripcion: `Bienvenido${usuario?.nombre ? `, ${usuario.nombre}` : ''}. Accede a la gestión académica de tus exámenes.`,
+      tarjetas: [
+        {
+          titulo: 'Mis exámenes',
+          valor: stats.examenes,
+          icono: 'bi-journal-check',
+          color: 'primary',
+        },
+        {
+          titulo: 'Estudiantes',
+          valor: stats.estudiantes,
+          icono: 'bi-people',
+          color: 'success',
+        },
+      ],
+      accesos: [
+        {
+          to: '/examenes',
+          label: 'Mis exámenes',
+          icono: 'bi-journal-check',
+        },
+        {
+          to: '/estudiantes',
+          label: 'Estudiantes',
+          icono: 'bi-people',
+        },
+        {
+          to: '/habilitaciones',
+          label: 'Habilitaciones',
+          icono: 'bi-person-check',
+        },
+        {
+          to: '/reportes',
+          label: 'Reportes',
+          icono: 'bi-bar-chart',
+        },
+      ],
     },
-    {
-      titulo: 'Ambientes',
-      valor: stats.ambientes,
-      icono: 'bi-building',
-      color: 'warning',
-      detalle: 'Disponibles',
+
+    [ROLES.CONTROL_INGRESO]: {
+      titulo: 'Panel de control de ingreso',
+      descripcion: `Bienvenido${usuario?.nombre ? `, ${usuario.nombre}` : ''}. Gestiona el ingreso y las incidencias de los estudiantes.`,
+      tarjetas: [
+        {
+          titulo: 'Ingresos',
+          valor: stats.ingresos,
+          icono: 'bi-box-arrow-in-right',
+          color: 'success',
+        },
+        {
+          titulo: 'Incidencias',
+          valor: stats.incidencias,
+          icono: 'bi-exclamation-triangle',
+          color: 'danger',
+        },
+      ],
+      accesos: [
+        {
+          to: '/control-ingreso',
+          label: 'Control de ingreso',
+          icono: 'bi-box-arrow-in-right',
+        },
+        {
+          to: '/incidencias',
+          label: 'Registrar incidencia',
+          icono: 'bi-exclamation-triangle',
+        },
+        {
+          to: '/reportes',
+          label: 'Consultar reportes',
+          icono: 'bi-bar-chart',
+        },
+      ],
     },
-    {
-      titulo: 'Ingresos',
-      valor: 0,
-      icono: 'bi-box-arrow-in-right',
-      color: 'info',
-      detalle: 'Registrados',
-    },
-    {
-      titulo: 'Incidencias',
-      valor: 0,
-      icono: 'bi-exclamation-circle',
-      color: 'danger',
-      detalle: 'Registradas',
-    },
-  ];
+  };
+
+  const panel = configuracion[rol];
+
+  if (!panel) {
+    return (
+      <div className="alert alert-warning">
+        No se pudo determinar el rol del usuario.
+      </div>
+    );
+  }
 
   return (
     <div>
-      {/* Encabezado */}
       <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <div>
-          <h2 className="fw-bold mb-1">Panel Principal</h2>
-
-          <p className="text-muted mb-0">
-            Resumen y estado general del sistema de exámenes
-          </p>
+          <h2 className="fw-bold mb-1">{panel.titulo}</h2>
+          <p className="text-muted mb-0">{panel.descripcion}</p>
         </div>
 
-        <div className="border rounded-3 bg-white px-3 py-2 small text-muted shadow-sm">
-          <i className="bi bi-calendar3 me-2"></i>
-          Sistema de Control de Exámenes
+        <div className="border rounded-3 bg-white px-3 py-2 small shadow-sm">
+          <i className="bi bi-shield-check me-2 text-primary"></i>
+          <span className="text-muted">Rol: </span>
+          <span className="fw-semibold">{rol}</span>
         </div>
       </div>
 
-      {/* Tarjetas de resumen */}
-      <div className="row row-cols-1 row-cols-sm-2 row-cols-lg-5 g-3 mb-4">
-        {tarjetas.map((tarjeta) => (
-          <div className="col" key={tarjeta.titulo}>
+      <div className="row g-3 mb-4">
+        {panel.tarjetas.map((tarjeta) => (
+          <div
+            className="col-12 col-sm-6 col-lg-4 col-xl"
+            key={tarjeta.titulo}
+          >
             <div className="card h-100 border-0 shadow-sm rounded-3">
               <div className="card-body p-3">
                 <div className="d-flex justify-content-between align-items-start mb-3">
@@ -123,8 +273,8 @@ export default function Dashboard() {
                   <div
                     className={`bg-${tarjeta.color}-subtle text-${tarjeta.color} rounded-3 d-flex align-items-center justify-content-center`}
                     style={{
-                      width: '34px',
-                      height: '34px',
+                      width: '38px',
+                      height: '38px',
                     }}
                   >
                     <i className={`bi ${tarjeta.icono}`}></i>
@@ -136,7 +286,7 @@ export default function Dashboard() {
                 </h3>
 
                 <span className="text-muted small">
-                  {tarjeta.detalle}
+                  Registros disponibles
                 </span>
               </div>
             </div>
@@ -144,114 +294,32 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Contenido principal */}
-      <div className="row g-4">
-        {/* Próximos exámenes */}
-        <div className="col-12 col-xl-8">
-          <div className="card border-0 shadow-sm rounded-3 h-100">
-            <div className="card-header bg-white border-0 pt-4 px-4 pb-2">
-              <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  <h5 className="fw-bold mb-1">
-                    Próximos exámenes
-                  </h5>
+      <div className="card border-0 shadow-sm rounded-3">
+        <div className="card-header bg-white border-0 pt-4 px-4">
+          <h5 className="fw-bold mb-1">Accesos rápidos</h5>
+          <p className="text-muted small mb-0">
+            Opciones disponibles para tu rol
+          </p>
+        </div>
 
-                  <p className="text-muted small mb-0">
-                    Exámenes programados próximamente
-                  </p>
-                </div>
-
+        <div className="card-body p-4">
+          <div className="row g-3">
+            {panel.accesos.map((acceso) => (
+              <div
+                className="col-12 col-md-6 col-xl-3"
+                key={acceso.to}
+              >
                 <Link
-                  to="/examenes"
-                  className="btn btn-sm btn-outline-primary"
+                  to={acceso.to}
+                  className="btn btn-outline-primary w-100 h-100 py-3 d-flex align-items-center justify-content-center"
                 >
-                  Ver todos
-                  <i className="bi bi-arrow-right ms-2"></i>
+                  <i className={`bi ${acceso.icono} me-2`}></i>
+                  {acceso.label}
                 </Link>
               </div>
-            </div>
-
-            <div className="card-body px-4 pb-4">
-              <div
-                className="d-flex flex-column justify-content-center align-items-center text-center"
-                style={{ minHeight: '220px' }}
-              >
-                <div
-                  className="bg-primary-subtle text-primary rounded-circle d-flex align-items-center justify-content-center mb-3"
-                  style={{
-                    width: '48px',
-                    height: '48px',
-                  }}
-                >
-                  <i className="bi bi-calendar-event fs-5"></i>
-                </div>
-
-                <h6 className="fw-semibold">
-                  No hay exámenes para mostrar
-                </h6>
-
-                <p
-                  className="text-muted small mb-0"
-                  style={{ maxWidth: '350px' }}
-                >
-                  Los próximos exámenes aparecerán aquí cuando sean
-                  registrados en el sistema.
-                </p>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
-
-        {/* Actividad reciente */}
-        <div className="col-12 col-xl-4">
-          <div className="card border-0 shadow-sm rounded-3 h-100">
-            <div className="card-header bg-white border-0 pt-4 px-4 pb-2">
-              <h5 className="fw-bold mb-1">
-                Actividad reciente
-              </h5>
-
-              <p className="text-muted small mb-0">
-                Últimos movimientos del sistema
-              </p>
-            </div>
-
-            <div className="card-body px-4 pb-4">
-              <div
-                className="d-flex flex-column justify-content-center align-items-center text-center"
-                style={{ minHeight: '220px' }}
-              >
-                <div
-                  className="bg-success-subtle text-success rounded-circle d-flex align-items-center justify-content-center mb-3"
-                  style={{
-                    width: '48px',
-                    height: '48px',
-                  }}
-                >
-                  <i className="bi bi-clock-history fs-5"></i>
-                </div>
-
-                <h6 className="fw-semibold">
-                  Sin actividad reciente
-                </h6>
-
-                <p className="text-muted small mb-0">
-                  La actividad registrada en el sistema aparecerá aquí.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Acceso rápido */}
-      <div className="d-flex justify-content-end mt-4">
-        <Link
-          to="/control-ingreso"
-          className="btn btn-primary px-4"
-        >
-          <i className="bi bi-box-arrow-in-right me-2"></i>
-          Ir a control de ingreso
-        </Link>
       </div>
     </div>
   );
