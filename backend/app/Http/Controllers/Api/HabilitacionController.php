@@ -25,11 +25,13 @@ class HabilitacionController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'id_estudiante' => 'required|exists:estudiante,id_estudiante',
-            'id_examen'     => 'required|exists:examen,id_examen',
-            'estado'        => 'required|in:habilitado,inhabilitado,pendiente',
-            'motivo'        => 'nullable|string',
+            'id_estudiante' => ['required', 'integer', 'exists:estudiante,id_estudiante'],
+            'id_examen'     => ['required', 'integer', 'exists:examen,id_examen'],
+            'estado'        => ['sometimes', 'string', \Illuminate\Validation\Rule::in(['HABILITADO', 'NO_HABILITADO', 'habilitado', 'no_habilitado'])],
+            'motivo'        => ['nullable', 'string'],
         ]);
+
+        $data['estado'] = strtoupper($data['estado'] ?? 'HABILITADO');
 
         $habilitacion = Habilitacion::create($data);
 
@@ -48,9 +50,13 @@ class HabilitacionController extends Controller
         $habilitacion = Habilitacion::findOrFail($id);
 
         $data = $request->validate([
-            'estado' => 'sometimes|required|in:habilitado,inhabilitado,pendiente',
-            'motivo' => 'nullable|string',
+            'estado' => ['sometimes', 'required', 'string', \Illuminate\Validation\Rule::in(['HABILITADO', 'NO_HABILITADO', 'habilitado', 'no_habilitado'])],
+            'motivo' => ['nullable', 'string'],
         ]);
+
+        if (isset($data['estado'])) {
+            $data['estado'] = strtoupper($data['estado']);
+        }
 
         $habilitacion->update($data);
 
