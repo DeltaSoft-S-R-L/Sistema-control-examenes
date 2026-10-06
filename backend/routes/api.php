@@ -10,6 +10,8 @@ use App\Http\Controllers\Api\IngresoController;
 use App\Http\Controllers\Api\IncidenciaController;
 use App\Http\Controllers\Api\UsuarioController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\FacultadController;
+use App\Http\Controllers\Api\CarreraController;
 
 /*
 |--------------------------------------------------------------------------
@@ -45,6 +47,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('estudiantes',    EstudianteController::class);
     Route::apiResource('examenes',       ExamenController::class);
     Route::apiResource('ambientes',      AmbienteController::class);
+    Route::apiResource('facultades',     FacultadController::class);
+    Route::apiResource('carreras',       CarreraController::class);
     Route::apiResource('asignaturas',    AsignaturaController::class);
     Route::apiResource('habilitaciones', HabilitacionController::class);
     Route::apiResource('ingresos',       IngresoController::class);
