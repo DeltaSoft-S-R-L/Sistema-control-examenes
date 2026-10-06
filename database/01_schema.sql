@@ -44,6 +44,23 @@ CREATE TABLE public.auditoria (
     descripcion text
 );
 
+CREATE TABLE public.facultad (
+    id_facultad bigint NOT NULL,
+    codigo character varying(30) NOT NULL,
+    nombre character varying(150) NOT NULL
+);
+
+CREATE TABLE public.carrera (
+    id_carrera bigint NOT NULL,
+    id_facultad bigint NOT NULL,
+    codigo character varying(30) NOT NULL,
+    nombre character varying(150) NOT NULL
+);
+
+CREATE TABLE public.carrera_asignatura (
+    id_carrera bigint NOT NULL,
+    id_asignatura bigint NOT NULL
+);
 
 CREATE TABLE public.estudiante (
     id_estudiante bigint NOT NULL,
@@ -51,11 +68,16 @@ CREATE TABLE public.estudiante (
     nombre character varying(100) NOT NULL,
     apellido character varying(100) NOT NULL,
     codigo_universitario character varying(50) NOT NULL,
+    id_carrera bigint NOT NULL,
     correo character varying(150),
     estado character varying(20) NOT NULL,
     CONSTRAINT ck_estudiante_estado CHECK (((estado)::text = ANY ((ARRAY['ACTIVO'::character varying, 'INACTIVO'::character varying])::text[])))
 );
 
+CREATE TABLE public.estudiante_asignatura (
+    id_estudiante bigint NOT NULL,
+    id_asignatura bigint NOT NULL
+);
 
 CREATE TABLE public.examen (
     id_examen bigint NOT NULL,
@@ -173,6 +195,18 @@ CREATE TABLE public.usuario (
     CONSTRAINT ck_usuario_estado CHECK (((estado)::text = ANY ((ARRAY['ACTIVO'::character varying, 'REVOCADO'::character varying])::text[])))
 );
 
+CREATE TABLE public.personal_access_tokens (
+    id bigint NOT NULL,
+    tokenable_type character varying(255) NOT NULL,
+    tokenable_id bigint NOT NULL,
+    name text NOT NULL,
+    token character varying(64) NOT NULL,
+    abilities text,
+    last_used_at timestamp without time zone,
+    expires_at timestamp without time zone,
+    created_at timestamp without time zone,
+    updated_at timestamp without time zone
+);
 
 ALTER TABLE public.ambiente ALTER COLUMN id_ambiente ADD GENERATED ALWAYS AS IDENTITY (
     SEQUENCE NAME public.ambiente_id_ambiente_seq
@@ -203,6 +237,24 @@ ALTER TABLE public.asignatura ALTER COLUMN id_asignatura ADD GENERATED ALWAYS AS
 
 ALTER TABLE public.auditoria ALTER COLUMN id_auditoria ADD GENERATED ALWAYS AS IDENTITY (
     SEQUENCE NAME public.auditoria_id_auditoria_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+ALTER TABLE public.facultad ALTER COLUMN id_facultad ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.facultad_id_facultad_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+ALTER TABLE public.carrera ALTER COLUMN id_carrera ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.carrera_id_carrera_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -311,6 +363,15 @@ ALTER TABLE public.rol ALTER COLUMN id_rol ADD GENERATED ALWAYS AS IDENTITY (
 
 ALTER TABLE public.usuario ALTER COLUMN id_usuario ADD GENERATED ALWAYS AS IDENTITY (
     SEQUENCE NAME public.usuario_id_usuario_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+ALTER TABLE public.personal_access_tokens ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.personal_access_tokens_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
