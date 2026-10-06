@@ -21,7 +21,20 @@ class Usuario extends Authenticatable
         'password_hash',
         'id_rol',
         'estado',
+        'is_active',
     ];
+
+    protected $appends = [
+        'is_active',
+    ];
+
+    protected function isActive(): \Illuminate\Database\Eloquent\Casts\Attribute
+    {
+        return \Illuminate\Database\Eloquent\Casts\Attribute::make(
+            get: fn (mixed $value, array $attributes) => isset($attributes['estado']) && strtoupper($attributes['estado']) === 'ACTIVO',
+            set: fn (bool $value) => ['estado' => $value ? 'ACTIVO' : 'REVOCADO'],
+        );
+    }
 
     protected $hidden = [
         'password_hash',
