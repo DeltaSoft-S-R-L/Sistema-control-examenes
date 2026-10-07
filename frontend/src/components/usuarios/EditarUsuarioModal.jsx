@@ -83,8 +83,7 @@ export default function EditarUsuarioModal({
       /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s'-]+$/;
 
     const formatoCorreo =
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
+      /^[^@\s]+@umss\.edu\.bo$/i;
     const formatoUsername =
       /^[A-Za-z0-9._-]+$/;
 
@@ -124,7 +123,7 @@ export default function EditarUsuarioModal({
       !formatoCorreo.test(formulario.correo.trim())
     ) {
       nuevosErrores.correo =
-        'Ingrese un correo electrónico válido.';
+        'El correo debe ser institucional de la UMSS (@umss.edu.bo).';
     }
 
     if (!formulario.username.trim()) {

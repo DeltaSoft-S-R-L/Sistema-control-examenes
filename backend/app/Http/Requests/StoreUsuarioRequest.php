@@ -42,6 +42,7 @@ class StoreUsuarioRequest extends FormRequest
                 'required',
                 'email',
                 'max:150',
+                'regex:/^[^@\s]+@umss\.edu\.bo$/i',
                 'unique:usuario,correo',
             ],
 
@@ -93,6 +94,7 @@ class StoreUsuarioRequest extends FormRequest
             'correo.email'    => 'El correo electrónico no tiene un formato válido.',
             'correo.max'      => 'El correo electrónico no puede superar los 150 caracteres.',
             'correo.unique'   => 'El correo electrónico ya está registrado.',
+            'correo.regex' => 'El correo debe ser institucional de la UMSS (@umss.edu.bo).',
 
             'username.required' => 'El nombre de usuario es obligatorio.',
             'username.min'      => 'El nombre de usuario debe tener al menos 3 caracteres.',

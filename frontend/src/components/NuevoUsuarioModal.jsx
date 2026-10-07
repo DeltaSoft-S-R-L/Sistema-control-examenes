@@ -13,6 +13,7 @@ export default function NuevoUsuarioModal({ isOpen, onClose, onSuccess }) {
     estado: "ACTIVO",
   });
   const [error, setError] = useState(null);
+  const [errorCorreo, setErrorCorreo] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
@@ -23,6 +24,17 @@ export default function NuevoUsuarioModal({ isOpen, onClose, onSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    setErrorCorreo("");
+
+    const correo = formData.correo.trim();
+    const formatoCorreo = /^[^@\s]+@umss\.edu\.bo$/i;
+
+    if (!formatoCorreo.test(correo)) {
+      setErrorCorreo(
+        "El correo debe ser institucional de la UMSS (@umss.edu.bo).",
+      );
+      return;
+    }
     setLoading(true);
 
     try {
@@ -99,12 +111,21 @@ export default function NuevoUsuarioModal({ isOpen, onClose, onSuccess }) {
                   </label>
                   <input
                     type="email"
-                    className="form-control bg-light"
+                    className={`form-control bg-light ${
+                      errorCorreo ? "is-invalid" : ""
+                    }`}
                     name="correo"
                     value={formData.correo}
-                    onChange={handleChange}
+                    onChange={(e) => {
+                      handleChange(e);
+                      setErrorCorreo("");
+                    }}
                     required
                   />
+
+                  {errorCorreo && (
+                    <div className="invalid-feedback">{errorCorreo}</div>
+                  )}
                 </div>
               </div>
 
