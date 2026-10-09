@@ -97,6 +97,7 @@ class UsuarioController extends Controller
                 'required',
                 'email',
                 'max:150',
+                'regex:/^[^@\s]+@umss\.edu\.bo$/i',
                 Rule::unique('usuario', 'correo')
                     ->ignore($usuario->id_usuario, 'id_usuario'),
             ],

@@ -15,6 +15,7 @@ class Estudiante extends Model
         'nombre',
         'apellido',
         'codigo_universitario',
+        'id_carrera',
         'correo',
         'estado',
     ];
@@ -32,5 +33,20 @@ class Estudiante extends Model
     public function intentos()
     {
         return $this->hasMany(IntentoIngreso::class, 'id_estudiante', 'id_estudiante');
+    }
+
+    public function carrera()
+    {
+        return $this->belongsTo(Carrera::class, 'id_carrera', 'id_carrera');
+    }
+
+    public function asignaturas()
+    {
+        return $this->belongsToMany(
+            Asignatura::class,
+            'estudiante_asignatura',
+            'id_estudiante',
+            'id_asignatura'
+        );
     }
 }

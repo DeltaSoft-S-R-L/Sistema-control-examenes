@@ -3,8 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\Asignatura;
+use App\Models\Carrera;
 use App\Models\Estudiante;
 use App\Models\Examen;
+use App\Models\Facultad;
+use App\Models\Permiso;
 use App\Models\Rol;
 use App\Models\Usuario;
 use App\Utilities\PasswordHasher;
@@ -28,11 +31,18 @@ class AsociarEstudianteExamenTest extends TestCase
     {
         parent::setUp();
 
+        // Permiso de habilitaciones requerido por PermissionMiddleware
+        $permisoHabilitaciones = Permiso::create([
+            'nombre'      => 'GESTIONAR_HABILITACIONES',
+            'descripcion' => 'Permiso para gestionar habilitaciones',
+        ]);
+
         // Rol y Usuario para autenticación
         $this->rolDocente = Rol::create([
             'nombre'      => 'DOCENTE',
             'descripcion' => 'Docente del sistema',
         ]);
+        $this->rolDocente->permisos()->attach($permisoHabilitaciones->id_permiso);
 
         $this->docenteUser = Usuario::create([
             'nombre'        => 'Profesor',
@@ -44,6 +54,18 @@ class AsociarEstudianteExamenTest extends TestCase
             'estado'        => 'ACTIVO',
         ]);
         $this->token = $this->docenteUser->createToken('test-token')->plainTextToken;
+
+        // Estructura Académica (Facultad y Carrera requeridos para Estudiante)
+        $facultad = Facultad::create([
+            'codigo' => 'FCYT',
+            'nombre' => 'Facultad de Ciencias y Tecnología',
+        ]);
+
+        $carrera = Carrera::create([
+            'id_facultad' => $facultad->id_facultad,
+            'codigo'      => 'SIS',
+            'nombre'      => 'Ingeniería de Sistemas',
+        ]);
 
         // Asignatura
         $this->asignatura = Asignatura::create([
@@ -77,6 +99,7 @@ class AsociarEstudianteExamenTest extends TestCase
             'nombre'               => 'Ana',
             'apellido'             => 'Gómez',
             'codigo_universitario' => '20220101',
+            'id_carrera'           => $carrera->id_carrera,
             'correo'               => 'ana.gomez@universidad.edu',
             'estado'               => 'ACTIVO',
         ]);
@@ -86,6 +109,7 @@ class AsociarEstudianteExamenTest extends TestCase
             'nombre'               => 'Luis',
             'apellido'             => 'Paz',
             'codigo_universitario' => '20220102',
+            'id_carrera'           => $carrera->id_carrera,
             'correo'               => 'luis.paz@universidad.edu',
             'estado'               => 'ACTIVO',
         ]);

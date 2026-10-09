@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import api from "../services/api";
 import ImportarEstudiantesModal from "../components/estudiantes/ImportarEstudiantesModal";
 import EditarEstudianteModal from "../components/estudiantes/EditarEstudianteModal";
@@ -238,6 +238,8 @@ export default function Estudiantes() {
                   <th className="ps-4">Código</th>
                   <th>CI</th>
                   <th>Nombre completo</th>
+                  <th>Carrera</th>
+                  <th>Materias</th>
                   <th>Correo</th>
                   <th>Estado</th>
                   <th className="text-center">Acciones</th>
@@ -254,7 +256,7 @@ export default function Estudiantes() {
                   </tr>
                 ) : estudiantes.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="text-center py-5">
+                    <td colSpan="8" className="text-center py-5">
                       <div
                         className="bg-primary-subtle text-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
                         style={{
@@ -288,10 +290,33 @@ export default function Estudiantes() {
                           {est.nombre} {est.apellido}
                         </div>
                       </td>
-
-                      <td className="text-muted">
-                        {est.correo || "-"}
+                      <td>
+                        {est.carrera ? (
+                          <span>
+                            {est.carrera.codigo} - {est.carrera.nombre}
+                          </span>
+                        ) : (
+                          <span className="text-muted">-</span>
+                        )}
                       </td>
+
+                      <td>
+                        {est.asignaturas?.length > 0 ? (
+                          <div className="d-flex flex-wrap gap-1">
+                            {est.asignaturas.map((asignatura) => (
+                              <span
+                                key={asignatura.id_asignatura}
+                                className="badge text-bg-light border"
+                              >
+                                {asignatura.codigo} - {asignatura.nombre}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-muted">-</span>
+                        )}
+                      </td>
+                      <td className="text-muted">{est.correo || "-"}</td>
 
                       <td>
                         <span
@@ -324,7 +349,9 @@ export default function Estudiantes() {
           <div className="card-footer bg-white border-0 py-3">
             <nav aria-label="Navegación de páginas de estudiantes">
               <ul className="pagination justify-content-center mb-0">
-                <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+                <li
+                  className={`page-item ${currentPage === 1 ? "disabled" : ""}`}
+                >
                   <button
                     className="page-link"
                     onClick={() => setCurrentPage((p) => p - 1)}
@@ -338,7 +365,9 @@ export default function Estudiantes() {
                     Página {currentPage} de {totalPages}
                   </span>
                 </li>
-                <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
+                <li
+                  className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}
+                >
                   <button
                     className="page-link"
                     onClick={() => setCurrentPage((p) => p + 1)}

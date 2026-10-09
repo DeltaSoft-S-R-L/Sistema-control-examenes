@@ -37,7 +37,13 @@ class Usuario extends Authenticatable
     {
         return $this->belongsTo(Rol::class, 'id_rol', 'id_rol');
     }
+    public function tienePermiso(string $permiso): bool
+    {
+    $this->loadMissing('rol.permisos');
 
+    return $this->rol?->permisos
+        ->contains('nombre', $permiso) ?? false;
+    }
     public function auditorias()
     {
         return $this->hasMany(Auditoria::class, 'id_usuario', 'id_usuario');

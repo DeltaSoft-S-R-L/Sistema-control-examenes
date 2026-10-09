@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Permiso;
 use App\Models\Rol;
 use App\Models\Usuario;
 use App\Utilities\PasswordHasher;
@@ -23,11 +24,18 @@ class RevokeUserAccountTest extends TestCase
     {
         parent::setUp();
 
+        // Permiso de gestión de usuarios (requerido por PermissionMiddleware)
+        $permisoUsuarios = Permiso::create([
+            'nombre'      => 'GESTIONAR_USUARIOS',
+            'descripcion' => 'Permiso para gestionar usuarios',
+        ]);
+
         // Roles del sistema
         $this->rolAdmin = Rol::create([
             'nombre'      => 'ADMINISTRADOR',
             'descripcion' => 'Administrador del sistema',
         ]);
+        $this->rolAdmin->permisos()->attach($permisoUsuarios->id_permiso);
 
         $this->rolDocente = Rol::create([
             'nombre'      => 'DOCENTE',
