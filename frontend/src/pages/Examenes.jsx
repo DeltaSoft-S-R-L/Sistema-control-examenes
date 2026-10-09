@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import NuevoExamenModal from '../components/examenes/NuevoExamenModal';
+import EditarExamenModal from '../components/examenes/EditarExamenModal';
 
 export default function Examenes() {
   const [examenes, setExamenes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [examenAEditar, setExamenAEditar] = useState(null);
   const [mensaje, setMensaje] = useState(null);
   const [error, setError] = useState(null);
 
@@ -46,6 +49,11 @@ export default function Examenes() {
     setFiltroEstado('');
     setFiltroFecha('');
     fetchExamenes();
+  };
+
+  const handleAbrirEditar = (examen) => {
+    setExamenAEditar(examen);
+    setIsEditModalOpen(true);
   };
 
   const handleEliminar = async (id, nombre) => {
@@ -107,7 +115,7 @@ export default function Examenes() {
             <i className="bi bi-journal-check me-2 text-primary"></i>Gestión de Exámenes
           </h2>
           <p className="text-muted mb-0">
-            Listado y control de sesiones de examen registradas en el sistema.
+            Listado, modificación y control de sesiones de examen registradas en el sistema.
           </p>
         </div>
 
@@ -206,7 +214,7 @@ export default function Examenes() {
         <div className="card-header bg-white border-0 px-4 pt-4 pb-2 d-flex justify-content-between align-items-center">
           <div>
             <h5 className="fw-bold mb-0">Sesiones Registradas</h5>
-            <small className="text-muted">Consulta de exámenes y detalles principales</small>
+            <small className="text-muted">Consulta y acciones de modificación o eliminación</small>
           </div>
           {!loading && (
             <span className="badge text-bg-light border">
@@ -228,7 +236,7 @@ export default function Examenes() {
                   <th>Duración</th>
                   <th>Ambiente(s)</th>
                   <th>Estado</th>
-                  <th className="text-center pe-4">Acciones</th>
+                  <th className="text-center pe-4" style={{ minWidth: '130px' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -280,11 +288,11 @@ export default function Examenes() {
                             <span className="text-muted fst-italic">Sin asignatura</span>
                           )}
                         </td>
-                        <td className="fw-semibold text-dark">{ex.fecha}</td>
+                        <td className="fw-semibold text-dark">{ex.fecha ? String(ex.fecha).substring(0, 10) : '-'}</td>
                         <td>
                           <span className="badge bg-light text-dark border">
                             <i className="bi bi-clock me-1 text-primary"></i>
-                            {ex.hora_inicio}
+                            {ex.hora_inicio ? String(ex.hora_inicio).substring(0, 5) : '-'}
                           </span>
                         </td>
                         <td>{ex.duracion_minutos} min</td>
@@ -302,14 +310,24 @@ export default function Examenes() {
                         </td>
                         <td>{getBadgeEstado(ex.estado)}</td>
                         <td className="text-center pe-4">
-                          <button
-                            type="button"
-                            className="btn btn-outline-danger btn-sm"
-                            title="Eliminar sesión de examen"
-                            onClick={() => handleEliminar(ex.id_examen, ex.nombre)}
-                          >
-                            <i className="bi bi-trash"></i>
-                          </button>
+                          <div className="btn-group btn-group-sm" role="group">
+                            <button
+                              type="button"
+                              className="btn btn-outline-warning"
+                              title="Modificar sesión de examen"
+                              onClick={() => handleAbrirEditar(ex)}
+                            >
+                              <i className="bi bi-pencil-square"></i>
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-outline-danger"
+                              title="Eliminar sesión de examen"
+                              onClick={() => handleEliminar(ex.id_examen, ex.nombre)}
+                            >
+                              <i className="bi bi-trash"></i>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -327,6 +345,21 @@ export default function Examenes() {
         onClose={() => setIsModalOpen(false)}
         onSuccess={() => {
           setMensaje('Examen creado con éxito.');
+          fetchExamenes();
+          setTimeout(() => setMensaje(null), 4000);
+        }}
+      />
+
+      {/* Modal Editar Examen */}
+      <EditarExamenModal
+        isOpen={isEditModalOpen}
+        examen={examenAEditar}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setExamenAEditar(null);
+        }}
+        onSuccess={(msg) => {
+          setMensaje(msg || 'Examen actualizado con éxito.');
           fetchExamenes();
           setTimeout(() => setMensaje(null), 4000);
         }}
