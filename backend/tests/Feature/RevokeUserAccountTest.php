@@ -103,6 +103,15 @@ class RevokeUserAccountTest extends TestCase
 
         // Verificar que los tokens de sesión de Sanctum del usuario revocado fueron eliminados
         $this->assertEquals(0, $this->docenteUser->tokens()->count());
+
+        // Criterio USR-03: Los tokens activos previos quedan invalidados y no permiten acceso
+        $this->app['auth']->forgetGuards();
+
+        $subsequent = $this->getJson('/api/me', [
+            'Authorization' => "Bearer {$this->docenteToken}",
+            'Accept'        => 'application/json',
+        ]);
+        $subsequent->assertStatus(401);
     }
 
     /**
@@ -138,6 +147,14 @@ class RevokeUserAccountTest extends TestCase
 
         // Verificar que los tokens de sesión de Sanctum también fueron eliminados vía POST
         $this->assertEquals(0, $this->docenteUser->tokens()->count());
+
+        // Criterio USR-03: Los tokens activos previos quedan invalidados y no permiten acceso vía POST
+        $this->app['auth']->forgetGuards();
+
+        $this->getJson('/api/me', [
+            'Authorization' => "Bearer {$this->docenteToken}",
+            'Accept'        => 'application/json',
+        ])->assertStatus(401);
     }
 
     /**

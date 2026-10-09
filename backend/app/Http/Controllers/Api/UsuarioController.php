@@ -7,6 +7,8 @@ use App\Http\Requests\StoreUsuarioRequest;
 use App\Models\Usuario;
 use App\Utilities\PasswordHasher;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class UsuarioController extends Controller
@@ -123,6 +125,14 @@ class UsuarioController extends Controller
 
         $usuario->update($datos);
 
+        // Si el estado se actualizó a REVOCADO, invalidar inmediatamente todos los tokens y sesiones (USR-03)
+        if ($datos['estado'] === 'REVOCADO') {
+            $usuario->tokens()->delete();
+            if (Schema::hasTable('sessions')) {
+                DB::table('sessions')->where('user_id', $usuario->id_usuario)->delete();
+            }
+        }
+
         $usuario->load('rol');
 
         return response()->json($usuario);
@@ -131,7 +141,7 @@ class UsuarioController extends Controller
     /**
      * Revocar acceso a un usuario (USR-03).
      *
-     * Cambia el estado a 'REVOCADO', invalida todos sus tokens de Sanctum
+     * Cambia el estado a 'REVOCADO', invalida todos sus tokens de Sanctum y sesiones
      * e impide la auto-revocación del administrador.
      */
     public function revocar(Request $request, string $id)
@@ -164,8 +174,11 @@ class UsuarioController extends Controller
             'estado' => 'REVOCADO',
         ]);
 
-        // 5. Invalidar todas las sesiones / tokens Sanctum del usuario revocado
+        // 5. Invalidar todas las sesiones / tokens Sanctum del usuario revocado (USR-03)
         $usuario->tokens()->delete();
+        if (Schema::hasTable('sessions')) {
+            DB::table('sessions')->where('user_id', $usuario->id_usuario)->delete();
+        }
 
         $usuario->load('rol');
 
