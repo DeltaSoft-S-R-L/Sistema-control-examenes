@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\IncidenciaController;
 use App\Http\Controllers\Api\IngresoController;
 use App\Http\Controllers\Api\UsuarioController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\DocenteAsignaturaController;
 
 /*
 |--------------------------------------------------------------------------
@@ -46,6 +47,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/usuarios', [UsuarioController::class, 'store']);
         Route::get('/usuarios/{id}', [UsuarioController::class, 'show']);
         Route::put('/usuarios/{usuario}', [UsuarioController::class, 'update']);
+
+        // Asignación de materias a docentes
+        Route::get('/usuarios/{usuario}/materias', [DocenteAsignaturaController::class, 'index']);
+        Route::put('/usuarios/{usuario}/materias', [DocenteAsignaturaController::class, 'update']);
     });
 
     /*
