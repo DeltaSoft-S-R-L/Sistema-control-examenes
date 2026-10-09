@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AsignacionAmbiente;
+use App\Models\Auditoria;
 use App\Models\Examen;
+use App\Services\AuditoriaService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -43,7 +45,7 @@ class ExamenController extends Controller
     }
 
     // ─────────────────────────────────────────────
-    // POST /api/examenes
+    // POST /api/examenes (Crear Examen con Auditoría)
     // ─────────────────────────────────────────────
     public function store(Request $request)
     {
@@ -71,9 +73,22 @@ class ExamenController extends Controller
             ]);
         }
 
+        $examenCargado = $examen->load(['asignatura', 'asignacionesAmbiente.ambiente']);
+        $ambienteInfo = $examenCargado->asignacionesAmbiente->first()?->ambiente?->nombre ?? 'Sin ambiente';
+
+        // ── Registro de Auditoría: Creación ──
+        AuditoriaService::registrar(
+            $request->user()?->id_usuario,
+            'CREACION',
+            'EXAMEN',
+            $examen->id_examen,
+            'EXITO',
+            "Creación de examen '{$examen->nombre}' (Fecha: {$examen->fecha->format('Y-m-d')}, Hora: {$examen->hora_inicio}, Duración: {$examen->duracion_minutos}m, Estado: {$examen->estado}, Ambiente: {$ambienteInfo})."
+        );
+
         return response()->json([
             'message' => 'Examen creado correctamente.',
-            'examen'  => $examen->load(['asignatura', 'asignacionesAmbiente.ambiente']),
+            'examen'  => $examenCargado,
         ], 201);
     }
 
@@ -93,7 +108,7 @@ class ExamenController extends Controller
     }
 
     // ─────────────────────────────────────────────
-    // PUT/PATCH /api/examenes/{id}
+    // PUT/PATCH /api/examenes/{id} (Modificar Examen con Auditoría)
     // ─────────────────────────────────────────────
     public function update(Request $request, string $id)
     {
@@ -114,6 +129,16 @@ class ExamenController extends Controller
             $data['estado'] = strtoupper($data['estado']);
         }
 
+        // Capturar valores previos para el registro de auditoría
+        $valoresPrevios = [
+            'nombre'           => $examen->nombre,
+            'fecha'            => $examen->fecha ? $examen->fecha->format('Y-m-d') : null,
+            'hora_inicio'      => $examen->hora_inicio,
+            'duracion_minutos' => $examen->duracion_minutos,
+            'estado'           => $examen->estado,
+            'id_asignatura'    => $examen->id_asignatura,
+        ];
+
         if (array_key_exists('id_ambiente', $data)) {
             $idAmbiente = $data['id_ambiente'];
             unset($data['id_ambiente']);
@@ -131,6 +156,26 @@ class ExamenController extends Controller
         $examen->update($data);
         $examen->refresh();
 
+        // ── Detectar cambios para la descripción de auditoría ──
+        $cambios = [];
+        foreach ($data as $campo => $valorNuevo) {
+            $valorPrevio = $valoresPrevios[$campo] ?? null;
+            if ($valorPrevio != $valorNuevo) {
+                $cambios[] = "{$campo}: '{$valorPrevio}' => '{$valorNuevo}'";
+            }
+        }
+        $detalleCambios = !empty($cambios) ? implode(', ', $cambios) : 'Actualización de datos generales';
+
+        // ── Registro de Auditoría: Modificación ──
+        AuditoriaService::registrar(
+            $request->user()?->id_usuario,
+            'MODIFICACION',
+            'EXAMEN',
+            $examen->id_examen,
+            'EXITO',
+            "Modificación de examen '{$examen->nombre}' (ID: {$examen->id_examen}). Cambios: [{$detalleCambios}]."
+        );
+
         return response()->json([
             'message' => 'Examen actualizado correctamente.',
             'examen'  => $examen->load(['asignatura', 'asignacionesAmbiente.ambiente']),
@@ -138,24 +183,62 @@ class ExamenController extends Controller
     }
 
     // ─────────────────────────────────────────────
-    // DELETE /api/examenes/{id}
-    // Solo permite eliminar si está en estado PROGRAMADO o CANCELADO
+    // DELETE /api/examenes/{id} (Eliminar Examen con Auditoría)
     // ─────────────────────────────────────────────
-    public function destroy(string $id)
+    public function destroy(Request $request, string $id)
     {
         $examen = Examen::findOrFail($id);
 
         if (!in_array($examen->estado, ['PROGRAMADO', 'CANCELADO'])) {
+            // ── Registro de Auditoría: Intento fallido de eliminación ──
+            AuditoriaService::registrar(
+                $request->user()?->id_usuario,
+                'ELIMINACION',
+                'EXAMEN',
+                $examen->id_examen,
+                'FALLO',
+                "Intento rechazado de eliminar examen '{$examen->nombre}' en estado '{$examen->estado}'. Solo se permite eliminar en PROGRAMADO o CANCELADO."
+            );
+
             return response()->json([
                 'message' => "No se puede eliminar un examen en estado \"{$examen->estado}\". Solo se permiten eliminar exámenes en estado PROGRAMADO o CANCELADO.",
             ], 409);
         }
 
+        $nombreExamen = $examen->nombre;
+        $estadoExamen = $examen->estado;
+        $idExamen = $examen->id_examen;
+
         // Eliminar asignaciones de ambiente asociadas
-        AsignacionAmbiente::where('id_examen', $examen->id_examen)->delete();
+        AsignacionAmbiente::where('id_examen', $idExamen)->delete();
 
         $examen->delete();
 
+        // ── Registro de Auditoría: Eliminación exitosa ──
+        AuditoriaService::registrar(
+            $request->user()?->id_usuario,
+            'ELIMINACION',
+            'EXAMEN',
+            $idExamen,
+            'EXITO',
+            "Eliminación exitosa del examen '{$nombreExamen}' (ID: {$idExamen}) que se encontraba en estado '{$estadoExamen}'."
+        );
+
         return response()->json(['message' => 'Examen eliminado correctamente.']);
+    }
+
+    // ─────────────────────────────────────────────
+    // GET /api/examenes/{id}/auditoria
+    // Consulta del historial de auditoría de un examen específico
+    // ─────────────────────────────────────────────
+    public function auditoria(string $id)
+    {
+        $auditorias = Auditoria::with('usuario:id_usuario,username,nombre,apellido')
+            ->where('entidad', 'EXAMEN')
+            ->where('id_registro', $id)
+            ->orderBy('fecha_hora', 'desc')
+            ->get();
+
+        return response()->json($auditorias);
     }
 }
