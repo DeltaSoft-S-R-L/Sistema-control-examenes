@@ -5,6 +5,10 @@ import EditarEstudianteModal from "../components/estudiantes/EditarEstudianteMod
 import NuevoEstudianteModal from "../components/estudiantes/NuevoEstudianteModal";
 
 export default function Estudiantes() {
+  const usuario = JSON.parse(localStorage.getItem("usuario") || "{}");
+  const esAdministrador =
+    String(usuario.rol || "").toUpperCase() === "ADMINISTRADOR";
+
   const [estudiantes, setEstudiantes] = useState([]);
   const [totalEstudiantes, setTotalEstudiantes] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -129,14 +133,16 @@ export default function Estudiantes() {
         </div>
 
         <div className="d-flex gap-2">
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => setMostrarNuevoModal(true)}
-          >
-            <i className="bi bi-person-plus me-2"></i>
-            Nuevo estudiante
-          </button>
+          {esAdministrador && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setMostrarNuevoModal(true)}
+            >
+              <i className="bi bi-person-plus me-2"></i>
+              Nuevo estudiante
+            </button>
+          )}
 
           <button
             type="button"
@@ -327,15 +333,21 @@ export default function Estudiantes() {
                       </td>
 
                       <td className="text-center">
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-outline-primary"
-                          onClick={() => abrirEditar(est)}
-                          title="Editar estudiante"
-                        >
-                          <i className="bi bi-pencil-square me-1"></i>
-                          Editar
-                        </button>
+                        {esAdministrador ? (
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-primary"
+                            onClick={() => abrirEditar(est)}
+                            title="Editar estudiante"
+                          >
+                            <i className="bi bi-pencil-square me-1"></i>
+                            Editar
+                          </button>
+                        ) : (
+                          <span className="text-muted small">
+                            Solo consulta
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))
