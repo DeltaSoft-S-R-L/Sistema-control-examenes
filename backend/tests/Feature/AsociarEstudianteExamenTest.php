@@ -305,4 +305,120 @@ class AsociarEstudianteExamenTest extends TestCase
 
         $response->assertStatus(401);
     }
+
+    /**
+     * 8. BE-22: Rechaza estado inválido 'pendiente' con HTTP 422 (no revienta con 500 de BD).
+     */
+    public function test_rechaza_estado_invalido_pendiente_con_422(): void
+    {
+        $payload = [
+            'id_examen'     => $this->examen1->id_examen,
+            'id_estudiante' => $this->estudiante1->id_estudiante,
+            'estado'        => 'pendiente',
+        ];
+
+        $response = $this->postJson('/api/habilitaciones', $payload, $this->authHeaders());
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['estado'])
+            ->assertJsonFragment([
+                'estado' => ['El estado debe ser HABILITADO o NO_HABILITADO.'],
+            ]);
+
+        $this->assertDatabaseCount('habilitacion', 0);
+    }
+
+    /**
+     * 9. BE-22: Rechaza estado inválido 'inhabilitado' con HTTP 422.
+     */
+    public function test_rechaza_estado_invalido_inhabilitado_con_422(): void
+    {
+        $payload = [
+            'id_examen'     => $this->examen1->id_examen,
+            'id_estudiante' => $this->estudiante1->id_estudiante,
+            'estado'        => 'inhabilitado',
+        ];
+
+        $response = $this->postJson('/api/habilitaciones', $payload, $this->authHeaders());
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['estado'])
+            ->assertJsonFragment([
+                'estado' => ['El estado debe ser HABILITADO o NO_HABILITADO.'],
+            ]);
+
+        $this->assertDatabaseCount('habilitacion', 0);
+    }
+
+    /**
+     * 10. BE-22: Estado 'NO_HABILITADO' requiere motivo por restricción de base de datos.
+     */
+    public function test_estado_no_habilitado_requiere_motivo_y_persiste_correctamente(): void
+    {
+        // Sin motivo -> Rechazado con 422
+        $responseSinMotivo = $this->postJson('/api/habilitaciones', [
+            'id_examen'     => $this->examen1->id_examen,
+            'id_estudiante' => $this->estudiante1->id_estudiante,
+            'estado'        => 'NO_HABILITADO',
+        ], $this->authHeaders());
+
+        $responseSinMotivo->assertStatus(422)
+            ->assertJsonValidationErrors(['motivo']);
+
+        // Con motivo -> Creado con 201 y persistido en BD
+        $responseConMotivo = $this->postJson('/api/habilitaciones', [
+            'id_examen'     => $this->examen1->id_examen,
+            'id_estudiante' => $this->estudiante1->id_estudiante,
+            'estado'        => 'no_habilitado',
+            'motivo'        => 'No presentó matrícula vigente',
+        ], $this->authHeaders());
+
+        $responseConMotivo->assertStatus(201)
+            ->assertJsonPath('estado', 'NO_HABILITADO')
+            ->assertJsonPath('motivo', 'No presentó matrícula vigente');
+
+        $this->assertDatabaseHas('habilitacion', [
+            'id_estudiante' => $this->estudiante1->id_estudiante,
+            'id_examen'     => $this->examen1->id_examen,
+            'estado'        => 'NO_HABILITADO',
+            'motivo'        => 'No presentó matrícula vigente',
+        ]);
+    }
+
+    /**
+     * 11. BE-22: Actualización (PUT) rechaza estados 'pendiente' e 'inhabilitado' con 422.
+     */
+    public function test_actualizacion_rechaza_estados_invalidos_con_422(): void
+    {
+        $habilitacion = \App\Models\Habilitacion::create([
+            'id_examen'     => $this->examen1->id_examen,
+            'id_estudiante' => $this->estudiante1->id_estudiante,
+            'estado'        => 'HABILITADO',
+        ]);
+
+        // Intentar actualizar a 'pendiente'
+        $resPendiente = $this->putJson("/api/habilitaciones/{$habilitacion->id_habilitacion}", [
+            'estado' => 'pendiente',
+        ], $this->authHeaders());
+
+        $resPendiente->assertStatus(422)
+            ->assertJsonValidationErrors(['estado']);
+
+        // Intentar actualizar a 'inhabilitado'
+        $resInhabilitado = $this->putJson("/api/habilitaciones/{$habilitacion->id_habilitacion}", [
+            'estado' => 'inhabilitado',
+        ], $this->authHeaders());
+
+        $resInhabilitado->assertStatus(422)
+            ->assertJsonValidationErrors(['estado']);
+
+        // Actualización válida a 'NO_HABILITADO' con motivo
+        $resValida = $this->putJson("/api/habilitaciones/{$habilitacion->id_habilitacion}", [
+            'estado' => 'no_habilitado',
+            'motivo' => 'Falta de pago de matrícula',
+        ], $this->authHeaders());
+
+        $resValida->assertStatus(200)
+            ->assertJsonPath('estado', 'NO_HABILITADO');
+    }
 }

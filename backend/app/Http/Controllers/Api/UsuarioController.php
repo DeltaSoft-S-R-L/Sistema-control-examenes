@@ -22,6 +22,12 @@ class UsuarioController extends Controller
     public function store(StoreUsuarioRequest $request)
     {
         $data = $request->validated();
+        $estado = 'ACTIVO';
+        if (isset($data['estado'])) {
+            $estado = strtoupper($data['estado']);
+        } elseif (isset($data['is_active'])) {
+            $estado = filter_var($data['is_active'], FILTER_VALIDATE_BOOLEAN) ? 'ACTIVO' : 'REVOCADO';
+        }
 
         $usuario = Usuario::create([
             'nombre'        => $data['nombre'],
@@ -30,7 +36,7 @@ class UsuarioController extends Controller
             'username'      => $data['username'],
             'password_hash' => PasswordHasher::hash($data['password']),
             'id_rol'        => $data['id_rol'],
-            'estado'        => strtoupper($data['estado'] ?? 'ACTIVO'),
+            'estado'        => $estado,
         ]);
 
         // Cargar la relación de rol para incluirla en la respuesta
@@ -116,12 +122,23 @@ class UsuarioController extends Controller
                 Rule::exists('rol', 'id_rol'),
             ],
             'estado' => [
-                'required',
+                'sometimes',
+                'required_without:is_active',
                 Rule::in(['ACTIVO', 'REVOCADO', 'activo', 'revocado']),
+            ],
+            'is_active' => [
+                'sometimes',
+                'boolean',
             ],
         ]);
 
-        $datos['estado'] = strtoupper($datos['estado']);
+        if ($request->has('is_active') && !isset($datos['estado'])) {
+            $datos['estado'] = $request->boolean('is_active') ? 'ACTIVO' : 'REVOCADO';
+        }
+
+        if (isset($datos['estado'])) {
+            $datos['estado'] = strtoupper($datos['estado']);
+        }
 
         $usuario->update($datos);
 

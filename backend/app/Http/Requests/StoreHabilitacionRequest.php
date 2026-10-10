@@ -34,13 +34,14 @@ class StoreHabilitacionRequest extends FormRequest
                 'sometimes',
                 'required',
                 'string',
-                Rule::in(['HABILITADO', 'NO_HABILITADO', 'habilitado', 'inhabilitado', 'pendiente', 'PENDIENTE']),
+                Rule::in(['HABILITADO', 'NO_HABILITADO', 'habilitado', 'no_habilitado']),
             ],
 
             'motivo' => [
                 'nullable',
                 'string',
                 'max:500',
+                'required_if:estado,NO_HABILITADO,no_habilitado',
             ],
         ];
     }
@@ -58,6 +59,7 @@ class StoreHabilitacionRequest extends FormRequest
             'id_examen.exists'       => 'El examen seleccionado no existe.',
 
             'estado.in'              => 'El estado debe ser HABILITADO o NO_HABILITADO.',
+            'motivo.required_if'     => 'El motivo es obligatorio cuando el estado es NO_HABILITADO.',
             'motivo.max'             => 'El motivo no puede superar los 500 caracteres.',
         ];
     }

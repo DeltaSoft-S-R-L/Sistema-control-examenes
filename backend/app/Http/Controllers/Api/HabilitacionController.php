@@ -60,9 +60,17 @@ class HabilitacionController extends Controller
         $habilitacion = Habilitacion::findOrFail($id);
 
         $data = $request->validate([
-            'estado' => 'sometimes|required|in:habilitado,inhabilitado,pendiente',
-            'motivo' => 'nullable|string',
+            'estado' => 'sometimes|required|string|in:HABILITADO,NO_HABILITADO,habilitado,no_habilitado',
+            'motivo' => 'nullable|string|max:500|required_if:estado,NO_HABILITADO,no_habilitado',
+        ], [
+            'estado.in'          => 'El estado debe ser HABILITADO o NO_HABILITADO.',
+            'motivo.required_if' => 'El motivo es obligatorio cuando el estado es NO_HABILITADO.',
+            'motivo.max'         => 'El motivo no puede superar los 500 caracteres.',
         ]);
+
+        if (isset($data['estado'])) {
+            $data['estado'] = strtoupper($data['estado']);
+        }
 
         $habilitacion->update($data);
 

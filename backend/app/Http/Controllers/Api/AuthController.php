@@ -37,12 +37,14 @@ class AuthController extends Controller
         return response()->json([
             'token' => $token,
             'usuario' => [
-                'id'       => $usuario->id_usuario,
-                'nombre'   => $usuario->nombre,
-                'apellido' => $usuario->apellido,
-                'username' => $usuario->username,
-                'correo'   => $usuario->correo,
-                'rol'      => $usuario->rol?->nombre,
+                'id'        => $usuario->id_usuario,
+                'nombre'    => $usuario->nombre,
+                'apellido'  => $usuario->apellido,
+                'username'  => $usuario->username,
+                'correo'    => $usuario->correo,
+                'rol'       => $usuario->rol?->nombre,
+                'estado'    => $usuario->estado,
+                'is_active' => $usuario->is_active,
             ],
         ]);
     }
@@ -59,12 +61,14 @@ class AuthController extends Controller
         $usuario = $request->user()->load('rol');
 
         return response()->json([
-            'id'       => $usuario->id_usuario,
-            'nombre'   => $usuario->nombre,
-            'apellido' => $usuario->apellido,
-            'username' => $usuario->username,
-            'correo'   => $usuario->correo,
-            'rol'      => $usuario->rol?->nombre,
+            'id'        => $usuario->id_usuario,
+            'nombre'    => $usuario->nombre,
+            'apellido'  => $usuario->apellido,
+            'username'  => $usuario->username,
+            'correo'    => $usuario->correo,
+            'rol'       => $usuario->rol?->nombre,
+            'estado'    => $usuario->estado,
+            'is_active' => $usuario->is_active,
         ]);
     }
 }
