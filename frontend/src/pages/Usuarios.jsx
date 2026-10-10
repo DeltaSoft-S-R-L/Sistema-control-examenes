@@ -334,7 +334,7 @@ export default function Usuarios() {
                                 title="Revocar acceso de la cuenta"
                               >
                                 <i className="bi bi-person-x-fill me-1"></i>
-                                Revocar
+                                Revocar acceso
                               </button>
                             )}
                           </div>
