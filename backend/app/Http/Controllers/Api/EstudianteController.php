@@ -17,8 +17,8 @@ class EstudianteController extends Controller
         'asignaturas',
         ]);
 
-        if ($request->has('estado')) {
-            $query->where('estado', $request->estado);
+        if ($request->filled('estado') && is_string($request->input('estado'))) {
+            $query->where('estado', strtoupper(trim($request->input('estado'))));
         }
         if ($request->has('buscar')) {
             $q = $request->buscar;
@@ -35,6 +35,8 @@ class EstudianteController extends Controller
 
     public function store(Request $request)
     {
+        $this->normalizarEstado($request);
+
         $data = $request->validate([
             'ci'                   => 'required|string|max:20|unique:estudiante,ci',
             'nombre'               => 'required|string|max:100',
@@ -49,13 +51,9 @@ class EstudianteController extends Controller
                 \Illuminate\Validation\Rule::in([
                     'ACTIVO',
                     'INACTIVO',
-                    'activo',
-                    'inactivo',
                 ]),
             ],
         ]);
-
-        $data['estado'] = strtoupper($data['estado']);
 
 $asignaturas = $data['asignaturas'];
 unset($data['asignaturas']);
@@ -366,6 +364,8 @@ $estudiante = Estudiante::create($data);
     {
         $estudiante = Estudiante::findOrFail($id);
 
+        $this->normalizarEstado($request);
+
         $data = $request->validate([
             'ci'                   => "sometimes|required|string|max:20|unique:estudiante,ci,{$id},id_estudiante",
             'nombre'               => 'sometimes|required|string|max:100',
@@ -375,12 +375,8 @@ $estudiante = Estudiante::create($data);
             'asignaturas'          => 'sometimes|required|array|min:1',
             'asignaturas.*'        => 'integer|distinct|exists:asignatura,id_asignatura',
             'correo'               => 'nullable|email|max:150',
-            'estado'               => 'sometimes|required|in:ACTIVO,INACTIVO,activo,inactivo',
+            'estado'               => 'sometimes|required|in:ACTIVO,INACTIVO',
         ]);
-
-        if (isset($data['estado'])) {
-        $data['estado'] = strtoupper($data['estado']);
-        }
 
         $asignaturas = $data['asignaturas'] ?? null;
 unset($data['asignaturas']);
@@ -427,6 +423,15 @@ if ($asignaturas !== null) {
     ]);
 
         return response()->json($estudiante);
+    }
+
+    private function normalizarEstado(Request $request): void
+    {
+        if ($request->has('estado') && is_string($request->input('estado'))) {
+            $request->merge([
+                'estado' => strtoupper(trim($request->input('estado'))),
+            ]);
+        }
     }
     public function destroy(string $id)
     {

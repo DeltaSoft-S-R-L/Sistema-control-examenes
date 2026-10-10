@@ -90,6 +90,12 @@ class UsuarioController extends Controller
      */
     public function update(Request $request, Usuario $usuario)
     {
+        if ($request->has('estado') && is_string($request->input('estado'))) {
+            $request->merge([
+                'estado' => strtoupper(trim($request->input('estado'))),
+            ]);
+        }
+
         $datos = $request->validate([
             'nombre' => ['required', 'string', 'max:100'],
             'apellido' => ['required', 'string', 'max:100'],
@@ -115,11 +121,9 @@ class UsuarioController extends Controller
             ],
             'estado' => [
                 'required',
-                Rule::in(['ACTIVO', 'REVOCADO', 'activo', 'revocado']),
+                Rule::in(['ACTIVO', 'REVOCADO']),
             ],
         ]);
-
-        $datos['estado'] = strtoupper($datos['estado']);
 
         $usuario->update($datos);
 

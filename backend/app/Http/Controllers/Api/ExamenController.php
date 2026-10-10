@@ -3,14 +3,16 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AsignacionAmbiente;
 use App\Models\Examen;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ExamenController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Examen::with('asignatura');
+        $query = Examen::with(['asignatura', 'asignacionesAmbiente.ambiente']);
 
         if ($request->has('estado')) {
             $query->where('estado', $request->estado);
@@ -32,11 +34,26 @@ class ExamenController extends Controller
             'duracion_minutos' => 'required|integer|min:1',
             'descripcion'      => 'nullable|string',
             'estado'           => 'required|in:programado,en_curso,finalizado,cancelado',
+            'id_ambiente'      => 'nullable|exists:ambiente,id_ambiente',
         ]);
 
-        $examen = Examen::create($data);
+        $examen = DB::transaction(function () use ($data) {
+            $idAmbiente = $data['id_ambiente'] ?? null;
+            unset($data['id_ambiente']);
 
-        return response()->json($examen->load('asignatura'), 201);
+            $examen = Examen::create($data);
+
+            if ($idAmbiente) {
+                AsignacionAmbiente::create([
+                    'id_examen' => $examen->id_examen,
+                    'id_ambiente' => $idAmbiente,
+                ]);
+            }
+
+            return $examen;
+        });
+
+        return response()->json($examen->load(['asignatura', 'asignacionesAmbiente.ambiente']), 201);
     }
 
     public function show(string $id)

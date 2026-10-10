@@ -27,7 +27,7 @@ class HabilitacionController extends Controller
         $data = $request->validate([
             'id_estudiante' => 'required|exists:estudiante,id_estudiante',
             'id_examen'     => 'required|exists:examen,id_examen',
-            'estado'        => 'required|in:habilitado,inhabilitado,pendiente',
+            'estado'        => 'required|in:HABILITADO,NO_HABILITADO',
             'motivo'        => 'nullable|string',
         ]);
 
@@ -48,7 +48,7 @@ class HabilitacionController extends Controller
         $habilitacion = Habilitacion::findOrFail($id);
 
         $data = $request->validate([
-            'estado' => 'sometimes|required|in:habilitado,inhabilitado,pendiente',
+            'estado' => 'sometimes|required|in:HABILITADO,NO_HABILITADO',
             'motivo' => 'nullable|string',
         ]);
 
