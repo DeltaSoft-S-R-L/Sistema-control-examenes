@@ -8,9 +8,17 @@ use Illuminate\Http\Request;
 
 class AsignaturaController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json(Asignatura::orderBy('nombre')->get());
+    $query = Asignatura::orderBy('nombre');
+
+    if ($request->filled('id_carrera')) {
+        $query->whereHas('carreras', function ($q) use ($request) {
+            $q->where('carrera.id_carrera', $request->id_carrera);
+        });
+        }
+
+        return response()->json($query->get());
     }
 
     public function store(Request $request)
