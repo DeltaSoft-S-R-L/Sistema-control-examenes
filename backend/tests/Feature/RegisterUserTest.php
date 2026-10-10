@@ -161,6 +161,21 @@ class RegisterUserTest extends TestCase
             ->assertJsonPath('usuario.estado', 'ACTIVO');
     }
 
+    public function test_normaliza_estado_en_minusculas_a_mayusculas(): void
+    {
+        $response = $this->postJson('/api/usuarios', $this->validPayload([
+            'estado' => 'activo',
+        ]), $this->authHeaders());
+
+        $response->assertCreated()
+            ->assertJsonPath('usuario.estado', 'ACTIVO');
+
+        $this->assertDatabaseHas('usuario', [
+            'username' => 'carlos_g',
+            'estado' => 'ACTIVO',
+        ]);
+    }
+
     // ─────────────────────────────────────────────────────────────
     // Test 2: Validación de unicidad (correo y username)
     // ─────────────────────────────────────────────────────────────

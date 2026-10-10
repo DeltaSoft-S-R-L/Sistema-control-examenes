@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import api from '../services/api';
+import NuevoExamenModal from '../components/examenes/NuevoExamenModal';
 
 export default function Examenes() {
   const [examenes, setExamenes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [mostrarFormulario, setMostrarFormulario] = useState(false);
 
   const fetchExamenes = async () => {
     try {
@@ -28,6 +30,9 @@ export default function Examenes() {
           <h2 className="fw-bold mb-1">Gestión de Exámenes</h2>
           <p className="text-muted mb-0">Listado y control de exámenes programados</p>
         </div>
+        <button type="button" className="btn btn-primary" onClick={() => setMostrarFormulario(true)}>
+          <i className="bi bi-plus-lg me-2" />Registrar examen
+        </button>
       </div>
 
       <div className="card border-0 shadow-sm rounded-3">
@@ -85,6 +90,12 @@ export default function Examenes() {
           </div>
         </div>
       </div>
+
+      <NuevoExamenModal
+        mostrar={mostrarFormulario}
+        onCerrar={() => setMostrarFormulario(false)}
+        onRegistrado={fetchExamenes}
+      />
     </div>
   );
 }

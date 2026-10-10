@@ -27,6 +27,17 @@ class Usuario extends Authenticatable
         'password_hash',
     ];
 
+    /**
+     * Mantiene una única representación de los estados en todas las vías de
+     * persistencia, incluidas las que no pasan por un controlador HTTP.
+     */
+    public function setEstadoAttribute(?string $value): void
+    {
+        $this->attributes['estado'] = $value === null
+            ? null
+            : strtoupper(trim($value));
+    }
+
     // Necesario para que Sanctum use 'password_hash' como campo de contraseña
     public function getAuthPassword()
     {
