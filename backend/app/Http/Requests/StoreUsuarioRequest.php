@@ -73,6 +73,11 @@ class StoreUsuarioRequest extends FormRequest
                 'string',
                 Rule::in(['ACTIVO', 'REVOCADO']),
             ],
+
+            'is_active' => [
+                'sometimes',
+                'boolean',
+            ],
         ];
     }
 
