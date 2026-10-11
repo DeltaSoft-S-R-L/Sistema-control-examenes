@@ -54,6 +54,39 @@ public function index(Request $request)
         });
     }
 
+    
+    // Filtrar estudiantes por una materia específica.
+    if ($request->filled('id_asignatura')) {
+        $datosFiltro = $request->validate([
+            'id_asignatura' => [
+                'required',
+                'integer',
+                'exists:asignatura,id_asignatura',
+            ],
+        ]);
+
+        $idAsignatura = (int) $datosFiltro['id_asignatura'];
+
+        $query->whereHas('asignaturas', function ($q) use ($idAsignatura) {
+            $q->where('asignatura.id_asignatura', $idAsignatura);
+        });
+
+        // Para docentes, comprobar también la carrera
+        // y que tengan asignada esta materia.
+        if ($rol === 'DOCENTE') {
+            $query->whereExists(function ($subquery) use ($usuario, $idAsignatura) {
+                $subquery->selectRaw('1')
+                    ->from('docente_asignatura as da')
+                    ->whereColumn(
+                        'da.id_carrera',
+                        'estudiante.id_carrera'
+                    )
+                    ->where('da.id_usuario', $usuario->id_usuario)
+                    ->where('da.id_asignatura', $idAsignatura);
+            });
+        }
+    }
+
     if ($request->filled('estado')) {
         $query->where('estado', $request->estado);
     }

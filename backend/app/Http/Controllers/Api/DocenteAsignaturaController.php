@@ -11,6 +11,39 @@ use Illuminate\Validation\ValidationException;
 
 class DocenteAsignaturaController extends Controller
 {
+    
+public function misMaterias(Request $request)
+{
+    $usuario = $request->user();
+
+    if (strtoupper($usuario->rol?->nombre ?? '') !== 'DOCENTE') {
+        return response()->json([
+            'message' => 'Solo los docentes pueden consultar sus materias.',
+        ], 403);
+    }
+
+    $materias = DB::table('docente_asignatura as da')
+        ->join(
+            'asignatura as a',
+            'a.id_asignatura',
+            '=',
+            'da.id_asignatura'
+        )
+        ->where('da.id_usuario', $usuario->id_usuario)
+        ->select(
+            'a.id_asignatura',
+            'a.codigo',
+            'a.nombre as asignatura'
+        )
+        ->distinct()
+        ->orderBy('a.nombre')
+        ->get();
+
+    return response()->json([
+        'materias' => $materias,
+    ]);
+}
+
     private function verificarDocente(Usuario $usuario): void
     {
         $usuario->loadMissing('rol');

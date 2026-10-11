@@ -37,6 +37,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
 
+    // Materias del docente autenticado
+Route::get('/docente/mis-materias', [
+    DocenteAsignaturaController::class,
+    'misMaterias'
+]);
+
     /*
     |--------------------------------------------------------------------------
     | Usuarios
