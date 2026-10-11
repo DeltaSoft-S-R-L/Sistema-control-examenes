@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Permiso;
 use App\Models\Rol;
 use App\Models\Usuario;
 use App\Utilities\PasswordHasher;
@@ -21,11 +22,18 @@ class RegisterUserTest extends TestCase
     {
         parent::setUp();
 
+        // Permiso requerido por PermissionMiddleware
+        $permisoUsuarios = Permiso::create([
+            'nombre'      => 'GESTIONAR_USUARIOS',
+            'descripcion' => 'Permiso para gestionar usuarios',
+        ]);
+
         // Crear roles base
         $this->rolAdmin = Rol::create([
             'nombre'      => 'ADMINISTRADOR',
             'descripcion' => 'Administrador del sistema',
         ]);
+        $this->rolAdmin->permisos()->attach($permisoUsuarios->id_permiso);
 
         $this->rolDocente = Rol::create([
             'nombre'      => 'DOCENTE',
@@ -66,7 +74,7 @@ class RegisterUserTest extends TestCase
         return array_merge([
             'nombre'   => 'Carlos',
             'apellido' => 'González',
-            'correo'   => 'carlos.gonzalez@universidad.edu',
+            'correo'   => 'carlos.gonzalez@umss.edu.bo',
             'username' => 'carlos_g',
             'password' => 'Segura123',
             'id_rol'   => $this->rolDocente->id_rol,
@@ -110,7 +118,7 @@ class RegisterUserTest extends TestCase
             'usuario' => [
                 'nombre'   => 'Carlos',
                 'apellido' => 'González',
-                'correo'   => 'carlos.gonzalez@universidad.edu',
+                'correo'   => 'carlos.gonzalez@umss.edu.bo',
                 'username' => 'carlos_g',
                 'estado'   => 'ACTIVO',
             ],
@@ -118,7 +126,7 @@ class RegisterUserTest extends TestCase
 
         // 5. Verificar que existe en la base de datos
         $this->assertDatabaseHas('usuario', [
-            'correo'   => 'carlos.gonzalez@universidad.edu',
+            'correo'   => 'carlos.gonzalez@umss.edu.bo',
             'username' => 'carlos_g',
             'estado'   => 'ACTIVO',
         ]);
@@ -130,7 +138,7 @@ class RegisterUserTest extends TestCase
         $showResponse->assertStatus(200)
             ->assertJson([
                 'username' => 'carlos_g',
-                'correo'   => 'carlos.gonzalez@universidad.edu',
+                'correo'   => 'carlos.gonzalez@umss.edu.bo',
             ]);
     }
 
@@ -188,7 +196,7 @@ class RegisterUserTest extends TestCase
 
         // Intentar crear segundo usuario con el mismo username
         $response = $this->postJson('/api/usuarios', $this->validPayload([
-            'correo' => 'otro@universidad.edu',
+            'correo' => 'otro@umss.edu.bo',
         ]), $this->authHeaders());
 
         $response->assertStatus(422)
@@ -310,7 +318,7 @@ class RegisterUserTest extends TestCase
 
         $response->assertStatus(403)
             ->assertJson([
-                'message' => 'No tiene permisos para registrar usuarios. Se requiere rol de ADMINISTRADOR.',
+                'message' => 'No tiene permisos para realizar esta acción.',
             ]);
     }
 
@@ -339,7 +347,7 @@ class RegisterUserTest extends TestCase
 
         $response->assertStatus(403)
             ->assertJson([
-                'message' => 'No tiene permisos para registrar usuarios. Se requiere rol de ADMINISTRADOR.',
+                'message' => 'No tiene permisos para realizar esta acción.',
             ]);
     }
 }

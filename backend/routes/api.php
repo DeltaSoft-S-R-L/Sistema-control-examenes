@@ -57,6 +57,9 @@ Route::get('/docente/mis-materias', [
         // Asignación de materias a docentes
         Route::get('/usuarios/{usuario}/materias', [DocenteAsignaturaController::class, 'index']);
         Route::put('/usuarios/{usuario}/materias', [DocenteAsignaturaController::class, 'update']);
+
+        // Revocación de acceso de usuarios
+        Route::match(['patch', 'post'], '/usuarios/{id}/revocar', [UsuarioController::class, 'revocar']);
     });
 
     /*
