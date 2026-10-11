@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreExamenRequest;
+use App\Http\Requests\UpdateExamenRequest;
 use App\Models\AsignacionAmbiente;
 use App\Models\Examen;
 use Illuminate\Http\Request;
@@ -45,20 +47,9 @@ class ExamenController extends Controller
     // ─────────────────────────────────────────────
     // POST /api/examenes
     // ─────────────────────────────────────────────
-    public function store(Request $request)
+    public function store(StoreExamenRequest $request)
     {
-        $data = $request->validate([
-            'id_asignatura'    => 'required|exists:asignatura,id_asignatura',
-            'nombre'           => 'required|string|max:150',
-            'fecha'            => 'required|date',
-            'hora_inicio'      => 'required|date_format:H:i',
-            'duracion_minutos' => 'required|integer|min:1',
-            'descripcion'      => 'nullable|string',
-            'estado'           => 'required|in:PROGRAMADO,EN_CURSO,FINALIZADO,CANCELADO,programado,en_curso,finalizado,cancelado',
-            'id_ambiente'      => 'nullable|exists:ambiente,id_ambiente',
-        ]);
-
-        $data['estado'] = strtoupper($data['estado']);
+        $data = $request->validated();
         $idAmbiente = $data['id_ambiente'] ?? null;
         unset($data['id_ambiente']);
 
@@ -95,24 +86,10 @@ class ExamenController extends Controller
     // ─────────────────────────────────────────────
     // PUT/PATCH /api/examenes/{id}
     // ─────────────────────────────────────────────
-    public function update(Request $request, string $id)
+    public function update(UpdateExamenRequest $request, string $id)
     {
         $examen = Examen::findOrFail($id);
-
-        $data = $request->validate([
-            'id_asignatura'    => 'sometimes|required|exists:asignatura,id_asignatura',
-            'nombre'           => 'sometimes|required|string|max:150',
-            'fecha'            => 'sometimes|required|date',
-            'hora_inicio'      => 'sometimes|required|date_format:H:i',
-            'duracion_minutos' => 'sometimes|required|integer|min:1',
-            'descripcion'      => 'nullable|string',
-            'estado'           => 'sometimes|required|in:PROGRAMADO,EN_CURSO,FINALIZADO,CANCELADO,programado,en_curso,finalizado,cancelado',
-            'id_ambiente'      => 'nullable|exists:ambiente,id_ambiente',
-        ]);
-
-        if (isset($data['estado'])) {
-            $data['estado'] = strtoupper($data['estado']);
-        }
+        $data = $request->validated();
 
         if (array_key_exists('id_ambiente', $data)) {
             $idAmbiente = $data['id_ambiente'];
