@@ -17,13 +17,17 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $usuario = Usuario::where('username', $request->username)
-            ->whereIn('estado', ['ACTIVO', 'activo'])
-            ->first();
+        $usuario = Usuario::where('username', $request->username)->first();
 
         if (! $usuario || ! PasswordHasher::verify($request->password, $usuario->password_hash)) {
             throw ValidationException::withMessages([
                 'username' => ['Las credenciales son incorrectas.'],
+            ]);
+        }
+
+        if (strtoupper($usuario->estado) !== 'ACTIVO') {
+            throw ValidationException::withMessages([
+                'username' => ['Su cuenta se encuentra inactiva o revocada. Contacte al administrador.'],
             ]);
         }
 
@@ -33,12 +37,14 @@ class AuthController extends Controller
         return response()->json([
             'token' => $token,
             'usuario' => [
-                'id'       => $usuario->id_usuario,
-                'nombre'   => $usuario->nombre,
-                'apellido' => $usuario->apellido,
-                'username' => $usuario->username,
-                'correo'   => $usuario->correo,
-                'rol'      => $usuario->rol?->nombre,
+                'id'        => $usuario->id_usuario,
+                'nombre'    => $usuario->nombre,
+                'apellido'  => $usuario->apellido,
+                'username'  => $usuario->username,
+                'correo'    => $usuario->correo,
+                'rol'       => $usuario->rol?->nombre,
+                'estado'    => $usuario->estado,
+                'is_active' => $usuario->is_active,
             ],
         ]);
     }
@@ -55,12 +61,14 @@ class AuthController extends Controller
         $usuario = $request->user()->load('rol');
 
         return response()->json([
-            'id'       => $usuario->id_usuario,
-            'nombre'   => $usuario->nombre,
-            'apellido' => $usuario->apellido,
-            'username' => $usuario->username,
-            'correo'   => $usuario->correo,
-            'rol'      => $usuario->rol?->nombre,
+            'id'        => $usuario->id_usuario,
+            'nombre'    => $usuario->nombre,
+            'apellido'  => $usuario->apellido,
+            'username'  => $usuario->username,
+            'correo'    => $usuario->correo,
+            'rol'       => $usuario->rol?->nombre,
+            'estado'    => $usuario->estado,
+            'is_active' => $usuario->is_active,
         ]);
     }
 }

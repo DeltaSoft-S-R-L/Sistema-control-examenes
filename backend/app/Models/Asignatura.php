@@ -20,4 +20,24 @@ class Asignatura extends Model
     {
         return $this->hasMany(Examen::class, 'id_asignatura', 'id_asignatura');
     }
+
+    public function estudiantes()
+    {
+        return $this->belongsToMany(
+            Estudiante::class,
+            'estudiante_asignatura',
+            'id_asignatura',
+            'id_estudiante'
+        );
+    }
+
+    public function carreras()
+    {
+    return $this->belongsToMany(
+        Carrera::class,
+        'carrera_asignatura',
+        'id_asignatura',
+        'id_carrera'
+    );
+    }
 }
