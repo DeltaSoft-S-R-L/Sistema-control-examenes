@@ -33,4 +33,10 @@ class Estudiante extends Model
     {
         return $this->hasMany(IntentoIngreso::class, 'id_estudiante', 'id_estudiante');
     }
+
+    public function examenes()
+    {
+        return $this->belongsToMany(Examen::class, 'habilitacion', 'id_estudiante', 'id_examen')
+                    ->withPivot('id_habilitacion', 'estado', 'motivo');
+    }
 }

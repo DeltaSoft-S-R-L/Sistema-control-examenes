@@ -48,4 +48,10 @@ class Examen extends Model
     {
         return $this->hasMany(ReglaExamen::class, 'id_examen', 'id_examen');
     }
+
+    public function estudiantes()
+    {
+        return $this->belongsToMany(Estudiante::class, 'habilitacion', 'id_examen', 'id_estudiante')
+                    ->withPivot('id_habilitacion', 'estado', 'motivo');
+    }
 }
