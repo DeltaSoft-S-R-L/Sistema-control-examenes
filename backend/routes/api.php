@@ -115,6 +115,7 @@ Route::get('/docente/mis-materias', [
     |--------------------------------------------------------------------------
     */
     Route::get('/examenes', [ExamenController::class, 'index']);
+    Route::get('/examenes/{id}/auditoria', [ExamenController::class, 'auditoria']);
     Route::get('/examenes/{examene}', [ExamenController::class, 'show']);
 
     Route::middleware('permission:GESTIONAR_EXAMENES')->group(function () {

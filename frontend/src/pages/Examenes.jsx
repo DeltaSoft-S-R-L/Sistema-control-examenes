@@ -2,13 +2,16 @@ import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import NuevoExamenModal from '../components/examenes/NuevoExamenModal';
 import EditarExamenModal from '../components/examenes/EditarExamenModal';
+import AuditoriaExamenModal from '../components/examenes/AuditoriaExamenModal';
 
 export default function Examenes() {
   const [examenes, setExamenes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [examenAEditar, setExamenAEditar] = useState(null);
+  const [examenAuditando, setExamenAuditando] = useState(null);
   const [mensaje, setMensaje] = useState(null);
   const [error, setError] = useState(null);
 
@@ -54,6 +57,11 @@ export default function Examenes() {
   const handleAbrirEditar = (examen) => {
     setExamenAEditar(examen);
     setIsEditModalOpen(true);
+  };
+
+  const handleAbrirAuditoria = (examen) => {
+    setExamenAuditando(examen);
+    setIsAuditModalOpen(true);
   };
 
   const handleEliminar = async (id, nombre) => {
@@ -115,7 +123,7 @@ export default function Examenes() {
             <i className="bi bi-journal-check me-2 text-primary"></i>Gestión de Exámenes
           </h2>
           <p className="text-muted mb-0">
-            Listado, modificación y control de sesiones de examen registradas en el sistema.
+            Listado, modificación, control y auditoría de sesiones de examen.
           </p>
         </div>
 
@@ -214,7 +222,7 @@ export default function Examenes() {
         <div className="card-header bg-white border-0 px-4 pt-4 pb-2 d-flex justify-content-between align-items-center">
           <div>
             <h5 className="fw-bold mb-0">Sesiones Registradas</h5>
-            <small className="text-muted">Consulta y acciones de modificación o eliminación</small>
+            <small className="text-muted">Consulta y acciones auditadas del sistema</small>
           </div>
           {!loading && (
             <span className="badge text-bg-light border">
@@ -236,7 +244,7 @@ export default function Examenes() {
                   <th>Duración</th>
                   <th>Ambiente(s)</th>
                   <th>Estado</th>
-                  <th className="text-center pe-4" style={{ minWidth: '130px' }}>Acciones</th>
+                  <th className="text-center pe-4" style={{ minWidth: '150px' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -321,6 +329,14 @@ export default function Examenes() {
                             </button>
                             <button
                               type="button"
+                              className="btn btn-outline-info"
+                              title="Ver historial de auditoría"
+                              onClick={() => handleAbrirAuditoria(ex)}
+                            >
+                              <i className="bi bi-clock-history"></i>
+                            </button>
+                            <button
+                              type="button"
                               className="btn btn-outline-danger"
                               title="Eliminar sesión de examen"
                               onClick={() => handleEliminar(ex.id_examen, ex.nombre)}
@@ -362,6 +378,16 @@ export default function Examenes() {
           setMensaje(msg || 'Examen actualizado con éxito.');
           fetchExamenes();
           setTimeout(() => setMensaje(null), 4000);
+        }}
+      />
+
+      {/* Modal Historial de Auditoría */}
+      <AuditoriaExamenModal
+        isOpen={isAuditModalOpen}
+        examen={examenAuditando}
+        onClose={() => {
+          setIsAuditModalOpen(false);
+          setExamenAuditando(null);
         }}
       />
     </div>
