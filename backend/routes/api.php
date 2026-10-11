@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\IncidenciaController;
 use App\Http\Controllers\Api\IngresoController;
 use App\Http\Controllers\Api\UsuarioController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\DocenteAsignaturaController;
 
 /*
 |--------------------------------------------------------------------------
@@ -36,6 +37,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
 
+    // Materias del docente autenticado
+Route::get('/docente/mis-materias', [
+    DocenteAsignaturaController::class,
+    'misMaterias'
+]);
+
     /*
     |--------------------------------------------------------------------------
     | Usuarios
@@ -46,6 +53,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/usuarios', [UsuarioController::class, 'store']);
         Route::get('/usuarios/{id}', [UsuarioController::class, 'show']);
         Route::put('/usuarios/{usuario}', [UsuarioController::class, 'update']);
+
+        // Asignación de materias a docentes
+        Route::get('/usuarios/{usuario}/materias', [DocenteAsignaturaController::class, 'index']);
+        Route::put('/usuarios/{usuario}/materias', [DocenteAsignaturaController::class, 'update']);
+
+        // Revocación de acceso de usuarios
         Route::match(['patch', 'post'], '/usuarios/{id}/revocar', [UsuarioController::class, 'revocar']);
     });
 
