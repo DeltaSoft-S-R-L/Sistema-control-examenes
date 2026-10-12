@@ -258,7 +258,7 @@ export default function ImportarEstudiantesModal({
                   <button
                     type="submit"
                     className="btn btn-primary"
-                    disabled={!archivo || importando}
+                    disabled={!archivo || importando || resultado !== null}
                   >
                     {importando ? (
                       <>

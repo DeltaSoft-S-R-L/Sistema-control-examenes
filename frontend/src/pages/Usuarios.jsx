@@ -2,6 +2,9 @@ import React, { useEffect, useState } from "react";
 import api from "../services/api";
 import EditarUsuarioModal from "../components/usuarios/EditarUsuarioModal";
 import NuevoUsuarioModal from "../components/NuevoUsuarioModal";
+import ConfirmarRevocarModal from "../components/usuarios/ConfirmarRevocarModal";
+import AsignarMateriasModal from "../components/usuarios/AsignarMateriasModal";
+import VerMateriasDocenteModal from "../components/usuarios/VerMateriasDocenteModal";
 
 export default function Usuarios() {
   const [usuarios, setUsuarios] = useState([]);
@@ -15,6 +18,12 @@ export default function Usuarios() {
   const [usuarioSeleccionado, setUsuarioSeleccionado] = useState(null);
   const [mostrarModal, setMostrarModal] = useState(false);
   const [mostrarNuevoModal, setMostrarNuevoModal] = useState(false);
+  const [docenteSeleccionado, setDocenteSeleccionado] = useState(null);
+  const [mostrarMateriasModal, setMostrarMateriasModal] = useState(false);
+  const [mostrarVerMateriasModal, setMostrarVerMateriasModal] = useState(false);
+
+  const [usuarioARevocar, setUsuarioARevocar] = useState(null);
+  const [mostrarRevocarModal, setMostrarRevocarModal] = useState(false);
 
   const [buscar, setBuscar] = useState("");
   const [filtroRol, setFiltroRol] = useState("");
@@ -58,9 +67,24 @@ export default function Usuarios() {
     setMostrarModal(true);
   };
 
+  const abrirMaterias = (usuario) => {
+    setDocenteSeleccionado(usuario);
+    setMostrarMateriasModal(true);
+  };
+
+  const abrirVerMaterias = (usuario) => {
+    setDocenteSeleccionado(usuario);
+    setMostrarVerMateriasModal(true);
+  };
+
   const cerrarEdicion = () => {
     setMostrarModal(false);
     setUsuarioSeleccionado(null);
+  };
+
+  const abrirRevocacion = (usuario) => {
+    setUsuarioARevocar(usuario);
+    setMostrarRevocarModal(true);
   };
 
   const handleActualizado = (usuarioActualizado) => {
@@ -74,6 +98,25 @@ export default function Usuarios() {
 
     cerrarEdicion();
     setMensaje("Usuario actualizado correctamente.");
+
+    window.setTimeout(() => {
+      setMensaje("");
+    }, 4000);
+  };
+
+  const handleRevocadoExito = (usuarioRevocado) => {
+    setUsuarios((anteriores) =>
+      anteriores.map((u) =>
+        u.id_usuario === usuarioRevocado.id_usuario
+          ? { ...u, estado: "REVOCADO", is_active: false }
+          : u,
+      ),
+    );
+    setMostrarRevocarModal(false);
+    setUsuarioARevocar(null);
+    setMensaje(
+      `Acceso revocado correctamente para ${usuarioRevocado.nombre} ${usuarioRevocado.apellido}.`,
+    );
 
     window.setTimeout(() => {
       setMensaje("");
@@ -288,14 +331,52 @@ export default function Usuarios() {
                         </td>
 
                         <td className="px-4 text-end">
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-outline-primary"
-                            onClick={() => abrirEdicion(usuario)}
-                          >
-                            <i className="bi bi-pencil-square me-1"></i>
-                            Editar
-                          </button>
+                          <div className="d-flex justify-content-end gap-2">
+                            {rol === "DOCENTE" && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-info"
+                                  onClick={() => abrirVerMaterias(usuario)}
+                                  title="Ver materias asignadas"
+                                >
+                                  <i className="bi bi-eye me-1"></i>
+                                  Ver
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-success"
+                                  onClick={() => abrirMaterias(usuario)}
+                                  title="Asignar materias"
+                                >
+                                  <i className="bi bi-book me-1"></i>
+                                  Materias
+                                </button>
+                              </>
+                            )}
+
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-primary"
+                              onClick={() => abrirEdicion(usuario)}
+                            >
+                              <i className="bi bi-pencil-square me-1"></i>
+                              Editar
+                            </button>
+
+                            {usuario.estado?.toLowerCase() === "activo" && (
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-outline-danger"
+                                onClick={() => abrirRevocacion(usuario)}
+                                title="Revocar acceso de la cuenta"
+                              >
+                                <i className="bi bi-person-x-fill me-1"></i>
+                                Revocar
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -358,6 +439,34 @@ export default function Usuarios() {
         isOpen={mostrarNuevoModal}
         onClose={() => setMostrarNuevoModal(false)}
         onSuccess={handleNuevoExito}
+      />
+
+      <ConfirmarRevocarModal
+        isOpen={mostrarRevocarModal}
+        usuario={usuarioARevocar}
+        onClose={() => {
+          setMostrarRevocarModal(false);
+          setUsuarioARevocar(null);
+        }}
+        onSuccess={handleRevocadoExito}
+      />
+
+      <AsignarMateriasModal
+        mostrar={mostrarMateriasModal}
+        docente={docenteSeleccionado}
+        onCerrar={() => {
+          setMostrarMateriasModal(false);
+          setDocenteSeleccionado(null);
+        }}
+      />
+
+      <VerMateriasDocenteModal
+        mostrar={mostrarVerMateriasModal}
+        docente={docenteSeleccionado}
+        onCerrar={() => {
+          setMostrarVerMateriasModal(false);
+          setDocenteSeleccionado(null);
+        }}
       />
     </div>
   );
