@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import api from "../services/api";
 import EditarUsuarioModal from "../components/usuarios/EditarUsuarioModal";
 import NuevoUsuarioModal from "../components/NuevoUsuarioModal";
@@ -28,38 +28,82 @@ export default function Usuarios() {
   const [buscar, setBuscar] = useState("");
   const [filtroRol, setFiltroRol] = useState("");
 
+  const [buscarDebounced, setBuscarDebounced] = useState("");
+  const solicitudActual = useRef(0);
+  const [recargarUsuarios, setRecargarUsuarios] = useState(0);
+
+  // Espera 300 ms antes de aplicar una búsqueda.
   useEffect(() => {
-    fetchUsuarios(currentPage);
-  }, [currentPage, buscar, filtroRol]);
+    const temporizador = setTimeout(() => {
+      setBuscarDebounced(buscar.trim());
+    }, 300);
 
-  const fetchUsuarios = async (page) => {
-    setLoading(true);
-    setError("");
+    return () => clearTimeout(temporizador);
+  }, [buscar]);
 
-    try {
-      const params = new URLSearchParams({ page });
-      if (buscar) params.append("buscar", buscar);
-      if (filtroRol) params.append("rol", filtroRol);
+  // Obtiene usuarios y descarta respuestas antiguas.
+  useEffect(() => {
+    const controller = new AbortController();
+    const numeroSolicitud = ++solicitudActual.current;
 
-      const response = await api.get(`/usuarios?${params.toString()}`);
+    const cargarUsuarios = async () => {
+      setLoading(true);
+      setError("");
 
-      const data = response.data.data || response.data;
+      try {
+        const params = new URLSearchParams({
+          page: String(currentPage),
+        });
 
-      setUsuarios(Array.isArray(data) ? data : []);
+        if (buscarDebounced) {
+          params.append("buscar", buscarDebounced);
+        }
 
-      if (response.data.last_page) {
-        setTotalPages(response.data.last_page);
-      } else {
-        setTotalPages(1);
+        if (filtroRol) {
+          params.append("rol", filtroRol);
+        }
+
+        const response = await api.get(`/usuarios?${params.toString()}`, {
+          signal: controller.signal,
+        });
+
+        if (numeroSolicitud !== solicitudActual.current) return;
+
+        const data = response.data.data || response.data;
+
+        setUsuarios(Array.isArray(data) ? data : []);
+        setTotalPages(response.data.last_page || 1);
+      } catch (err) {
+        if (
+          controller.signal.aborted ||
+          numeroSolicitud !== solicitudActual.current
+        ) {
+          return;
+        }
+
+        console.error("Error al cargar usuarios:", err);
+        setError(
+          "Error al cargar la lista de usuarios. Verifique su conexión al servidor.",
+        );
+        setUsuarios([]);
+      } finally {
+        if (numeroSolicitud === solicitudActual.current) {
+          setLoading(false);
+        }
       }
-    } catch (err) {
-      console.error(err);
-      setError(
-        "Error al cargar la lista de usuarios. Verifique su conexión al servidor.",
-      );
-    } finally {
-      setLoading(false);
-    }
+    };
+
+    cargarUsuarios();
+
+    return () => {
+      controller.abort();
+      solicitudActual.current++;
+    };
+  }, [currentPage, buscarDebounced, filtroRol, recargarUsuarios]);
+
+  // Actualiza la lista después de registrar un usuario.
+  const fetchUsuarios = () => {
+    setRecargarUsuarios((anterior) => anterior + 1);
   };
 
   const abrirEdicion = (usuario) => {
@@ -127,7 +171,9 @@ export default function Usuarios() {
     setMostrarNuevoModal(false);
     setMensaje("Usuario registrado correctamente.");
     setCurrentPage(1);
-    fetchUsuarios(1);
+    setBuscar("");
+    setFiltroRol("");
+    fetchUsuarios();
 
     window.setTimeout(() => {
       setMensaje("");
