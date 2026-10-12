@@ -1,11 +1,17 @@
+
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
 
-export default function ConfirmarRevocarModal({ isOpen, onClose, usuario, onSuccess }) {
+export default function ConfirmarRevocarModal({
+  isOpen,
+  onClose,
+  usuario,
+  onSuccess,
+}) {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
 
-  // EFECTO: Limpia el mensaje de error cada vez que el modal se abre o cambia de usuario
+  // Limpiar errores cuando se abre el modal o cambia el usuario.
   useEffect(() => {
     if (isOpen) {
       setErrorMessage(null);
@@ -14,17 +20,21 @@ export default function ConfirmarRevocarModal({ isOpen, onClose, usuario, onSucc
 
   if (!isOpen || !usuario) return null;
 
-  // Función para cerrar limpiando estados
+  // Cerrar el modal y limpiar los mensajes de error.
   const handleCerrar = () => {
     setErrorMessage(null);
     onClose();
   };
 
+  // Revocar el acceso del usuario.
   const handleRevocar = async () => {
+    if (loading) return;
+
     setLoading(true);
     setErrorMessage(null);
 
     try {
+      // Se realiza una sola solicitud al backend.
       await api.put(`/usuarios/${usuario.id_usuario || usuario.id}`, {
         nombre: usuario.nombre,
         apellido: usuario.apellido,
@@ -33,58 +43,44 @@ export default function ConfirmarRevocarModal({ isOpen, onClose, usuario, onSucc
         id_rol: usuario.id_rol || usuario.rol?.id_rol,
         estado: 'REVOCADO',
       });
-      const token = localStorage.getItem('token');
-
-      await axios.put(
-        `http://localhost:8000/api/usuarios/${usuario.id_usuario || usuario.id}`,
-        {
-          nombre: usuario.nombre,
-          apellido: usuario.apellido,
-          correo: usuario.correo,
-          username: usuario.username,
-          id_rol: usuario.id_rol || usuario.rol?.id_rol,
-          estado: 'REVOCADO',
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: 'application/json',
-          },
-        }
-      );
 
       setLoading(false);
-      onSuccess(usuario);
+
+      // Informar al componente padre que la operación fue exitosa.
+      onSuccess?.(usuario);
+
+      // Cerrar el modal.
       handleCerrar();
     } catch (err) {
       console.error('Error al revocar usuario:', err);
+
       setLoading(false);
 
-      let mensajeServidor = 'No se pudo completar la revocación. Verifique su conexión o intente nuevamente.';
-      let mensajeServidor = "No se pudo completar la revocación. Verifique su conexión o intente nuevamente.";
+      let mensajeServidor =
+        'No se pudo completar la revocación. Verifique su conexión o intente nuevamente.';
 
-      // Traductor de errores de validación de Laravel a Español
+      // Interpretar errores de validación enviados por Laravel.
       if (err.response?.data?.errors) {
         const errores = Object.values(err.response.data.errors);
-        const primerError = errores[0][0].toLowerCase();
 
-        if (primerError.includes('format is invalid') || primerError.includes('correo field format')) {
-          mensajeServidor = 'El correo de este usuario tiene un formato inválido (debe terminar en @umss.edu.bo). No se puede revocar.';
+        const primerError = String(
+          errores[0]?.[0] || ''
+        ).toLowerCase();
+
+        if (
+          primerError.includes('format is invalid') ||
+          primerError.includes('correo field format')
+        ) {
+          mensajeServidor =
+            'El correo de este usuario tiene un formato inválido (debe terminar en @umss.edu.bo). No se puede revocar.';
         } else if (primerError.includes('has already been taken')) {
-          mensajeServidor = 'Uno de los datos (correo o username) ya está en uso por otra cuenta.';
-        const primerError = errores[0][0].toLowerCase(); // Convertimos a minúsculas para no fallar
-
-        if (primerError.includes("format is invalid") || primerError.includes("correo field format")) {
-          mensajeServidor = "El correo de este usuario tiene un formato inválido (debe terminar en @umss.edu.bo). No se puede revocar.";
-        } else if (primerError.includes("has already been taken")) {
-          mensajeServidor = "Uno de los datos (correo o username) ya está en uso por otra cuenta.";
-        } else {
+          mensajeServidor =
+            'Uno de los datos (correo o username) ya está en uso por otra cuenta.';
+        } else if (errores[0]?.[0]) {
           mensajeServidor = errores[0][0];
         }
       } else if (err.response?.data?.message) {
-      }
-      // Error general del servidor
-      else if (err.response?.data?.message) {
+        // Mostrar el mensaje general del backend.
         mensajeServidor = err.response.data.message;
       }
 
@@ -93,16 +89,21 @@ export default function ConfirmarRevocarModal({ isOpen, onClose, usuario, onSucc
   };
 
   return (
-    <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+    <div
+      className="modal show d-block"
+      tabIndex="-1"
+      style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+    >
       <div className="modal-dialog modal-dialog-centered">
         <div className="modal-content shadow-lg border-0 rounded-4 overflow-hidden">
-        <div className="modal-content shadow-lg border-0">
 
+          {/* Encabezado */}
           <div className="modal-header bg-danger text-white">
             <h5 className="modal-title fw-bold">
               <i className="bi bi-exclamation-triangle-fill me-2"></i>
               Confirmar Revocación de Acceso
             </h5>
+
             <button
               type="button"
               className="btn-close btn-close-white"
@@ -112,38 +113,54 @@ export default function ConfirmarRevocarModal({ isOpen, onClose, usuario, onSucc
             ></button>
           </div>
 
+          {/* Contenido del modal */}
           <div className="modal-body p-4">
             <p className="text-secondary mb-3">
               ¿Estás seguro de que deseas revocar el acceso a la siguiente cuenta?
             </p>
 
+            {/* Información del usuario */}
             <div className="bg-light p-3 rounded-3 border mb-3">
               <p className="mb-1">
-                <strong>Usuario:</strong> {usuario.nombre} {usuario.apellido}
+                <strong>Usuario:</strong>{' '}
+                {usuario.nombre} {usuario.apellido}
               </p>
+
               <p className="mb-1">
-                <strong>Código / Username:</strong> {usuario.username}
+                <strong>Código / Username:</strong>{' '}
+                {usuario.username}
               </p>
+
               <p className="mb-0">
-                <strong>Correo:</strong> {usuario.correo}
+                <strong>Correo:</strong>{' '}
+                {usuario.correo}
               </p>
             </div>
 
-            <div className="alert alert-warning py-2 small mb-3" role="alert">
+            {/* Advertencia */}
+            <div
+              className="alert alert-warning py-2 small mb-3"
+              role="alert"
+            >
               <i className="bi bi-info-circle-fill me-2"></i>
-              Esta acción revocará el acceso de la cuenta al sistema e invalidará inmediatamente cualquier sesión activa.
+              Esta acción revocará el acceso de la cuenta al sistema
+              e invalidará inmediatamente cualquier sesión activa.
             </div>
 
+            {/* Mensaje de error */}
             {errorMessage && (
-              <div className="alert alert-danger py-2 small mb-0 d-flex align-items-center" role="alert">
+              <div
+                className="alert alert-danger py-2 small mb-0 d-flex align-items-center"
+                role="alert"
+              >
                 <i className="bi bi-exclamation-octagon-fill me-2 fs-5"></i>
                 <div>{errorMessage}</div>
               </div>
             )}
           </div>
 
+          {/* Botones */}
           <div className="modal-footer bg-light px-4 py-3 border-0">
-          <div className="modal-footer bg-light px-4 py-3">
             <button
               type="button"
               className="btn btn-outline-secondary px-4"
@@ -152,16 +169,20 @@ export default function ConfirmarRevocarModal({ isOpen, onClose, usuario, onSucc
             >
               Cancelar
             </button>
+
             <button
               type="button"
               className="btn btn-danger px-4 fw-semibold"
-              className="btn btn-danger px-4"
               onClick={handleRevocar}
               disabled={loading}
             >
               {loading ? (
                 <>
-                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  <span
+                    className="spinner-border spinner-border-sm me-2"
+                    role="status"
+                    aria-hidden="true"
+                  ></span>
                   Revocando...
                 </>
               ) : (
@@ -169,6 +190,7 @@ export default function ConfirmarRevocarModal({ isOpen, onClose, usuario, onSucc
               )}
             </button>
           </div>
+
         </div>
       </div>
     </div>
