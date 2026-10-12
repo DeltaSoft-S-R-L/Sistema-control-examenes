@@ -7,6 +7,9 @@ use App\Http\Requests\StoreHabilitacionRequest;
 use App\Models\Habilitacion;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use App\Http\Requests\StoreHabilitacionMasivaRequest;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class HabilitacionController extends Controller
 {
@@ -47,6 +50,49 @@ class HabilitacionController extends Controller
 
         return response()->json($habilitacion->load(['estudiante', 'examen']), 201);
     }
+
+public function storeMasiva(StoreHabilitacionMasivaRequest $request)
+{
+    $data = $request->validated();
+
+    $estado = strtoupper($data['estado'] ?? 'HABILITADO');
+    $motivo = $data['motivo'] ?? null;
+
+    try {
+        $habilitaciones = DB::transaction(function () use ($data, $estado, $motivo) {
+            $registros = [];
+
+            foreach ($data['estudiantes'] as $idEstudiante) {
+                $registros[] = Habilitacion::create([
+                    'id_examen' => $data['id_examen'],
+                    'id_estudiante' => $idEstudiante,
+                    'estado' => $estado,
+                    'motivo' => $motivo,
+                ]);
+            }
+
+            return $registros;
+        });
+    } catch (QueryException $e) {
+        if ($e->getCode() === '23505') {
+            throw ValidationException::withMessages([
+                'estudiantes' => [
+                    'Uno o más estudiantes ya están asignados a este examen.',
+                ],
+            ]);
+        }
+
+        throw $e;
+    }
+
+    return response()->json([
+        'message' => 'Habilitación masiva realizada correctamente.',
+        'total' => count($habilitaciones),
+        'habilitaciones' => collect($habilitaciones)
+            ->map(fn ($habilitacion) => $habilitacion->load(['estudiante', 'examen']))
+            ->values(),
+    ], 201);
+}
 
     public function show(string $id)
     {
