@@ -1,13 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import api from '../services/api';
-import EditarUsuarioModal from '../components/usuarios/EditarUsuarioModal';
-import NuevoUsuarioModal from '../components/NuevoUsuarioModal';
+import React, { useEffect, useState } from "react";
+import api from "../services/api";
+import EditarUsuarioModal from "../components/usuarios/EditarUsuarioModal";
+import NuevoUsuarioModal from "../components/NuevoUsuarioModal";
 
 export default function Usuarios() {
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [mensaje, setMensaje] = useState('');
+  const [error, setError] = useState("");
+  const [mensaje, setMensaje] = useState("");
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -16,8 +16,8 @@ export default function Usuarios() {
   const [mostrarModal, setMostrarModal] = useState(false);
   const [mostrarNuevoModal, setMostrarNuevoModal] = useState(false);
 
-  const [buscar, setBuscar] = useState('');
-  const [filtroRol, setFiltroRol] = useState('');
+  const [buscar, setBuscar] = useState("");
+  const [filtroRol, setFiltroRol] = useState("");
 
   useEffect(() => {
     fetchUsuarios(currentPage);
@@ -25,12 +25,12 @@ export default function Usuarios() {
 
   const fetchUsuarios = async (page) => {
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
       const params = new URLSearchParams({ page });
-      if (buscar) params.append('buscar', buscar);
-      if (filtroRol) params.append('rol', filtroRol);
+      if (buscar) params.append("buscar", buscar);
+      if (filtroRol) params.append("rol", filtroRol);
 
       const response = await api.get(`/usuarios?${params.toString()}`);
 
@@ -46,7 +46,7 @@ export default function Usuarios() {
     } catch (err) {
       console.error(err);
       setError(
-        'Error al cargar la lista de usuarios. Verifique su conexión al servidor.'
+        "Error al cargar la lista de usuarios. Verifique su conexión al servidor.",
       );
     } finally {
       setLoading(false);
@@ -68,26 +68,26 @@ export default function Usuarios() {
       anteriores.map((usuario) =>
         usuario.id_usuario === usuarioActualizado.id_usuario
           ? usuarioActualizado
-          : usuario
-      )
+          : usuario,
+      ),
     );
 
     cerrarEdicion();
-    setMensaje('Usuario actualizado correctamente.');
+    setMensaje("Usuario actualizado correctamente.");
 
     window.setTimeout(() => {
-      setMensaje('');
+      setMensaje("");
     }, 4000);
   };
 
   const handleNuevoExito = () => {
     setMostrarNuevoModal(false);
-    setMensaje('Usuario registrado correctamente.');
+    setMensaje("Usuario registrado correctamente.");
     setCurrentPage(1);
     fetchUsuarios(1);
 
     window.setTimeout(() => {
-      setMensaje('');
+      setMensaje("");
     }, 4000);
   };
 
@@ -96,30 +96,30 @@ export default function Usuarios() {
       return usuario.rol.nombre;
     }
 
-    if (typeof usuario.rol === 'string') {
+    if (typeof usuario.rol === "string") {
       return usuario.rol;
     }
 
     switch (usuario.id_rol) {
       case 1:
-        return 'ADMINISTRADOR';
+        return "ADMINISTRADOR";
       case 2:
-        return 'DOCENTE';
+        return "DOCENTE";
       case 3:
-        return 'CONTROL_INGRESO';
+        return "CONTROL_INGRESO";
       default:
-        return 'Sin rol';
+        return "Sin rol";
     }
   };
 
   const formatearRol = (rol) => {
     switch (rol) {
-      case 'ADMINISTRADOR':
-        return 'Administrador';
-      case 'DOCENTE':
-        return 'Docente';
-      case 'CONTROL_INGRESO':
-        return 'Control de ingreso';
+      case "ADMINISTRADOR":
+        return "Administrador";
+      case "DOCENTE":
+        return "Docente";
+      case "CONTROL_INGRESO":
+        return "Control de ingreso";
       default:
         return rol;
     }
@@ -135,8 +135,7 @@ export default function Usuarios() {
           </p>
         </div>
         <button
-          className="btn text-white fw-bold px-4"
-          style={{ backgroundColor: '#0A3123' }}
+          className="btn btn-primary fw-bold px-4"
           onClick={() => setMostrarNuevoModal(true)}
         >
           Nuevo Usuario
@@ -154,7 +153,7 @@ export default function Usuarios() {
           <button
             type="button"
             className="btn-close"
-            onClick={() => setMensaje('')}
+            onClick={() => setMensaje("")}
             aria-label="Cerrar"
           ></button>
         </div>
@@ -212,8 +211,8 @@ export default function Usuarios() {
 
             {!loading && !error && (
               <span className="badge text-bg-light border">
-                {usuarios.length}{' '}
-                {usuarios.length === 1 ? 'usuario' : 'usuarios'}
+                {usuarios.length}{" "}
+                {usuarios.length === 1 ? "usuario" : "usuarios"}
               </span>
             )}
           </div>
@@ -241,19 +240,15 @@ export default function Usuarios() {
                         className="spinner-border text-primary"
                         role="status"
                       >
-                        <span className="visually-hidden">
-                          Cargando...
-                        </span>
+                        <span className="visually-hidden">Cargando...</span>
                       </div>
                     </td>
                   </tr>
                 ) : usuarios.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan="6"
-                      className="text-center py-5 text-muted"
-                    >
-                      No se encontraron usuarios que coincidan con los criterios de búsqueda.
+                    <td colSpan="6" className="text-center py-5 text-muted">
+                      No se encontraron usuarios que coincidan con los criterios
+                      de búsqueda.
                     </td>
                   </tr>
                 ) : (
@@ -268,9 +263,7 @@ export default function Usuarios() {
                           </div>
                         </td>
 
-                        <td className="text-muted">
-                          {usuario.correo}
-                        </td>
+                        <td className="text-muted">{usuario.correo}</td>
 
                         <td>{usuario.username}</td>
 
@@ -283,14 +276,14 @@ export default function Usuarios() {
                         <td>
                           <span
                             className={`badge ${
-                              usuario.estado?.toLowerCase() === 'activo'
-                                ? 'bg-success'
-                                : 'bg-secondary'
+                              usuario.estado?.toLowerCase() === "activo"
+                                ? "bg-success"
+                                : "bg-secondary"
                             }`}
                           >
-                            {usuario.estado?.toLowerCase() === 'activo'
-                              ? 'Activo'
-                              : 'Revocado'}
+                            {usuario.estado?.toLowerCase() === "activo"
+                              ? "Activo"
+                              : "Revocado"}
                           </span>
                         </td>
 
@@ -318,15 +311,11 @@ export default function Usuarios() {
             <nav aria-label="Navegación de páginas de usuarios">
               <ul className="pagination justify-content-center mb-0">
                 <li
-                  className={`page-item ${
-                    currentPage === 1 ? 'disabled' : ''
-                  }`}
+                  className={`page-item ${currentPage === 1 ? "disabled" : ""}`}
                 >
                   <button
                     className="page-link"
-                    onClick={() =>
-                      setCurrentPage((pagina) => pagina - 1)
-                    }
+                    onClick={() => setCurrentPage((pagina) => pagina - 1)}
                     disabled={currentPage === 1}
                   >
                     Anterior
@@ -341,14 +330,12 @@ export default function Usuarios() {
 
                 <li
                   className={`page-item ${
-                    currentPage === totalPages ? 'disabled' : ''
+                    currentPage === totalPages ? "disabled" : ""
                   }`}
                 >
                   <button
                     className="page-link"
-                    onClick={() =>
-                      setCurrentPage((pagina) => pagina + 1)
-                    }
+                    onClick={() => setCurrentPage((pagina) => pagina + 1)}
                     disabled={currentPage === totalPages}
                   >
                     Siguiente

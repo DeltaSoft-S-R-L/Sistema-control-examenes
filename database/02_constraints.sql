@@ -15,8 +15,20 @@ ALTER TABLE ONLY public.asignatura
 ALTER TABLE ONLY public.auditoria
     ADD CONSTRAINT pk_auditoria PRIMARY KEY (id_auditoria);
 
+ALTER TABLE ONLY public.facultad
+    ADD CONSTRAINT pk_facultad PRIMARY KEY (id_facultad);
+
+ALTER TABLE ONLY public.carrera
+    ADD CONSTRAINT pk_carrera PRIMARY KEY (id_carrera);
+
+ALTER TABLE ONLY public.carrera_asignatura
+    ADD CONSTRAINT pk_carrera_asignatura PRIMARY KEY (id_carrera, id_asignatura);
+
 ALTER TABLE ONLY public.estudiante
     ADD CONSTRAINT pk_estudiante PRIMARY KEY (id_estudiante);
+
+ALTER TABLE ONLY public.estudiante_asignatura
+    ADD CONSTRAINT pk_estudiante_asignatura PRIMARY KEY (id_estudiante, id_asignatura);
 
 ALTER TABLE ONLY public.examen
     ADD CONSTRAINT pk_examen PRIMARY KEY (id_examen);
@@ -54,6 +66,9 @@ ALTER TABLE ONLY public.rol_permiso
 ALTER TABLE ONLY public.usuario
     ADD CONSTRAINT pk_usuario PRIMARY KEY (id_usuario);
 
+ALTER TABLE ONLY public.personal_access_tokens
+    ADD CONSTRAINT pk_personal_access_tokens PRIMARY KEY (id);
+
 ALTER TABLE ONLY public.ambiente
     ADD CONSTRAINT uq_ambiente_codigo UNIQUE (codigo);
 
@@ -65,6 +80,12 @@ ALTER TABLE ONLY public.asignacion_ambiente
 
 ALTER TABLE ONLY public.asignatura
     ADD CONSTRAINT uq_asignatura_codigo UNIQUE (codigo);
+
+ALTER TABLE ONLY public.facultad
+    ADD CONSTRAINT uq_facultad_codigo UNIQUE (codigo);
+
+ALTER TABLE ONLY public.carrera
+    ADD CONSTRAINT uq_carrera_codigo UNIQUE (codigo);
 
 ALTER TABLE ONLY public.estudiante
     ADD CONSTRAINT uq_estudiante_ci UNIQUE (ci);
@@ -96,11 +117,20 @@ ALTER TABLE ONLY public.usuario
 ALTER TABLE ONLY public.usuario
     ADD CONSTRAINT uq_usuario_username UNIQUE (username);
 
+ALTER TABLE ONLY public.personal_access_tokens
+    ADD CONSTRAINT uq_personal_access_tokens_token UNIQUE (token);
+
 CREATE INDEX idx_ambiente_estado ON public.ambiente USING btree (estado);
 
 CREATE INDEX idx_asignacion_ambiente_examen ON public.asignacion_ambiente USING btree (id_examen, id_ambiente);
 
 CREATE INDEX idx_estudiante_estado ON public.estudiante USING btree (estado);
+
+CREATE INDEX idx_estudiante_carrera ON public.estudiante USING btree (id_carrera);
+
+CREATE INDEX idx_carrera_asignatura_asignatura ON public.carrera_asignatura USING btree (id_asignatura);
+
+CREATE INDEX idx_estudiante_asignatura_asignatura ON public.estudiante_asignatura USING btree (id_asignatura);
 
 CREATE INDEX idx_examen_estado ON public.examen USING btree (estado);
 
@@ -124,6 +154,12 @@ CREATE INDEX idx_regla_individual_habilitacion ON public.regla_individual USING 
 
 CREATE INDEX idx_usuario_estado ON public.usuario USING btree (estado);
 
+CREATE INDEX idx_personal_access_tokens_tokenable
+    ON public.personal_access_tokens USING btree (tokenable_type, tokenable_id);
+
+CREATE INDEX idx_personal_access_tokens_expires_at
+    ON public.personal_access_tokens USING btree (expires_at);
+
 ALTER TABLE ONLY public.asignacion_ambiente
     ADD CONSTRAINT fk_asignacion_ambiente FOREIGN KEY (id_ambiente) REFERENCES public.ambiente(id_ambiente);
 
@@ -132,6 +168,30 @@ ALTER TABLE ONLY public.asignacion_ambiente
 
 ALTER TABLE ONLY public.auditoria
     ADD CONSTRAINT fk_auditoria_usuario FOREIGN KEY (id_usuario) REFERENCES public.usuario(id_usuario);
+
+ALTER TABLE ONLY public.carrera
+    ADD CONSTRAINT fk_carrera_facultad FOREIGN KEY (id_facultad)
+    REFERENCES public.facultad(id_facultad);
+
+ALTER TABLE ONLY public.carrera_asignatura
+    ADD CONSTRAINT fk_carrera_asignatura_carrera
+    FOREIGN KEY (id_carrera)
+    REFERENCES public.carrera(id_carrera);
+
+ALTER TABLE ONLY public.carrera_asignatura
+    ADD CONSTRAINT fk_carrera_asignatura_asignatura
+    FOREIGN KEY (id_asignatura)
+    REFERENCES public.asignatura(id_asignatura);
+
+ALTER TABLE ONLY public.estudiante
+    ADD CONSTRAINT fk_estudiante_carrera FOREIGN KEY (id_carrera)
+    REFERENCES public.carrera(id_carrera);
+
+ALTER TABLE ONLY public.estudiante_asignatura
+    ADD CONSTRAINT fk_estudiante_asignatura_estudiante FOREIGN KEY (id_estudiante) REFERENCES public.estudiante(id_estudiante) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.estudiante_asignatura
+    ADD CONSTRAINT fk_estudiante_asignatura_asignatura FOREIGN KEY (id_asignatura) REFERENCES public.asignatura(id_asignatura) ON DELETE CASCADE;
 
 ALTER TABLE ONLY public.examen
     ADD CONSTRAINT fk_examen_asignatura FOREIGN KEY (id_asignatura) REFERENCES public.asignatura(id_asignatura);

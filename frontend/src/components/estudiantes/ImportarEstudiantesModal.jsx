@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import api from '../../services/api';
+import React, { useEffect, useState } from "react";
+import api from "../../services/api";
 
 export default function ImportarEstudiantesModal({
   mostrar,
@@ -7,14 +7,14 @@ export default function ImportarEstudiantesModal({
   onImportado,
 }) {
   const [archivo, setArchivo] = useState(null);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [importando, setImportando] = useState(false);
   const [resultado, setResultado] = useState(null);
 
   useEffect(() => {
     if (mostrar) {
       setArchivo(null);
-      setError('');
+      setError("");
       setResultado(null);
       setImportando(false);
     }
@@ -27,7 +27,7 @@ export default function ImportarEstudiantesModal({
   const handleArchivo = (e) => {
     const seleccionado = e.target.files?.[0] || null;
 
-    setError('');
+    setError("");
     setResultado(null);
 
     if (!seleccionado) {
@@ -35,15 +35,12 @@ export default function ImportarEstudiantesModal({
       return;
     }
 
-    const extension = seleccionado.name
-      .split('.')
-      .pop()
-      ?.toLowerCase();
+    const extension = seleccionado.name.split(".").pop()?.toLowerCase();
 
-    if (extension !== 'csv') {
+    if (extension !== "csv") {
       setArchivo(null);
-      setError('Seleccione un archivo en formato CSV.');
-      e.target.value = '';
+      setError("Seleccione un archivo en formato CSV.");
+      e.target.value = "";
       return;
     }
 
@@ -54,27 +51,23 @@ export default function ImportarEstudiantesModal({
     e.preventDefault();
 
     if (!archivo) {
-      setError('Seleccione un archivo CSV para continuar.');
+      setError("Seleccione un archivo CSV para continuar.");
       return;
     }
 
     setImportando(true);
-    setError('');
+    setError("");
     setResultado(null);
 
     try {
       const formData = new FormData();
-      formData.append('archivo', archivo);
+      formData.append("archivo", archivo);
 
-      const response = await api.post(
-        '/estudiantes/importar',
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      );
+      const response = await api.post("/estudiantes/importar", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
 
       setResultado(response.data);
 
@@ -84,7 +77,7 @@ export default function ImportarEstudiantesModal({
     } catch (err) {
       const mensaje =
         err.response?.data?.message ||
-        'No se pudo importar el archivo de estudiantes.';
+        "No se pudo importar el archivo de estudiantes.";
 
       setError(mensaje);
     } finally {
@@ -110,9 +103,7 @@ export default function ImportarEstudiantesModal({
           <div className="modal-content border-0 shadow">
             <div className="modal-header px-3 px-md-4 py-3 bg-primary text-white">
               <div className="pe-3">
-                <h5 className="modal-title fw-bold">
-                  Importar estudiantes
-                </h5>
+                <h5 className="modal-title fw-bold">Importar estudiantes</h5>
 
                 <p className="small mb-0 mt-1 text-white-50">
                   Cargue una lista de estudiantes mediante un archivo CSV.
@@ -144,8 +135,8 @@ export default function ImportarEstudiantesModal({
                   <div
                     className={`alert ${
                       resultado.errores?.length
-                        ? 'alert-warning'
-                        : 'alert-success'
+                        ? "alert-warning"
+                        : "alert-success"
                     }`}
                     role="alert"
                   >
@@ -153,9 +144,7 @@ export default function ImportarEstudiantesModal({
                       Proceso de importación finalizado
                     </div>
 
-                    <div>
-                      Estudiantes importados: {resultado.importados}
-                    </div>
+                    <div>Estudiantes importados: {resultado.importados}</div>
 
                     {resultado.errores?.length > 0 && (
                       <div className="mt-3">
@@ -176,9 +165,7 @@ export default function ImportarEstudiantesModal({
                 )}
 
                 <div className="mb-4">
-                  <h6 className="fw-bold mb-1">
-                    Archivo de estudiantes
-                  </h6>
+                  <h6 className="fw-bold mb-1">Archivo de estudiantes</h6>
 
                   <p className="text-muted small mb-3">
                     Seleccione el archivo CSV que contiene la lista de
@@ -230,22 +217,27 @@ export default function ImportarEstudiantesModal({
                     <i className="bi bi-info-circle text-primary"></i>
 
                     <div>
-                      <div className="fw-semibold mb-2">
-                        Formato requerido
-                      </div>
+                      <div className="fw-semibold mb-2">Formato requerido</div>
 
                       <p className="text-muted small mb-2">
-                        La primera fila del archivo debe contener estas
-                        columnas en el siguiente orden:
+                        La primera fila del archivo debe contener estas columnas
+                        en el siguiente orden:
                       </p>
 
                       <code className="small">
-                        ci,codigo_universitario,nombre,apellido,correo,estado
+                        ci,codigo_universitario,nombre,apellido,correo,estado,carrera,asignaturas
                       </code>
 
-                      <p className="text-muted small mt-3 mb-0">
+                      <p className="text-muted small mt-3 mb-2">
                         El estado debe ser ACTIVO o INACTIVO. El correo
                         electrónico puede quedar vacío.
+                      </p>
+
+                      <p className="text-muted small mb-0">
+                        En carrera ingrese el código de la carrera, por ejemplo
+                        SIS. En asignaturas ingrese los códigos de las materias
+                        que correspondan a esa carrera, separados por | cuando
+                        sean varias, por ejemplo INF101|MAT101.
                       </p>
                     </div>
                   </div>
