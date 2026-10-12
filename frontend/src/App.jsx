@@ -15,6 +15,7 @@ import Examenes from './pages/Examenes';
 import Estudiantes from './pages/Estudiantes';
 import Ambientes from './pages/Ambientes';
 import Usuarios from './pages/Usuarios';
+import Habilitaciones from './pages/Habilitaciones';
 import ModuloEnConstruccion from './pages/ModuloEnConstruccion';
 
 import { ROLES } from './utils/auth';
@@ -43,16 +44,7 @@ export default function App() {
             >
               <Route path="/examenes" element={<Examenes />} />
               <Route path="/estudiantes" element={<Estudiantes />} />
-
-              <Route
-                path="/habilitaciones"
-                element={
-                  <ModuloEnConstruccion
-                    titulo="Habilitaciones"
-                    descripcion="El módulo de habilitaciones se encuentra actualmente en construcción."
-                  />
-                }
-              />
+              <Route path="/habilitaciones" element={<Habilitaciones />} />
             </Route>
 
             {/* Solo administrador */}

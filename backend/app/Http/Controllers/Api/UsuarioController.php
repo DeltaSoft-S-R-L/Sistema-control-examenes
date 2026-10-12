@@ -98,6 +98,12 @@ class UsuarioController extends Controller
      */
     public function update(Request $request, Usuario $usuario)
     {
+        if ($request->has('estado') && is_string($request->input('estado'))) {
+            $request->merge([
+                'estado' => strtoupper(trim($request->input('estado'))),
+            ]);
+        }
+
         $datos = $request->validate([
             'nombre' => ['required', 'string', 'max:100'],
             'apellido' => ['required', 'string', 'max:100'],
@@ -143,7 +149,7 @@ class UsuarioController extends Controller
         $usuario->update($datos);
 
         // Si el estado se actualizó a REVOCADO, invalidar inmediatamente todos los tokens y sesiones (USR-03)
-        if ($datos['estado'] === 'REVOCADO') {
+        if (($datos['estado'] ?? null) === 'REVOCADO') {
             $usuario->tokens()->delete();
             if (Schema::hasTable('sessions')) {
                 DB::table('sessions')->where('user_id', $usuario->id_usuario)->delete();

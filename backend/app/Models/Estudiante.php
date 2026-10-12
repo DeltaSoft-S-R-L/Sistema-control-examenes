@@ -20,6 +20,17 @@ class Estudiante extends Model
         'estado',
     ];
 
+    /**
+     * Los estados se persisten con una única representación para que, por
+     * ejemplo, "activo" y "ACTIVO" no sean valores distintos en la base.
+     */
+    public function setEstadoAttribute(?string $value): void
+    {
+        $this->attributes['estado'] = $value === null
+            ? null
+            : strtoupper(trim($value));
+    }
+
     public function habilitaciones()
     {
         return $this->hasMany(Habilitacion::class, 'id_estudiante', 'id_estudiante');

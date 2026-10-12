@@ -26,7 +26,7 @@ export default function ConfirmarRevocarModal({ isOpen, onClose, usuario, onSucc
 
     try {
       const token = localStorage.getItem('token');
-      
+
       await axios.put(
         `http://localhost:8000/api/usuarios/${usuario.id_usuario || usuario.id}`,
         {
@@ -51,14 +51,14 @@ export default function ConfirmarRevocarModal({ isOpen, onClose, usuario, onSucc
     } catch (err) {
       console.error("Error al revocar usuario:", err);
       setLoading(false);
-      
+
       let mensajeServidor = "No se pudo completar la revocación. Verifique su conexión o intente nuevamente.";
 
       // Traductor de errores de validación de Laravel a Español
       if (err.response?.data?.errors) {
         const errores = Object.values(err.response.data.errors);
         const primerError = errores[0][0].toLowerCase(); // Convertimos a minúsculas para no fallar
-        
+
         if (primerError.includes("format is invalid") || primerError.includes("correo field format")) {
           mensajeServidor = "El correo de este usuario tiene un formato inválido (debe terminar en @umss.edu.bo). No se puede revocar.";
         } else if (primerError.includes("has already been taken")) {
@@ -66,12 +66,12 @@ export default function ConfirmarRevocarModal({ isOpen, onClose, usuario, onSucc
         } else {
           mensajeServidor = errores[0][0]; // Muestra el original si es otro error
         }
-      } 
+      }
       // Error general del servidor
       else if (err.response?.data?.message) {
         mensajeServidor = err.response.data.message;
       }
-      
+
       setErrorMessage(mensajeServidor);
     }
   };
@@ -80,15 +80,15 @@ export default function ConfirmarRevocarModal({ isOpen, onClose, usuario, onSucc
     <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
       <div className="modal-dialog modal-dialog-centered">
         <div className="modal-content shadow-lg border-0">
-          
+
           <div className="modal-header bg-danger text-white">
             <h5 className="modal-title">
               <i className="bi bi-exclamation-triangle-fill me-2"></i>
               Confirmar Revocación de Acceso
             </h5>
-            <button 
-              type="button" 
-              className="btn-close btn-close-white" 
+            <button
+              type="button"
+              className="btn-close btn-close-white"
               onClick={handleCerrar}
               disabled={loading}
             ></button>
@@ -119,17 +119,17 @@ export default function ConfirmarRevocarModal({ isOpen, onClose, usuario, onSucc
           </div>
 
           <div className="modal-footer bg-light px-4 py-3">
-            <button 
-              type="button" 
-              className="btn btn-outline-secondary px-4" 
+            <button
+              type="button"
+              className="btn btn-outline-secondary px-4"
               onClick={handleCerrar}
               disabled={loading}
             >
               Cancelar
             </button>
-            <button 
-              type="button" 
-              className="btn btn-danger px-4" 
+            <button
+              type="button"
+              className="btn btn-danger px-4"
               onClick={handleRevocar}
               disabled={loading}
             >

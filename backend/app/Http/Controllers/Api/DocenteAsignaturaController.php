@@ -11,7 +11,7 @@ use Illuminate\Validation\ValidationException;
 
 class DocenteAsignaturaController extends Controller
 {
-    
+
 public function misMaterias(Request $request)
 {
     $usuario = $request->user();

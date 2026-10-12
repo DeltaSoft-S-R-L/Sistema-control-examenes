@@ -54,7 +54,7 @@ public function index(Request $request)
         });
     }
 
-    
+
     // Filtrar estudiantes por una materia específica.
     if ($request->filled('id_asignatura')) {
         $datosFiltro = $request->validate([
@@ -157,13 +157,9 @@ if (!$this->esAdministrador($request)) {
                 \Illuminate\Validation\Rule::in([
                     'ACTIVO',
                     'INACTIVO',
-                    'activo',
-                    'inactivo',
                 ]),
             ],
         ]);
-
-        $data['estado'] = strtoupper($data['estado']);
 
 $asignaturas = $data['asignaturas'];
 unset($data['asignaturas']);
@@ -686,6 +682,8 @@ if (!$this->esAdministrador($request)) {
 
         $estudiante = Estudiante::findOrFail($id);
 
+        $this->normalizarEstado($request);
+
         $data = $request->validate([
             'ci'                   => "sometimes|required|string|max:20|unique:estudiante,ci,{$id},id_estudiante",
             'nombre'               => 'sometimes|required|string|max:100',
@@ -695,12 +693,8 @@ if (!$this->esAdministrador($request)) {
             'asignaturas'          => 'sometimes|required|array|min:1',
             'asignaturas.*'        => 'integer|distinct|exists:asignatura,id_asignatura',
             'correo'               => 'nullable|email|max:150',
-            'estado'               => 'sometimes|required|in:ACTIVO,INACTIVO,activo,inactivo',
+            'estado'               => 'sometimes|required|in:ACTIVO,INACTIVO',
         ]);
-
-        if (isset($data['estado'])) {
-        $data['estado'] = strtoupper($data['estado']);
-        }
 
         $asignaturas = $data['asignaturas'] ?? null;
 unset($data['asignaturas']);

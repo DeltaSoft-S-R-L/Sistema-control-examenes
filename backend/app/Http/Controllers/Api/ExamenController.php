@@ -52,34 +52,37 @@ class ExamenController extends Controller
     public function store(StoreExamenRequest $request)
     {
         $data = $request->validated();
-        $idAmbiente = $data['id_ambiente'] ?? null;
-        unset($data['id_ambiente']);
+        $examen = DB::transaction(function () use ($data, $request) {
+            $idAmbiente = $data['id_ambiente'] ?? null;
+            unset($data['id_ambiente']);
 
-        $examen = Examen::create($data);
+            $examen = Examen::create($data);
 
-        if ($idAmbiente) {
-            AsignacionAmbiente::create([
-                'id_examen'   => $examen->id_examen,
-                'id_ambiente' => $idAmbiente,
-            ]);
-        }
+            if ($idAmbiente) {
+                AsignacionAmbiente::create([
+                    'id_examen' => $examen->id_examen,
+                    'id_ambiente' => $idAmbiente,
+                ]);
+            }
 
-        $examenCargado = $examen->load(['asignatura', 'asignacionesAmbiente.ambiente']);
-        $ambienteInfo = $examenCargado->asignacionesAmbiente->first()?->ambiente?->nombre ?? 'Sin ambiente';
+            $examenCargado = $examen->load(['asignatura', 'asignacionesAmbiente.ambiente']);
+            $ambienteInfo = $examenCargado->asignacionesAmbiente->first()?->ambiente?->nombre ?? 'Sin ambiente';
 
-        // ── Registro de Auditoría: Creación ──
-        AuditoriaService::registrar(
-            $request->user()?->id_usuario,
-            'CREACION',
-            'EXAMEN',
-            $examen->id_examen,
-            'EXITO',
-            "Creación de examen '{$examen->nombre}' (Fecha: {$examen->fecha->format('Y-m-d')}, Hora: {$examen->hora_inicio}, Duración: {$examen->duracion_minutos}m, Estado: {$examen->estado}, Ambiente: {$ambienteInfo})."
-        );
+            AuditoriaService::registrar(
+                $request->user()?->id_usuario,
+                'CREACION',
+                'EXAMEN',
+                $examen->id_examen,
+                'EXITO',
+                "Creación de examen '{$examen->nombre}' (Fecha: {$examen->fecha->format('Y-m-d')}, Hora: {$examen->hora_inicio}, Duración: {$examen->duracion_minutos}m, Estado: {$examen->estado}, Ambiente: {$ambienteInfo})."
+            );
+
+            return $examenCargado;
+        });
 
         return response()->json([
             'message' => 'Examen creado correctamente.',
-            'examen'  => $examenCargado,
+            'examen' => $examen,
         ], 201);
     }
 

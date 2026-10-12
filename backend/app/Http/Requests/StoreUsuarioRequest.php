@@ -7,6 +7,15 @@ use Illuminate\Validation\Rule;
 
 class StoreUsuarioRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('estado') && is_string($this->input('estado'))) {
+            $this->merge([
+                'estado' => strtoupper(trim($this->input('estado'))),
+            ]);
+        }
+    }
+
     public function authorize(): bool
     {
         $user = $this->user();
