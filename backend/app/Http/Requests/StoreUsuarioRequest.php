@@ -7,6 +7,15 @@ use Illuminate\Validation\Rule;
 
 class StoreUsuarioRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('estado') && is_string($this->input('estado'))) {
+            $this->merge([
+                'estado' => strtoupper(trim($this->input('estado'))),
+            ]);
+        }
+    }
+
     public function authorize(): bool
     {
         $user = $this->user();
@@ -72,7 +81,12 @@ class StoreUsuarioRequest extends FormRequest
             'estado' => [
                 'sometimes',
                 'string',
-                Rule::in(['ACTIVO', 'REVOCADO']),
+                Rule::in(['ACTIVO', 'REVOCADO', 'activo', 'revocado']),
+            ],
+
+            'is_active' => [
+                'sometimes',
+                'boolean',
             ],
         ];
     }

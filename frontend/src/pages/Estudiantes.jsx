@@ -5,9 +5,16 @@ import EditarEstudianteModal from "../components/estudiantes/EditarEstudianteMod
 import NuevoEstudianteModal from "../components/estudiantes/NuevoEstudianteModal";
 
 export default function Estudiantes() {
+  const usuario = JSON.parse(localStorage.getItem("usuario") || "{}");
+  const esAdministrador =
+    String(usuario.rol || "").toUpperCase() === "ADMINISTRADOR";
+
   const [estudiantes, setEstudiantes] = useState([]);
   const [totalEstudiantes, setTotalEstudiantes] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [materiasDocente, setMateriasDocente] = useState([]);
+  const [materiaSeleccionada, setMateriaSeleccionada] = useState("");
+  const [cargandoMaterias, setCargandoMaterias] = useState(false);
   const [buscar, setBuscar] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -20,12 +27,50 @@ export default function Estudiantes() {
 
   const [mensaje, setMensaje] = useState("");
 
+  useEffect(() => {
+    if (esAdministrador || !usuario.id) return;
+
+    let vigente = true;
+
+    const cargarMaterias = async () => {
+      try {
+        setCargandoMaterias(true);
+
+        const respuesta = await api.get("/docente/mis-materias");
+
+        if (vigente) {
+          setMateriasDocente(respuesta.data.materias || []);
+        }
+      } catch (error) {
+        console.error("Error al cargar materias:", error);
+
+        if (vigente) {
+          setMateriasDocente([]);
+        }
+      } finally {
+        if (vigente) {
+          setCargandoMaterias(false);
+        }
+      }
+    };
+
+    cargarMaterias();
+
+    return () => {
+      vigente = false;
+    };
+  }, [esAdministrador, usuario.id]);
+
   const fetchEstudiantes = async (search = "", page = 1) => {
     try {
       setLoading(true);
 
       const params = { page };
       if (search) params.buscar = search;
+
+      if (!esAdministrador && materiaSeleccionada) {
+        params.id_asignatura = materiaSeleccionada;
+      }
 
       const res = await api.get("/estudiantes", { params });
 
@@ -45,7 +90,7 @@ export default function Estudiantes() {
 
   useEffect(() => {
     fetchEstudiantes(buscar, currentPage);
-  }, [currentPage]);
+  }, [currentPage, materiaSeleccionada]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -129,14 +174,16 @@ export default function Estudiantes() {
         </div>
 
         <div className="d-flex gap-2">
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => setMostrarNuevoModal(true)}
-          >
-            <i className="bi bi-person-plus me-2"></i>
-            Nuevo estudiante
-          </button>
+          {esAdministrador && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setMostrarNuevoModal(true)}
+            >
+              <i className="bi bi-person-plus me-2"></i>
+              Nuevo estudiante
+            </button>
+          )}
 
           <button
             type="button"
@@ -219,6 +266,41 @@ export default function Estudiantes() {
               <p className="text-muted small mb-0">
                 Información de estudiantes disponibles en el sistema
               </p>
+
+              {!esAdministrador && (
+                <div className="mt-3">
+                  <label
+                    htmlFor="filtro-materia"
+                    className="form-label small fw-semibold"
+                  >
+                    Filtrar por materia
+                  </label>
+
+                  <select
+                    id="filtro-materia"
+                    className="form-select"
+                    value={materiaSeleccionada}
+                    disabled={cargandoMaterias}
+                    onChange={(e) => {
+                      const nuevaMateria = e.target.value;
+
+                      setMateriaSeleccionada(nuevaMateria);
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <option value="">Todas mis materias</option>
+
+                    {materiasDocente.map((materia) => (
+                      <option
+                        key={materia.id_asignatura}
+                        value={materia.id_asignatura}
+                      >
+                        {materia.codigo} - {materia.asignatura}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             {!loading && (
@@ -327,15 +409,21 @@ export default function Estudiantes() {
                       </td>
 
                       <td className="text-center">
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-outline-primary"
-                          onClick={() => abrirEditar(est)}
-                          title="Editar estudiante"
-                        >
-                          <i className="bi bi-pencil-square me-1"></i>
-                          Editar
-                        </button>
+                        {esAdministrador ? (
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-primary"
+                            onClick={() => abrirEditar(est)}
+                            title="Editar estudiante"
+                          >
+                            <i className="bi bi-pencil-square me-1"></i>
+                            Editar
+                          </button>
+                        ) : (
+                          <span className="text-muted small">
+                            Solo consulta
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))

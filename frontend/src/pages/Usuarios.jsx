@@ -3,6 +3,8 @@ import api from "../services/api";
 import EditarUsuarioModal from "../components/usuarios/EditarUsuarioModal";
 import NuevoUsuarioModal from "../components/NuevoUsuarioModal";
 import ConfirmarRevocarModal from "../components/usuarios/ConfirmarRevocarModal";
+import AsignarMateriasModal from "../components/usuarios/AsignarMateriasModal";
+import VerMateriasDocenteModal from "../components/usuarios/VerMateriasDocenteModal";
 
 export default function Usuarios() {
   const [usuarios, setUsuarios] = useState([]);
@@ -16,6 +18,9 @@ export default function Usuarios() {
   const [usuarioSeleccionado, setUsuarioSeleccionado] = useState(null);
   const [mostrarModal, setMostrarModal] = useState(false);
   const [mostrarNuevoModal, setMostrarNuevoModal] = useState(false);
+  const [docenteSeleccionado, setDocenteSeleccionado] = useState(null);
+  const [mostrarMateriasModal, setMostrarMateriasModal] = useState(false);
+  const [mostrarVerMateriasModal, setMostrarVerMateriasModal] = useState(false);
 
   const [usuarioARevocar, setUsuarioARevocar] = useState(null);
   const [mostrarRevocarModal, setMostrarRevocarModal] = useState(false);
@@ -60,6 +65,16 @@ export default function Usuarios() {
   const abrirEdicion = (usuario) => {
     setUsuarioSeleccionado(usuario);
     setMostrarModal(true);
+  };
+
+  const abrirMaterias = (usuario) => {
+    setDocenteSeleccionado(usuario);
+    setMostrarMateriasModal(true);
+  };
+
+  const abrirVerMaterias = (usuario) => {
+    setDocenteSeleccionado(usuario);
+    setMostrarVerMateriasModal(true);
   };
 
   const cerrarEdicion = () => {
@@ -317,6 +332,30 @@ export default function Usuarios() {
 
                         <td className="px-4 text-end">
                           <div className="d-flex justify-content-end gap-2">
+                            {rol === "DOCENTE" && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-info"
+                                  onClick={() => abrirVerMaterias(usuario)}
+                                  title="Ver materias asignadas"
+                                >
+                                  <i className="bi bi-eye me-1"></i>
+                                  Ver
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-success"
+                                  onClick={() => abrirMaterias(usuario)}
+                                  title="Asignar materias"
+                                >
+                                  <i className="bi bi-book me-1"></i>
+                                  Materias
+                                </button>
+                              </>
+                            )}
+
                             <button
                               type="button"
                               className="btn btn-sm btn-outline-primary"
@@ -410,6 +449,24 @@ export default function Usuarios() {
           setUsuarioARevocar(null);
         }}
         onSuccess={handleRevocadoExito}
+      />
+
+      <AsignarMateriasModal
+        mostrar={mostrarMateriasModal}
+        docente={docenteSeleccionado}
+        onCerrar={() => {
+          setMostrarMateriasModal(false);
+          setDocenteSeleccionado(null);
+        }}
+      />
+
+      <VerMateriasDocenteModal
+        mostrar={mostrarVerMateriasModal}
+        docente={docenteSeleccionado}
+        onCerrar={() => {
+          setMostrarVerMateriasModal(false);
+          setDocenteSeleccionado(null);
+        }}
       />
     </div>
   );

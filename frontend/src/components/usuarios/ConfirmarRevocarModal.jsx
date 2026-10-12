@@ -33,6 +33,25 @@ export default function ConfirmarRevocarModal({ isOpen, onClose, usuario, onSucc
         id_rol: usuario.id_rol || usuario.rol?.id_rol,
         estado: 'REVOCADO',
       });
+      const token = localStorage.getItem('token');
+
+      await axios.put(
+        `http://localhost:8000/api/usuarios/${usuario.id_usuario || usuario.id}`,
+        {
+          nombre: usuario.nombre,
+          apellido: usuario.apellido,
+          correo: usuario.correo,
+          username: usuario.username,
+          id_rol: usuario.id_rol || usuario.rol?.id_rol,
+          estado: 'REVOCADO',
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+          },
+        }
+      );
 
       setLoading(false);
       onSuccess(usuario);
@@ -42,6 +61,7 @@ export default function ConfirmarRevocarModal({ isOpen, onClose, usuario, onSucc
       setLoading(false);
 
       let mensajeServidor = 'No se pudo completar la revocación. Verifique su conexión o intente nuevamente.';
+      let mensajeServidor = "No se pudo completar la revocación. Verifique su conexión o intente nuevamente.";
 
       // Traductor de errores de validación de Laravel a Español
       if (err.response?.data?.errors) {
@@ -52,10 +72,19 @@ export default function ConfirmarRevocarModal({ isOpen, onClose, usuario, onSucc
           mensajeServidor = 'El correo de este usuario tiene un formato inválido (debe terminar en @umss.edu.bo). No se puede revocar.';
         } else if (primerError.includes('has already been taken')) {
           mensajeServidor = 'Uno de los datos (correo o username) ya está en uso por otra cuenta.';
+        const primerError = errores[0][0].toLowerCase(); // Convertimos a minúsculas para no fallar
+
+        if (primerError.includes("format is invalid") || primerError.includes("correo field format")) {
+          mensajeServidor = "El correo de este usuario tiene un formato inválido (debe terminar en @umss.edu.bo). No se puede revocar.";
+        } else if (primerError.includes("has already been taken")) {
+          mensajeServidor = "Uno de los datos (correo o username) ya está en uso por otra cuenta.";
         } else {
           mensajeServidor = errores[0][0];
         }
       } else if (err.response?.data?.message) {
+      }
+      // Error general del servidor
+      else if (err.response?.data?.message) {
         mensajeServidor = err.response.data.message;
       }
 
@@ -67,6 +96,8 @@ export default function ConfirmarRevocarModal({ isOpen, onClose, usuario, onSucc
     <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
       <div className="modal-dialog modal-dialog-centered">
         <div className="modal-content shadow-lg border-0 rounded-4 overflow-hidden">
+        <div className="modal-content shadow-lg border-0">
+
           <div className="modal-header bg-danger text-white">
             <h5 className="modal-title fw-bold">
               <i className="bi bi-exclamation-triangle-fill me-2"></i>
@@ -112,6 +143,7 @@ export default function ConfirmarRevocarModal({ isOpen, onClose, usuario, onSucc
           </div>
 
           <div className="modal-footer bg-light px-4 py-3 border-0">
+          <div className="modal-footer bg-light px-4 py-3">
             <button
               type="button"
               className="btn btn-outline-secondary px-4"
@@ -123,6 +155,7 @@ export default function ConfirmarRevocarModal({ isOpen, onClose, usuario, onSucc
             <button
               type="button"
               className="btn btn-danger px-4 fw-semibold"
+              className="btn btn-danger px-4"
               onClick={handleRevocar}
               disabled={loading}
             >
