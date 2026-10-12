@@ -150,6 +150,7 @@ Route::get('/docente/mis-materias', [
 
     Route::middleware('permission:GESTIONAR_HABILITACIONES')->group(function () {
         Route::post('/habilitaciones', [HabilitacionController::class, 'store']);
+        Route::post('/habilitaciones/masiva', [HabilitacionController::class, 'storeMasiva']);
         Route::put('/habilitaciones/{habilitacione}', [HabilitacionController::class, 'update']);
         Route::patch('/habilitaciones/{habilitacione}', [HabilitacionController::class, 'update']);
         Route::delete('/habilitaciones/{habilitacione}', [HabilitacionController::class, 'destroy']);
