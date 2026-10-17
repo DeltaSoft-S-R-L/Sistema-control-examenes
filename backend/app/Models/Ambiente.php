@@ -18,6 +18,18 @@ class Ambiente extends Model
         'estado',
     ];
 
+    protected $appends = [
+        'asientos_disponibles',
+    ];
+
+    /**
+     * Accesor explícito para el número de asientos disponibles en el aula.
+     */
+    public function getAsientosDisponiblesAttribute(): int
+    {
+        return (int) $this->capacidad;
+    }
+
     public function asignaciones()
     {
         return $this->hasMany(AsignacionAmbiente::class, 'id_ambiente', 'id_ambiente');

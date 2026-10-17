@@ -196,7 +196,7 @@ export default function NuevoExamenModal({ isOpen, onClose, onSuccess }) {
                     <option value="">Sin asignar aún...</option>
                     {ambientes.map((amb) => (
                       <option key={amb.id_ambiente} value={amb.id_ambiente}>
-                        {amb.codigo} - {amb.nombre} (Capacidad: {amb.capacidad})
+                        {amb.codigo} - {amb.nombre} ({amb.asientos_disponibles || amb.capacidad} asientos disponibles)
                       </option>
                     ))}
                   </select>
