@@ -6,15 +6,17 @@ export default function Navbar() {
   const navigate = useNavigate();
   const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
 
-  const handleLogout = async () => {
-    try {
-      await api.post('/logout');
-    } catch (e) {
-      // Ignorar error si ya expiró el token
-    } finally {
-      localStorage.removeItem('token');
-      localStorage.removeItem('usuario');
-      navigate('/login');
+  const handleLogout = () => {
+    const token = localStorage.getItem('token');
+
+    // 1. Limpieza inmediata en cliente y redirección a /login (0ms)
+    localStorage.removeItem('token');
+    localStorage.removeItem('usuario');
+    navigate('/login', { replace: true });
+
+    // 2. Notificación en segundo plano al backend (fire-and-forget con timeout de 1.5s)
+    if (token) {
+      api.post('/logout', {}, { timeout: 1500 }).catch(() => {});
     }
   };
 

@@ -30,8 +30,8 @@ Route::get('/health', fn () => response()->json([
 // Autenticación (público)
 Route::post('/login', [AuthController::class, 'login']);
 
-// Rutas protegidas con Sanctum
-Route::middleware('auth:sanctum')->group(function () {
+// Rutas protegidas con Sanctum y verificación de cuenta activa
+Route::middleware(['auth:sanctum', 'active'])->group(function () {
 
     // Sesión
     Route::post('/logout', [AuthController::class, 'logout']);

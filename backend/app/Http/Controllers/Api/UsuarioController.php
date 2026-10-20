@@ -48,6 +48,11 @@ class UsuarioController extends Controller
         ], 201);
     }
 
+    private function escaparLike(string $valor): string
+    {
+        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $valor);
+    }
+
     /**
      * Listar usuarios de forma paginada y con filtros.
      */
@@ -61,7 +66,7 @@ class UsuarioController extends Controller
         }
 
         if ($request->filled('buscar')) {
-            $buscar = $request->input('buscar');
+            $buscar = $this->escaparLike($request->input('buscar'));
             $query->where(function ($q) use ($buscar) {
                 $q->where('nombre', 'ilike', '%' . $buscar . '%')
                   ->orWhere('apellido', 'ilike', '%' . $buscar . '%')
@@ -98,6 +103,7 @@ class UsuarioController extends Controller
      */
     public function update(Request $request, Usuario $usuario)
     {
+        $adminActual = $request->user();
         if ($request->has('estado') && is_string($request->input('estado'))) {
             $request->merge([
                 'estado' => strtoupper(trim($request->input('estado'))),
@@ -146,14 +152,20 @@ class UsuarioController extends Controller
             $datos['estado'] = strtoupper($datos['estado']);
         }
 
+        // Impedir auto-revocación del propio administrador logueado
+        if ($adminActual && (int) $adminActual->id_usuario === (int) $usuario->id_usuario) {
+            if (($datos['estado'] ?? null) === 'REVOCADO') {
+                return response()->json([
+                    'message' => 'No puede revocar su propia cuenta de administrador.',
+                ], 422);
+            }
+        }
+
         $usuario->update($datos);
 
-        // Si el estado se actualizó a REVOCADO, invalidar inmediatamente todos los tokens y sesiones (USR-03)
+        // Si el estado se actualizó a REVOCADO, invalidar inmediatamente todos los tokens (USR-03)
         if (($datos['estado'] ?? null) === 'REVOCADO') {
             $usuario->tokens()->delete();
-            if (Schema::hasTable('sessions')) {
-                DB::table('sessions')->where('user_id', $usuario->id_usuario)->delete();
-            }
         }
 
         $usuario->load('rol');
@@ -197,11 +209,8 @@ class UsuarioController extends Controller
             'estado' => 'REVOCADO',
         ]);
 
-        // 5. Invalidar todas las sesiones / tokens Sanctum del usuario revocado (USR-03)
+        // 5. Invalidar todos los tokens Sanctum del usuario revocado (USR-03)
         $usuario->tokens()->delete();
-        if (Schema::hasTable('sessions')) {
-            DB::table('sessions')->where('user_id', $usuario->id_usuario)->delete();
-        }
 
         $usuario->load('rol');
 
