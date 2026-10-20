@@ -29,7 +29,14 @@ export default function Ambientes() {
     fetchAmbientes();
   }, []);
 
-  // Filtrado reactivo en el frontend
+  // Rango máximo dinámico para la barra de progreso
+  const maxCapacidad = useMemo(() => {
+    if (!ambientes || ambientes.length === 0) return 100;
+    const maxVal = Math.max(...ambientes.map((a) => Number(a.capacidad) || 0));
+    return maxVal > 0 ? maxVal : 100;
+  }, [ambientes]);
+
+  // Filtrado reactivo en el frontend con rangos unificados
   const ambientesFiltrados = useMemo(() => {
     return ambientes.filter((amb) => {
       const matchTexto =
@@ -41,20 +48,21 @@ export default function Ambientes() {
       const estadoNormalizado = (amb.estado || '').toUpperCase();
       const matchEstado =
         !filtroEstado ||
-        (filtroEstado === 'DISPONIBLE' && (estadoNormalizado === 'DISPONIBLE' || estadoNormalizado === 'ACTIVO')) ||
-        (filtroEstado === 'NO_DISPONIBLE' && (estadoNormalizado === 'NO_DISPONIBLE' || estadoNormalizado === 'MANTENIMIENTO' || estadoNormalizado === 'OCUPADO'));
+        (filtroEstado === 'DISPONIBLE' && estadoNormalizado === 'DISPONIBLE') ||
+        (filtroEstado === 'NO_DISPONIBLE' && estadoNormalizado === 'NO_DISPONIBLE');
 
-      const asientos = amb.asientos_disponibles ?? amb.capacidad ?? 0;
+      // Rangos unificados: Pequeña (<35), Mediana (35-60), Grande (>60)
+      const capacidad = Number(amb.capacidad) || 0;
       let matchCapacidad = true;
-      if (filtroCapacidad === 'pequeno') matchCapacidad = asientos < 30;
-      else if (filtroCapacidad === 'mediano') matchCapacidad = asientos >= 30 && asientos <= 60;
-      else if (filtroCapacidad === 'grande') matchCapacidad = asientos > 60;
+      if (filtroCapacidad === 'pequeno') matchCapacidad = capacidad < 35;
+      else if (filtroCapacidad === 'mediano') matchCapacidad = capacidad >= 35 && capacidad <= 60;
+      else if (filtroCapacidad === 'grande') matchCapacidad = capacidad > 60;
 
       return matchTexto && matchEstado && matchCapacidad;
     });
   }, [ambientes, buscar, filtroEstado, filtroCapacidad]);
 
-  // Métricas calculadas
+  // Métricas calculadas con estado oficial DISPONIBLE
   const metricas = useMemo(() => {
     const total = ambientes.length;
     const totalAsientos = ambientes.reduce(
@@ -77,7 +85,7 @@ export default function Ambientes() {
 
   const getBadgeEstado = (estado) => {
     const st = (estado || '').toUpperCase();
-    if (st === 'DISPONIBLE' || st === 'ACTIVO') {
+    if (st === 'DISPONIBLE') {
       return (
         <span className="badge bg-success-subtle text-success border border-success-subtle fw-semibold">
           <i className="bi bi-check-circle-fill me-1"></i>DISPONIBLE
@@ -100,17 +108,24 @@ export default function Ambientes() {
             <i className="bi bi-building me-2 text-primary"></i>Aulas y Ambientes
           </h2>
           <p className="text-muted mb-0">
-            Control de aulas, ubicación y número de asientos disponibles para sesiones de examen.
+            Control de aulas, ubicación y capacidad de asientos para sesiones de examen.
           </p>
         </div>
       </div>
 
-      {/* Alerta de error si ocurre */}
+      {/* Alerta de error de conexión */}
       {error && (
-        <div className="alert alert-danger alert-dismissible fade show" role="alert">
-          <i className="bi bi-exclamation-triangle-fill me-2"></i>
-          {error}
-          <button type="button" className="btn-close" onClick={() => setError(null)}></button>
+        <div className="alert alert-danger shadow-sm border-0 rounded-4 p-4 mb-4 d-flex align-items-center justify-content-between" role="alert">
+          <div className="d-flex align-items-center">
+            <i className="bi bi-wifi-off fs-2 me-3 text-danger"></i>
+            <div>
+              <h5 className="fw-bold mb-1">Error de conexión</h5>
+              <p className="mb-0 small">{error}</p>
+            </div>
+          </div>
+          <button className="btn btn-outline-danger btn-sm fw-semibold" onClick={fetchAmbientes}>
+            <i className="bi bi-arrow-clockwise me-1"></i> Reintentar
+          </button>
         </div>
       )}
 
@@ -137,7 +152,7 @@ export default function Ambientes() {
                 <i className="bi bi-person-workspace fs-3"></i>
               </div>
               <div>
-                <small className="text-muted fw-semibold d-block">Asientos Totales</small>
+                <small className="text-muted fw-semibold d-block">Asientos Disponibles</small>
                 <h4 className="fw-bold text-success mb-0">{metricas.totalAsientos}</h4>
               </div>
             </div>
@@ -198,10 +213,10 @@ export default function Ambientes() {
                 value={filtroCapacidad}
                 onChange={(e) => setFiltroCapacidad(e.target.value)}
               >
-                <option value="">Cualquier número de asientos</option>
-                <option value="pequeno">Menos de 30 asientos</option>
-                <option value="mediano">De 30 a 60 asientos</option>
-                <option value="grande">Más de 60 asientos</option>
+                <option value="">Cualquier capacidad</option>
+                <option value="pequeno">Aulas pequeñas (&lt; 35 asientos)</option>
+                <option value="mediano">Aulas medianas (35 a 60 asientos)</option>
+                <option value="grande">Aulas grandes (&gt; 60 asientos)</option>
               </select>
             </div>
 
@@ -239,15 +254,39 @@ export default function Ambientes() {
           <div className="spinner-border text-primary me-2"></div>
           <span className="text-muted fw-semibold">Cargando aulas y ambientes...</span>
         </div>
-      ) : ambientesFiltrados.length === 0 ? (
+      ) : error && ambientes.length === 0 ? (
+        // Estado visual de error de conexión sin datos
         <div className="card border-0 shadow-sm rounded-4 p-5 text-center text-muted">
-          <i className="bi bi-door-closed fs-1 d-block mb-2 opacity-50"></i>
-          <h5 className="fw-semibold">No se encontraron aulas con los criterios indicados</h5>
+          <i className="bi bi-exclamation-triangle-fill fs-1 d-block mb-3 text-warning"></i>
+          <h5 className="fw-bold text-dark">No se pudo cargar la información</h5>
           <p className="small text-muted mb-3">
-            Intente ajustar los términos de búsqueda o limpie los filtros activos.
+            Ocurrió un inconveniente al comunicarse con el servidor.
           </p>
           <div>
-            <button className="btn btn-outline-primary btn-sm" onClick={handleLimpiarFiltros}>
+            <button className="btn btn-primary btn-sm px-4 fw-semibold" onClick={fetchAmbientes}>
+              <i className="bi bi-arrow-clockwise me-1"></i> Reintentar
+            </button>
+          </div>
+        </div>
+      ) : ambientes.length === 0 ? (
+        // Estado visual de base de datos vacía
+        <div className="card border-0 shadow-sm rounded-4 p-5 text-center text-muted">
+          <i className="bi bi-inbox fs-1 d-block mb-3 opacity-50"></i>
+          <h5 className="fw-semibold">No hay ambientes registrados en el sistema</h5>
+          <p className="small text-muted mb-0">
+            Aún no se han configurado aulas o laboratorios en la base de datos.
+          </p>
+        </div>
+      ) : ambientesFiltrados.length === 0 ? (
+        // Estado visual de búsqueda/filtros sin coincidencias
+        <div className="card border-0 shadow-sm rounded-4 p-5 text-center text-muted">
+          <i className="bi bi-search fs-1 d-block mb-2 opacity-50 text-secondary"></i>
+          <h5 className="fw-semibold">No se encontraron aulas con los criterios seleccionados</h5>
+          <p className="small text-muted mb-3">
+            Modifique los términos de búsqueda o restablezca los filtros aplicados.
+          </p>
+          <div>
+            <button className="btn btn-outline-primary btn-sm px-4" onClick={handleLimpiarFiltros}>
               Restablecer filtros
             </button>
           </div>
@@ -255,7 +294,17 @@ export default function Ambientes() {
       ) : (
         <div className="row g-3">
           {ambientesFiltrados.map((amb) => {
-            const numeroAsientos = amb.asientos_disponibles ?? amb.capacidad ?? 0;
+            const isDisponible = (amb.estado || '').toUpperCase() === 'DISPONIBLE';
+            const capacidadTotal = Number(amb.capacidad) || 0;
+            const numeroAsientos = isDisponible ? (amb.asientos_disponibles ?? capacidadTotal) : 0;
+
+            // Clasificación unificada
+            const clasificacion =
+              capacidadTotal > 60
+                ? { label: 'Aula Grande', badgeClass: 'bg-primary-subtle text-primary border border-primary-subtle' }
+                : capacidadTotal >= 35
+                ? { label: 'Aula Mediana', badgeClass: 'bg-info-subtle text-info-emphasis border border-info-subtle' }
+                : { label: 'Aula Pequeña', badgeClass: 'bg-secondary-subtle text-secondary border border-secondary-subtle' };
 
             return (
               <div key={amb.id_ambiente} className="col-12 col-md-6 col-xl-4">
@@ -279,7 +328,7 @@ export default function Ambientes() {
                         {amb.ubicacion || 'Ubicación no especificada'}
                       </p>
 
-                      {/* CAMPO DESTACADO: NÚMERO DE ASIENTOS EN EL AULA DISPONIBLE */}
+                      {/* CAMPO DESTACADO: NÚMERO DE ASIENTOS EN EL AULA DISPONIBLES */}
                       <div className="bg-light p-3 rounded-3 border mb-3">
                         <div className="d-flex justify-content-between align-items-center">
                           <div>
@@ -288,53 +337,62 @@ export default function Ambientes() {
                               Asientos en el aula disponibles
                             </span>
                             <div className="d-flex align-items-baseline gap-1">
-                              <span className="fs-3 fw-bold text-dark">{numeroAsientos}</span>
-                              <span className="text-muted small fw-semibold">asientos</span>
+                              <span className={`fs-3 fw-bold ${isDisponible ? 'text-dark' : 'text-muted'}`}>
+                                {numeroAsientos}
+                              </span>
+                              <span className="text-muted small fw-semibold">
+                                {isDisponible ? `de ${capacidadTotal} asientos` : '(No disponible)'}
+                              </span>
                             </div>
                           </div>
 
                           <div className="text-end">
-                            <span
-                              className={`badge ${
-                                numeroAsientos >= 80
-                                  ? 'bg-primary-subtle text-primary border border-primary-subtle'
-                                  : numeroAsientos >= 40
-                                  ? 'bg-info-subtle text-info-emphasis border border-info-subtle'
-                                  : 'bg-secondary-subtle text-secondary border border-secondary-subtle'
-                              } fw-semibold`}
-                            >
-                              {numeroAsientos >= 80
-                                ? 'Aula Grande'
-                                : numeroAsientos >= 40
-                                ? 'Aula Mediana'
-                                : 'Aula Estándar'}
+                            <span className={`badge ${clasificacion.badgeClass} fw-semibold`}>
+                              {clasificacion.label}
                             </span>
                           </div>
                         </div>
 
-                        {/* Barra indicadora de proporción de capacidad */}
+                        {/* Barra indicadora con escala dinámica basada en maxCapacidad */}
                         <div className="progress mt-2" style={{ height: '6px' }}>
                           <div
                             className={`progress-bar ${
-                              numeroAsientos >= 80 ? 'bg-primary' : numeroAsientos >= 40 ? 'bg-info' : 'bg-success'
+                              !isDisponible
+                                ? 'bg-secondary'
+                                : capacidadTotal > 60
+                                ? 'bg-primary'
+                                : capacidadTotal >= 35
+                                ? 'bg-info'
+                                : 'bg-success'
                             }`}
                             role="progressbar"
-                            style={{ width: `${Math.min(100, Math.round((numeroAsientos / 150) * 100))}%` }}
+                            style={{
+                              width: isDisponible
+                                ? `${Math.min(100, Math.max(5, Math.round((capacidadTotal / maxCapacidad) * 100)))}%`
+                                : '0%',
+                            }}
                             aria-valuenow={numeroAsientos}
                             aria-valuemin="0"
-                            aria-valuemax="150"
+                            aria-valuemax={maxCapacidad}
                           ></div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Pie de tarjeta informativo */}
+                    {/* Pie de tarjeta condicionado al estado */}
                     <div className="d-flex justify-content-between align-items-center pt-2 border-top text-muted small">
-                      <span>
-                        <i className="bi bi-check2-circle text-success me-1"></i>
-                        Listo para exámenes
-                      </span>
-                      <span className="fw-semibold text-primary">
+                      {isDisponible ? (
+                        <span className="text-success fw-semibold">
+                          <i className="bi bi-check2-circle me-1"></i>
+                          Listo para exámenes
+                        </span>
+                      ) : (
+                        <span className="text-danger fw-semibold">
+                          <i className="bi bi-x-circle me-1"></i>
+                          No disponible para exámenes
+                        </span>
+                      )}
+                      <span className="fw-semibold text-secondary">
                         ID #{amb.id_ambiente}
                       </span>
                     </div>

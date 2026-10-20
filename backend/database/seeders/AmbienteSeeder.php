@@ -114,7 +114,7 @@ class AmbienteSeeder extends Seeder
         ];
 
         foreach ($ambientes as $data) {
-            Ambiente::updateOrCreate(
+            Ambiente::firstOrCreate(
                 ['codigo' => $data['codigo']],
                 $data
             );

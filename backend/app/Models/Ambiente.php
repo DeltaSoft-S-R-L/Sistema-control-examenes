@@ -23,10 +23,16 @@ class Ambiente extends Model
     ];
 
     /**
-     * Accesor explícito para el número de asientos disponibles en el aula.
+     * Devuelve el número de asientos disponibles en el aula.
+     * Si el ambiente se encuentra marcado como NO_DISPONIBLE, devuelve 0 asientos disponibles.
+     * Si se encuentra DISPONIBLE, devuelve la capacidad de asientos asignables.
      */
     public function getAsientosDisponiblesAttribute(): int
     {
+        if (strtoupper($this->estado ?? '') !== 'DISPONIBLE') {
+            return 0;
+        }
+
         return (int) $this->capacidad;
     }
 

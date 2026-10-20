@@ -15,10 +15,7 @@ class AmbienteController extends Controller
 
         if ($request->filled('estado')) {
             $estado = strtoupper($request->estado);
-            $query->where(function ($q) use ($estado) {
-                $q->where('estado', $estado)
-                  ->orWhere('estado', strtolower($estado));
-            });
+            $query->where('estado', $estado);
         }
 
         if ($request->filled('buscar')) {
@@ -31,8 +28,8 @@ class AmbienteController extends Controller
             });
         }
 
-        if ($request->filled('capacidad_min')) {
-            $query->where('capacidad', '>=', (int) $request->capacidad_min);
+        if ($request->filled('capacidad_min') && is_numeric($request->capacidad_min)) {
+            $query->where('capacidad', '>=', max(1, (int) $request->capacidad_min));
         }
 
         return response()->json($query->orderBy('nombre')->get());
@@ -45,7 +42,7 @@ class AmbienteController extends Controller
             'nombre'    => 'required|string|max:100',
             'ubicacion' => 'nullable|string|max:150',
             'capacidad' => 'required|integer|min:1',
-            'estado'    => 'required|in:DISPONIBLE,NO_DISPONIBLE,disponible,ocupado,mantenimiento',
+            'estado'    => 'required|in:DISPONIBLE,NO_DISPONIBLE,disponible,no_disponible',
         ]);
 
         $data['estado'] = strtoupper($data['estado']);
@@ -67,7 +64,7 @@ class AmbienteController extends Controller
             'nombre'    => 'sometimes|required|string|max:100',
             'ubicacion' => 'nullable|string|max:150',
             'capacidad' => 'sometimes|required|integer|min:1',
-            'estado'    => 'sometimes|required|in:DISPONIBLE,NO_DISPONIBLE,disponible,ocupado,mantenimiento',
+            'estado'    => 'sometimes|required|in:DISPONIBLE,NO_DISPONIBLE,disponible,no_disponible',
         ]);
 
         if (isset($data['estado'])) {
