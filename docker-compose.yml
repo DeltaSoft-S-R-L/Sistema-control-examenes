@@ -9,11 +9,38 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data_v2:/var/lib/postgresql/data
       - ./database/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
       - ./database/02_constraints.sql:/docker-entrypoint-initdb.d/02_constraints.sql
       - ./database/03_triggers.sql:/docker-entrypoint-initdb.d/03_triggers.sql
       - ./database/04_seed.sql:/docker-entrypoint-initdb.d/04_seed.sql
+      - ./database/06_docente_asignatura.sql:/docker-entrypoint-initdb.d/06_docente_asignatura.sql
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: sistema-backend:dev
+    restart: unless-stopped
+    command: php artisan serve --host=0.0.0.0 --port=8000 --no-reload
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/var/www/html
+    depends_on:
+      - db
+
+  frontend:
+    image: node:20-alpine
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+    working_dir: /app
+    command: npm run dev -- --host 0.0.0.0
+    depends_on:
+      - backend
 
 volumes:
-  postgres_data:
+  postgres_data_v2:
