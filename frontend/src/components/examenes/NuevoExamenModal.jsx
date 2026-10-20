@@ -27,11 +27,26 @@ export default function NuevoExamenModal({ isOpen, onClose, onSuccess }) {
 
   const cargarCatalogos = async () => {
     try {
-      const [resAsig, resAmb] = await Promise.all([
-        api.get('/asignaturas'),
+      const usuarioLogueado = JSON.parse(localStorage.getItem('usuario') || '{}');
+      const esDocente = String(usuarioLogueado.rol || '').toUpperCase() === 'DOCENTE';
+
+      const peticionAsignaturas = esDocente
+        ? api.get('/docente/mis-materias').then((res) => {
+            const materias = res.data.materias || [];
+            return materias.map((m) => ({
+              id_asignatura: m.id_asignatura,
+              codigo: m.codigo,
+              nombre: m.asignatura || m.nombre,
+            }));
+          })
+        : api.get('/asignaturas').then((res) => res.data.data || res.data || []);
+
+      const [asignaturasData, resAmb] = await Promise.all([
+        peticionAsignaturas,
         api.get('/ambientes'),
       ]);
-      setAsignaturas(resAsig.data.data || resAsig.data || []);
+
+      setAsignaturas(asignaturasData);
       setAmbientes(resAmb.data.data || resAmb.data || []);
     } catch (err) {
       console.error('Error al cargar catálogos:', err);

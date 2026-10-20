@@ -14,13 +14,46 @@ use Illuminate\Support\Facades\DB;
 
 class ExamenController extends Controller
 {
+    private function docenteTieneMateria($usuario, int $idAsignatura): bool
+    {
+        $rol = strtoupper($usuario?->rol?->nombre ?? '');
+        if ($rol === 'ADMINISTRADOR') {
+            return true;
+        }
+
+        if ($rol !== 'DOCENTE') {
+            return false;
+        }
+
+        return DB::table('docente_asignatura')
+            ->where('id_usuario', $usuario->id_usuario)
+            ->where('id_asignatura', $idAsignatura)
+            ->exists();
+    }
+
+    private function escaparLike(string $valor): string
+    {
+        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $valor);
+    }
+
     // ─────────────────────────────────────────────
     // GET /api/examenes
     // Parámetros opcionales: ?estado=&fecha=&id_asignatura=&buscar=
     // ─────────────────────────────────────────────
     public function index(Request $request)
     {
+        $usuario = $request->user();
+        $rol = strtoupper($usuario?->rol?->nombre ?? '');
+
         $query = Examen::with(['asignatura', 'asignacionesAmbiente.ambiente']);
+
+        if ($rol === 'DOCENTE') {
+            $query->whereIn('id_asignatura', function ($sub) use ($usuario) {
+                $sub->select('id_asignatura')
+                    ->from('docente_asignatura')
+                    ->where('id_usuario', $usuario->id_usuario);
+            });
+        }
 
         if ($request->filled('estado')) {
             $query->where('estado', strtoupper($request->estado));
@@ -35,7 +68,7 @@ class ExamenController extends Controller
         }
 
         if ($request->filled('buscar')) {
-            $q = $request->buscar;
+            $q = $this->escaparLike($request->buscar);
             $like = DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
             $query->where(function ($sub) use ($q, $like) {
                 $sub->where('nombre', $like, "%{$q}%")
@@ -51,7 +84,15 @@ class ExamenController extends Controller
     // ─────────────────────────────────────────────
     public function store(StoreExamenRequest $request)
     {
+        $usuario = $request->user();
         $data = $request->validated();
+
+        if (!$this->docenteTieneMateria($usuario, (int) $data['id_asignatura'])) {
+            return response()->json([
+                'message' => 'No tiene asignada esta materia para programar exámenes.',
+            ], 403);
+        }
+
         $examen = DB::transaction(function () use ($data, $request) {
             $idAmbiente = $data['id_ambiente'] ?? null;
             unset($data['id_ambiente']);
@@ -89,14 +130,21 @@ class ExamenController extends Controller
     // ─────────────────────────────────────────────
     // GET /api/examenes/{id}
     // ─────────────────────────────────────────────
-    public function show(string $id)
+    public function show(Request $request, string $id)
     {
+        $usuario = $request->user();
         $examen = Examen::with([
             'asignatura',
             'asignacionesAmbiente.ambiente',
             'reglas',
             'habilitaciones.estudiante',
         ])->findOrFail($id);
+
+        if (!$this->docenteTieneMateria($usuario, (int) $examen->id_asignatura)) {
+            return response()->json([
+                'message' => 'No tiene permisos para consultar este examen.',
+            ], 403);
+        }
 
         return response()->json($examen);
     }
@@ -106,8 +154,21 @@ class ExamenController extends Controller
     // ─────────────────────────────────────────────
     public function update(UpdateExamenRequest $request, string $id)
     {
+        $usuario = $request->user();
         $examen = Examen::findOrFail($id);
+
+        if (!$this->docenteTieneMateria($usuario, (int) $examen->id_asignatura)) {
+            return response()->json([
+                'message' => 'No tiene permisos para modificar este examen.',
+            ], 403);
+        }
+
         $data = $request->validated();
+        if (isset($data['id_asignatura']) && !$this->docenteTieneMateria($usuario, (int) $data['id_asignatura'])) {
+            return response()->json([
+                'message' => 'No tiene asignada la materia seleccionada.',
+            ], 403);
+        }
 
         // Capturar valores previos para el registro de auditoría
         $valoresPrevios = [
@@ -167,7 +228,14 @@ class ExamenController extends Controller
     // ─────────────────────────────────────────────
     public function destroy(Request $request, string $id)
     {
+        $usuario = $request->user();
         $examen = Examen::findOrFail($id);
+
+        if (!$this->docenteTieneMateria($usuario, (int) $examen->id_asignatura)) {
+            return response()->json([
+                'message' => 'No tiene permisos para eliminar este examen.',
+            ], 403);
+        }
 
         if (!in_array($examen->estado, ['PROGRAMADO', 'CANCELADO'])) {
             // ── Registro de Auditoría: Intento fallido de eliminación ──
