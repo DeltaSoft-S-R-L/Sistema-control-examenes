@@ -30,69 +30,57 @@ class HabilitacionController extends Controller
     public function store(StoreHabilitacionRequest $request)
     {
         $data = $request->validated();
-        $data['estado'] = strtoupper($data['estado'] ?? 'HABILITADO');
+        $estado = strtoupper($data['estado'] ?? 'HABILITADO');
+        $motivo = $estado === 'HABILITADO' ? null : ($data['motivo'] ?? null);
 
-        try {
-            $habilitacion = Habilitacion::create($data);
-        } catch (QueryException $e) {
-            // Manejo de condición de carrera si dos peticiones concurrentes pasan la validación simultáneamente
-            if ($e->getCode() === '23505' || str_contains($e->getMessage(), 'unique') || str_contains($e->getMessage(), 'UNIQUE')) {
-                return response()->json([
-                    'message' => 'El estudiante ya se encuentra asignado a este examen.',
-                    'errors'  => [
-                        'id_estudiante' => ['El estudiante ya se encuentra asignado a este examen.'],
-                    ],
-                ], 422);
-            }
-
-            throw $e;
-        }
+        $habilitacion = Habilitacion::updateOrCreate(
+            [
+                'id_examen'     => $data['id_examen'],
+                'id_estudiante' => $data['id_estudiante'],
+            ],
+            [
+                'estado' => $estado,
+                'motivo' => $motivo,
+            ]
+        );
 
         return response()->json($habilitacion->load(['estudiante', 'examen']), 201);
     }
 
-public function storeMasiva(StoreHabilitacionMasivaRequest $request)
-{
-    $data = $request->validated();
+    public function storeMasiva(StoreHabilitacionMasivaRequest $request)
+    {
+        $data = $request->validated();
 
-    $estado = strtoupper($data['estado'] ?? 'HABILITADO');
-    $motivo = $data['motivo'] ?? null;
+        $estado = strtoupper($data['estado'] ?? 'HABILITADO');
+        $motivo = $estado === 'HABILITADO' ? null : ($data['motivo'] ?? null);
 
-    try {
         $habilitaciones = DB::transaction(function () use ($data, $estado, $motivo) {
             $registros = [];
 
             foreach ($data['estudiantes'] as $idEstudiante) {
-                $registros[] = Habilitacion::create([
-                    'id_examen' => $data['id_examen'],
-                    'id_estudiante' => $idEstudiante,
-                    'estado' => $estado,
-                    'motivo' => $motivo,
-                ]);
+                $registros[] = Habilitacion::updateOrCreate(
+                    [
+                        'id_examen'     => $data['id_examen'],
+                        'id_estudiante' => $idEstudiante,
+                    ],
+                    [
+                        'estado' => $estado,
+                        'motivo' => $motivo,
+                    ]
+                );
             }
 
             return $registros;
         });
-    } catch (QueryException $e) {
-        if ($e->getCode() === '23505') {
-            throw ValidationException::withMessages([
-                'estudiantes' => [
-                    'Uno o más estudiantes ya están asignados a este examen.',
-                ],
-            ]);
-        }
 
-        throw $e;
+        return response()->json([
+            'message' => 'Habilitación masiva realizada correctamente.',
+            'total' => count($habilitaciones),
+            'habilitaciones' => collect($habilitaciones)
+                ->map(fn ($habilitacion) => $habilitacion->load(['estudiante', 'examen']))
+                ->values(),
+        ], 201);
     }
-
-    return response()->json([
-        'message' => 'Habilitación masiva realizada correctamente.',
-        'total' => count($habilitaciones),
-        'habilitaciones' => collect($habilitaciones)
-            ->map(fn ($habilitacion) => $habilitacion->load(['estudiante', 'examen']))
-            ->values(),
-    ], 201);
-}
 
     public function show(string $id)
     {

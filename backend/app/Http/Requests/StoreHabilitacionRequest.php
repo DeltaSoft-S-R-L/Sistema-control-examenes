@@ -25,9 +25,6 @@ class StoreHabilitacionRequest extends FormRequest
                 'required',
                 'integer',
                 'exists:estudiante,id_estudiante',
-                Rule::unique('habilitacion', 'id_estudiante')->where(function ($query) {
-                    return $query->where('id_examen', $this->input('id_examen'));
-                }),
             ],
 
             'estado' => [

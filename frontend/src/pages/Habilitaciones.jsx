@@ -115,46 +115,60 @@ export default function Habilitaciones() {
     setGuardando(true);
     setMensaje(null);
 
-    const resultados = await Promise.allSettled(
-      seleccionados.map((id_estudiante) => api.post('/habilitaciones', {
-        id_estudiante,
+    try {
+      const res = await api.post('/habilitaciones/masiva', {
         id_examen: Number(idExamen),
+        estudiantes: seleccionados,
         estado: 'HABILITADO',
-      })),
-    );
+      });
 
-    const creadas = resultados.filter((resultado) => resultado.status === 'fulfilled').length;
-    const fallidas = resultados.length - creadas;
-
-    if (creadas > 0) {
+      const totalHabilitados = res.data?.total ?? seleccionados.length;
       setSeleccionados([]);
+      setMensaje({
+        tipo: 'success',
+        texto: res.data?.message || `${totalHabilitados} estudiante(s) habilitado(s) correctamente.`,
+      });
+    } catch (err) {
+      console.error('Error al habilitar estudiantes de forma masiva:', err);
+      const errMsg =
+        err.response?.data?.message ||
+        (err.response?.data?.errors?.estudiantes?.[0]) ||
+        'No se pudieron habilitar los estudiantes seleccionados.';
+      setMensaje({
+        tipo: 'danger',
+        texto: errMsg,
+      });
+    } finally {
+      setGuardando(false);
+      cargarHabilitaciones();
     }
-
-    setMensaje({
-      tipo: fallidas ? 'warning' : 'success',
-      texto: fallidas
-        ? `Se habilitaron ${creadas} estudiante(s). ${fallidas} no se pudieron habilitar; posiblemente ya están registrados para este examen.`
-        : `${creadas} estudiante(s) habilitado(s) correctamente.`,
-    });
-    setGuardando(false);
-    cargarHabilitaciones();
   };
 
   const revocarHabilitacion = async (habilitacion) => {
     const nombre = `${habilitacion.estudiante?.nombre ?? ''} ${habilitacion.estudiante?.apellido ?? ''}`.trim();
     if (!window.confirm(`¿Revocar la habilitación de ${nombre || 'este estudiante'} para el examen seleccionado?`)) return;
 
+    const motivoInput = window.prompt(
+      `Ingrese el motivo de la inhabilitación para ${nombre || 'el estudiante'}:`,
+      'Inhabilitado por revisión docente'
+    );
+
+    if (motivoInput === null) return; // Cancelado por el usuario
+    const motivoFinal = motivoInput.trim() || 'Inhabilitado por revisión docente';
+
     setRevocando(habilitacion.id_habilitacion);
     setMensaje(null);
     try {
       await api.patch(`/habilitaciones/${habilitacion.id_habilitacion}`, {
         estado: 'NO_HABILITADO',
+        motivo: motivoFinal,
       });
       setHabilitaciones((actuales) => actuales.filter((actual) => actual.id_habilitacion !== habilitacion.id_habilitacion));
-      setMensaje({ tipo: 'success', texto: `Se revocó la habilitación de ${nombre || 'el estudiante'}.` });
+      setMensaje({ tipo: 'success', texto: `Se revocó la habilitación de ${nombre || 'el estudiante'}. Motivo: "${motivoFinal}"` });
     } catch (error) {
       console.error('Error al revocar habilitación:', error);
-      setMensaje({ tipo: 'danger', texto: 'No se pudo revocar la habilitación. Intente nuevamente.' });
+      const errorDetalle = error.response?.data?.message || 'No se pudo revocar la habilitación. Intente nuevamente.';
+      setMensaje({ tipo: 'danger', texto: errorDetalle });
     } finally {
       setRevocando(null);
     }

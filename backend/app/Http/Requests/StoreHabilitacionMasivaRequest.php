@@ -33,11 +33,6 @@ class StoreHabilitacionMasivaRequest extends FormRequest
                 'integer',
                 'distinct',
                 'exists:estudiante,id_estudiante',
-                Rule::unique('habilitacion', 'id_estudiante')
-                    ->where(fn ($query) => $query->where(
-                        'id_examen',
-                        $this->input('id_examen')
-                    )),
             ],
 
             'estado' => [
