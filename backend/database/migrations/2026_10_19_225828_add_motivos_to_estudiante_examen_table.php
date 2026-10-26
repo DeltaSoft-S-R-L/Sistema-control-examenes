@@ -12,7 +12,11 @@ return new class extends Migration
         Schema::table('habilitacion', function (Blueprint $table) {
             $table->renameColumn('motivo', 'motivo_detalle');
             $table->string('motivo_tipo')->nullable();
-            $table->foreignId('inhabilitado_por')->nullable()->constrained('users');
+            $table->unsignedBigInteger('inhabilitado_por')->nullable();
+            $table->foreign('inhabilitado_por')
+                  ->references('id_usuario')
+                  ->on('usuario')
+                  ->nullOnDelete();
             $table->timestamp('inhabilitado_at')->nullable();
         });
 
