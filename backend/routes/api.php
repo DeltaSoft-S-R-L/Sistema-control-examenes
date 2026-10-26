@@ -148,6 +148,10 @@ Route::get('/docente/mis-materias', [
     Route::get('/habilitaciones', [HabilitacionController::class, 'index']);
     Route::get('/habilitaciones/{habilitacione}', [HabilitacionController::class, 'show']);
 
+    // Consulta del motivo de inhabilitación por estudiante y examen 
+    Route::get('/examenes/{examen}/estudiantes/{estudiante}/inhabilitacion', [HabilitacionController::class, 'consultarMotivo'])
+        ->middleware('role:ADMINISTRADOR,DOCENTE,CONTROL,PERSONAL_CONTROL,admin,docente,control');
+
     Route::middleware('permission:GESTIONAR_HABILITACIONES')->group(function () {
         Route::post('/habilitaciones', [HabilitacionController::class, 'store']);
         Route::post('/habilitaciones/masiva', [HabilitacionController::class, 'storeMasiva']);
@@ -155,7 +159,6 @@ Route::get('/docente/mis-materias', [
         Route::patch('/habilitaciones/{habilitacione}', [HabilitacionController::class, 'update']);
         Route::delete('/habilitaciones/{habilitacione}', [HabilitacionController::class, 'destroy']);
     });
-
     /*
     |--------------------------------------------------------------------------
     | Control de ingreso

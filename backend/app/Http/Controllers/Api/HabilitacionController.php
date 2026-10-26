@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use App\Http\Requests\StoreHabilitacionMasivaRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use App\Http\Resources\MotivoInhabilitacionResource;
 
 class HabilitacionController extends Controller
 {
@@ -163,5 +164,63 @@ class HabilitacionController extends Controller
     {
         Habilitacion::findOrFail($id)->delete();
         return response()->json(['message' => 'Habilitación eliminada.']);
+    }
+
+    /**
+     * Consulta el estado y motivo de inhabilitación de un estudiante en un examen (HAB-02).
+     * Resuelve en exactamente 1 sola consulta SQL incluyendo los datos del usuario que inhabilitó.
+     */
+    public function consultarMotivo(string $examen, string $estudiante)
+    {
+        $habilitacion = Habilitacion::query()
+            ->select([
+                'habilitacion.*',
+                'usuario.nombre as inhabilitador_nombre',
+                'usuario.apellido as inhabilitador_apellido',
+            ])
+            ->leftJoin('usuario', 'habilitacion.inhabilitado_por', '=', 'usuario.id_usuario')
+            ->where('habilitacion.id_examen', $examen)
+            ->where('habilitacion.id_estudiante', $estudiante)
+            ->first();
+
+        if (! $habilitacion) {
+            return response()->json([
+                'message' => 'El estudiante no se encuentra registrado en este examen.',
+            ], 404);
+        }
+
+        $estaHabilitado = strtoupper((string) $habilitacion->estado) === 'HABILITADO';
+
+        if ($estaHabilitado) {
+            return response()->json([
+                'id_habilitacion'  => $habilitacion->id_habilitacion,
+                'id_examen'        => $habilitacion->id_examen,
+                'id_estudiante'    => $habilitacion->id_estudiante,
+                'estado'           => 'HABILITADO',
+                'habilitado'       => true,
+                'motivo'           => null,
+                'motivo_tipo'      => null,
+                'motivo_etiqueta'  => null,
+                'motivo_detalle'   => null,
+                'inhabilitado_por' => null,
+                'inhabilitado_at'  => null,
+            ], 200);
+        }
+
+        $motivoData = (new MotivoInhabilitacionResource($habilitacion))->resolve();
+
+        return response()->json([
+            'id_habilitacion'  => $habilitacion->id_habilitacion,
+            'id_examen'        => $habilitacion->id_examen,
+            'id_estudiante'    => $habilitacion->id_estudiante,
+            'estado'           => 'NO_HABILITADO',
+            'habilitado'       => false,
+            'motivo'           => $motivoData,
+            'motivo_tipo'      => $motivoData['tipo'],
+            'motivo_etiqueta'  => $motivoData['etiqueta'],
+            'motivo_detalle'   => $motivoData['detalle'],
+            'inhabilitado_por' => $motivoData['inhabilitado_por'],
+            'inhabilitado_at'  => $motivoData['inhabilitado_at'],
+        ], 200);
     }
 }
