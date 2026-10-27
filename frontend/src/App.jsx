@@ -17,6 +17,7 @@ import Ambientes from './pages/Ambientes';
 import Usuarios from './pages/Usuarios';
 import Habilitaciones from './pages/Habilitaciones';
 import ModuloEnConstruccion from './pages/ModuloEnConstruccion';
+import VerificacionMovil from './pages/VerificacionMovil';
 
 import { ROLES } from './utils/auth';
 
@@ -71,14 +72,9 @@ export default function App() {
               }
             >
               <Route
-                path="/control-ingreso"
-                element={
-                  <ModuloEnConstruccion
-                    titulo="Control de ingreso"
-                    descripcion="El módulo de control de ingreso se encuentra actualmente en construcción."
-                  />
-                }
-              />
+  path="/control-ingreso"
+  element={<VerificacionMovil />}
+/>
 
               <Route
                 path="/incidencias"
