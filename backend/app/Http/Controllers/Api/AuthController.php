@@ -17,7 +17,10 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $usuario = Usuario::where('username', $request->username)->first();
+        $identificador = trim($request->username);
+        $usuario = Usuario::where('username', $identificador)
+            ->orWhere('correo', $identificador)
+            ->first();
 
         if (! $usuario || ! PasswordHasher::verify($request->password, $usuario->password_hash)) {
             throw ValidationException::withMessages([

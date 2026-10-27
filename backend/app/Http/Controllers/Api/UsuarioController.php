@@ -162,6 +162,52 @@ class UsuarioController extends Controller
     }
 
     /**
+     * Eliminar la cuenta sin borrar sus registros históricos.
+     */
+    public function destroy(Request $request, string $id)
+    {
+        $admin = $request->user();
+        $admin?->loadMissing('rol');
+
+        if (!$admin || strtoupper((string) $admin->rol?->nombre) !== 'ADMINISTRADOR') {
+            return response()->json([
+                'message' => 'Solo un administrador puede eliminar usuarios.',
+            ], 403);
+        }
+
+        $usuario = Usuario::find($id);
+        if (!$usuario) {
+            return response()->json([
+                'message' => 'Usuario no encontrado.',
+            ], 404);
+        }
+
+        if ((int) $admin->id_usuario === (int) $usuario->id_usuario) {
+            return response()->json([
+                'message' => 'No puede eliminar su propia cuenta.',
+            ], 422);
+        }
+
+        DB::transaction(function () use ($usuario) {
+            $usuario->tokens()->delete();
+
+            if (Schema::hasTable('sessions')) {
+                DB::table('sessions')->where('user_id', $usuario->id_usuario)->delete();
+            }
+
+            if (Schema::hasTable('docente_asignatura')) {
+                DB::table('docente_asignatura')->where('id_usuario', $usuario->id_usuario)->delete();
+            }
+
+            $usuario->delete();
+        });
+
+        return response()->json([
+            'message' => 'Usuario eliminado correctamente.',
+        ]);
+    }
+
+    /**
      * Revocar acceso a un usuario (USR-03).
      *
      * Cambia el estado a 'REVOCADO', invalida todos sus tokens de Sanctum y sesiones

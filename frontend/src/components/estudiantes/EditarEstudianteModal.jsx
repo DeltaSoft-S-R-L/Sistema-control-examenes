@@ -189,11 +189,6 @@ export default function EditarEstudianteModal({
       return;
     }
 
-    if (formulario.asignaturas.length === 0) {
-      setError("Seleccione al menos una materia.");
-      return;
-    }
-
     try {
       setGuardando(true);
       setError("");
@@ -398,7 +393,9 @@ export default function EditarEstudianteModal({
 
                   {/* MATERIAS */}
                   <div className="col-12">
-                    <label className="form-label fw-semibold">Materias *</label>
+                    <label className="form-label fw-semibold">
+                      Materias <span className="text-muted small">(opcional)</span>
+                    </label>
 
                     <div className="border rounded p-3">
                       {cargandoCatalogos ? (

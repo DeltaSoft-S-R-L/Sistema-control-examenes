@@ -3,6 +3,7 @@ import api from '../services/api';
 import NuevoExamenModal from '../components/examenes/NuevoExamenModal';
 import EditarExamenModal from '../components/examenes/EditarExamenModal';
 import AuditoriaExamenModal from '../components/examenes/AuditoriaExamenModal';
+import FichaExamenModal from '../components/examenes/FichaExamenModal';
 
 export default function Examenes() {
   const [examenes, setExamenes] = useState([]);
@@ -10,8 +11,10 @@ export default function Examenes() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+  const [isFichaModalOpen, setIsFichaModalOpen] = useState(false);
   const [examenAEditar, setExamenAEditar] = useState(null);
   const [examenAuditando, setExamenAuditando] = useState(null);
+  const [examenFicha, setExamenFicha] = useState(null);
   const [mensaje, setMensaje] = useState(null);
   const [error, setError] = useState(null);
 
@@ -62,6 +65,11 @@ export default function Examenes() {
   const handleAbrirAuditoria = (examen) => {
     setExamenAuditando(examen);
     setIsAuditModalOpen(true);
+  };
+
+  const handleAbrirFicha = (examen) => {
+    setExamenFicha(examen);
+    setIsFichaModalOpen(true);
   };
 
   const handleEliminar = async (id, nombre) => {
@@ -321,6 +329,15 @@ export default function Examenes() {
                           <div className="btn-group btn-group-sm" role="group">
                             <button
                               type="button"
+                              className="btn btn-outline-primary"
+                              title="Ver ficha del examen y sus normas"
+                              aria-label={`Ver ficha del examen ${ex.nombre}`}
+                              onClick={() => handleAbrirFicha(ex)}
+                            >
+                              <i className="bi bi-eye"></i>
+                            </button>
+                            <button
+                              type="button"
                               className="btn btn-outline-warning"
                               title="Modificar sesión de examen"
                               onClick={() => handleAbrirEditar(ex)}
@@ -388,6 +405,15 @@ export default function Examenes() {
         onClose={() => {
           setIsAuditModalOpen(false);
           setExamenAuditando(null);
+        }}
+      />
+
+      <FichaExamenModal
+        isOpen={isFichaModalOpen}
+        examen={examenFicha}
+        onClose={() => {
+          setIsFichaModalOpen(false);
+          setExamenFicha(null);
         }}
       />
     </div>

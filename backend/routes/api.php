@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\IngresoController;
 use App\Http\Controllers\Api\UsuarioController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\DocenteAsignaturaController;
+use App\Models\Rol;
 
 /*
 |--------------------------------------------------------------------------
@@ -49,10 +50,14 @@ Route::get('/docente/mis-materias', [
     |--------------------------------------------------------------------------
     */
     Route::middleware('permission:GESTIONAR_USUARIOS')->group(function () {
+        Route::get('/roles', fn () => response()->json(
+            Rol::query()->orderBy('id_rol')->get(['id_rol', 'nombre'])
+        ));
         Route::get('/usuarios', [UsuarioController::class, 'index']);
         Route::post('/usuarios', [UsuarioController::class, 'store']);
         Route::get('/usuarios/{id}', [UsuarioController::class, 'show']);
         Route::put('/usuarios/{usuario}', [UsuarioController::class, 'update']);
+        Route::delete('/usuarios/{id}', [UsuarioController::class, 'destroy']);
 
         // Asignación de materias a docentes
         Route::get('/usuarios/{usuario}/materias', [DocenteAsignaturaController::class, 'index']);
@@ -70,8 +75,11 @@ Route::get('/docente/mis-materias', [
     Route::get('/estudiantes', [EstudianteController::class, 'index']);
     Route::get('/estudiantes/{estudiante}', [EstudianteController::class, 'show']);
 
+    // El controlador autoriza ADMINISTRADOR o DOCENTE y limita al docente
+    // a las materias que tiene asignadas.
+    Route::post('/estudiantes/importar', [EstudianteController::class, 'importar']);
+
     Route::middleware('permission:GESTIONAR_ESTUDIANTES')->group(function () {
-        Route::post('/estudiantes/importar', [EstudianteController::class, 'importar']);
         Route::post('/estudiantes', [EstudianteController::class, 'store']);
         Route::put('/estudiantes/{estudiante}', [EstudianteController::class, 'update']);
         Route::patch('/estudiantes/{estudiante}', [EstudianteController::class, 'update']);
@@ -147,12 +155,14 @@ Route::get('/docente/mis-materias', [
     */
     Route::get('/habilitaciones', [HabilitacionController::class, 'index']);
     Route::get('/habilitaciones/{habilitacione}', [HabilitacionController::class, 'show']);
+    // La autorización específica del PATCH permite al docente revocar solo
+    // dentro de sus materias asignadas; las demás operaciones siguen protegidas.
+    Route::patch('/habilitaciones/{habilitacione}', [HabilitacionController::class, 'update']);
 
     Route::middleware('permission:GESTIONAR_HABILITACIONES')->group(function () {
         Route::post('/habilitaciones', [HabilitacionController::class, 'store']);
         Route::post('/habilitaciones/masiva', [HabilitacionController::class, 'storeMasiva']);
         Route::put('/habilitaciones/{habilitacione}', [HabilitacionController::class, 'update']);
-        Route::patch('/habilitaciones/{habilitacione}', [HabilitacionController::class, 'update']);
         Route::delete('/habilitaciones/{habilitacione}', [HabilitacionController::class, 'destroy']);
     });
 

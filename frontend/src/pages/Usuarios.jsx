@@ -24,6 +24,7 @@ export default function Usuarios() {
 
   const [usuarioARevocar, setUsuarioARevocar] = useState(null);
   const [mostrarRevocarModal, setMostrarRevocarModal] = useState(false);
+  const [eliminandoUsuario, setEliminandoUsuario] = useState(null);
 
   const [buscar, setBuscar] = useState("");
   const [filtroRol, setFiltroRol] = useState("");
@@ -83,7 +84,8 @@ export default function Usuarios() {
 
         console.error("Error al cargar usuarios:", err);
         setError(
-          "Error al cargar la lista de usuarios. Verifique su conexión al servidor.",
+          err.response?.data?.message ||
+            "Error al cargar la lista de usuarios. Verifique su conexión al servidor.",
         );
         setUsuarios([]);
       } finally {
@@ -129,6 +131,25 @@ export default function Usuarios() {
   const abrirRevocacion = (usuario) => {
     setUsuarioARevocar(usuario);
     setMostrarRevocarModal(true);
+  };
+
+  const eliminarUsuario = async (usuario) => {
+    const nombre = `${usuario.nombre} ${usuario.apellido}`.trim();
+    if (!window.confirm(`¿Eliminar la cuenta de ${nombre}? Sus registros históricos se conservarán.`)) return;
+
+    setEliminandoUsuario(usuario.id_usuario);
+    setError("");
+    try {
+      await api.delete(`/usuarios/${usuario.id_usuario}`);
+      setMensaje(`Se eliminó la cuenta de ${nombre}.`);
+      setCurrentPage(1);
+      fetchUsuarios();
+      window.setTimeout(() => setMensaje(""), 4000);
+    } catch (err) {
+      setError(err.response?.data?.message || "No se pudo eliminar el usuario.");
+    } finally {
+      setEliminandoUsuario(null);
+    }
   };
 
   const handleActualizado = (usuarioActualizado) => {
@@ -422,6 +443,18 @@ export default function Usuarios() {
                                 Revocar acceso
                               </button>
                             )}
+
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-danger"
+                              onClick={() => eliminarUsuario(usuario)}
+                              disabled={eliminandoUsuario === usuario.id_usuario}
+                              title="Eliminar cuenta"
+                            >
+                              {eliminandoUsuario === usuario.id_usuario ? (
+                                <span className="spinner-border spinner-border-sm" role="status" aria-label="Eliminando" />
+                              ) : <><i className="bi bi-trash me-1" aria-hidden="true" />Eliminar</>}
+                            </button>
                           </div>
                         </td>
                       </tr>
