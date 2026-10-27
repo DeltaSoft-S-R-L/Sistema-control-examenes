@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\IngresoController;
 use App\Http\Controllers\Api\UsuarioController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\DocenteAsignaturaController;
+use App\Http\Controllers\Api\NormaExamenController;
 
 /*
 |--------------------------------------------------------------------------
@@ -123,6 +124,15 @@ Route::get('/docente/mis-materias', [
         Route::put('/examenes/{examene}', [ExamenController::class, 'update']);
         Route::patch('/examenes/{examene}', [ExamenController::class, 'update']);
         Route::delete('/examenes/{examene}', [ExamenController::class, 'destroy']);
+    });
+
+    Route::middleware('role:ADMINISTRADOR,DOCENTE,CONTROL_INGRESO,admin,docente,control,CONTROL')->group(function () {
+        Route::get('/examenes/{examen}/normas', [NormaExamenController::class, 'index']);
+    });
+
+    Route::middleware('role:ADMINISTRADOR,DOCENTE,admin,docente')->group(function () {
+        Route::post('/examenes/{examen}/normas', [NormaExamenController::class, 'store']);
+        Route::delete('/examenes/{examen}/normas/{norma}', [NormaExamenController::class, 'destroy']);
     });
 
     /*
