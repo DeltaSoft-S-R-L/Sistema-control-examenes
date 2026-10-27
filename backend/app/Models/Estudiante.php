@@ -60,4 +60,9 @@ class Estudiante extends Model
             'id_asignatura'
         );
     }
+
+    public function normas()
+    {
+        return $this->hasMany(NormaExamen::class, 'id_estudiante', 'id_estudiante');
+    }
 }

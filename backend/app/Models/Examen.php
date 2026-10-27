@@ -48,4 +48,9 @@ class Examen extends Model
     {
         return $this->hasMany(ReglaExamen::class, 'id_examen', 'id_examen');
     }
+
+    public function normas()
+    {
+        return $this->hasMany(NormaExamen::class, 'id_examen', 'id_examen');
+    }
 }
