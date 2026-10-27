@@ -47,6 +47,11 @@ class NormaExamen extends Model
         return $this->belongsTo(Usuario::class, 'created_by', 'id_usuario');
     }
 
+    public function createdBy()
+    {
+        return $this->belongsTo(Usuario::class, 'created_by', 'id_usuario');
+    }
+
     public function scopeGenerales($query)
     {
         return $query->where('tipo', 'GENERAL');
