@@ -682,7 +682,11 @@ if (!$this->esAdministrador($request)) {
 
         $estudiante = Estudiante::findOrFail($id);
 
-        $this->normalizarEstado($request);
+        if ($request->has('estado') && is_string($request->input('estado'))) {
+    $request->merge([
+        'estado' => strtoupper(trim($request->input('estado'))),
+    ]);
+}
 
         $data = $request->validate([
             'ci'                   => "sometimes|required|string|max:20|unique:estudiante,ci,{$id},id_estudiante",
