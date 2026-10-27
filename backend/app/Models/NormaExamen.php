@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use Database\Factories\NormaExamenFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class NormaExamen extends Model
 {
+    use HasFactory;
     protected $table = 'norma_examen';
     protected $primaryKey = 'id_norma_examen';
 
