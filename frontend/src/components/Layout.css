@@ -1,0 +1,21 @@
+.layout-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+}
+
+.layout-main {
+  min-width: 0;
+  padding: 24px;
+}
+
+/* Pantallas pequeñas */
+@media (max-width: 767px) {
+  .layout-sidebar {
+    display: none;
+  }
+
+  .layout-main {
+    width: 100%;
+    padding: 16px;
+  }
+}
