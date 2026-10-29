@@ -150,7 +150,8 @@ Route::get('/docente/mis-materias', [
 
     // Consulta del motivo de inhabilitación por estudiante y examen 
     Route::get('/examenes/{examen}/estudiantes/{estudiante}/inhabilitacion', [HabilitacionController::class, 'consultarMotivo'])
-        ->middleware('role:ADMINISTRADOR,DOCENTE,CONTROL,PERSONAL_CONTROL,admin,docente,control');
+        ->middleware('role:ADMINISTRADOR,DOCENTE,CONTROL,PERSONAL_CONTROL,admin,docente,control,CONTROL_INGRESO,control_ingreso');
+        
 
     Route::middleware('permission:GESTIONAR_HABILITACIONES')->group(function () {
         Route::post('/habilitaciones', [HabilitacionController::class, 'store']);
