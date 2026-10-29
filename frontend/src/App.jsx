@@ -1,25 +1,21 @@
-import React from 'react';
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  Navigate,
-} from 'react-router-dom';
+import React from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-import Layout from './components/Layout';
-import ProtectedRoute from './components/ProtectedRoute';
+import Layout from "./components/Layout";
+import ProtectedRoute from "./components/ProtectedRoute";
 
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Examenes from './pages/Examenes';
-import Estudiantes from './pages/Estudiantes';
-import Ambientes from './pages/Ambientes';
-import Usuarios from './pages/Usuarios';
-import Habilitaciones from './pages/Habilitaciones';
-import ModuloEnConstruccion from './pages/ModuloEnConstruccion';
-import VerificacionMovil from './pages/VerificacionMovil';
+import Login from "./pages/Login";
+import ConfigurarContrasena from "./pages/ConfigurarContrasena";
+import Dashboard from "./pages/Dashboard";
+import Examenes from "./pages/Examenes";
+import Estudiantes from "./pages/Estudiantes";
+import Ambientes from "./pages/Ambientes";
+import Usuarios from "./pages/Usuarios";
+import Habilitaciones from "./pages/Habilitaciones";
+import ModuloEnConstruccion from "./pages/ModuloEnConstruccion";
+import VerificacionMovil from "./pages/VerificacionMovil";
 
-import { ROLES } from './utils/auth';
+import { ROLES } from "./utils/auth";
 
 export default function App() {
   return (
@@ -27,6 +23,10 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
 
+        <Route
+          path="/configurar-contrasena"
+          element={<ConfigurarContrasena />}
+        />
         {/* Cualquier usuario autenticado */}
         <Route element={<ProtectedRoute />}>
           <Route element={<Layout />}>
@@ -36,10 +36,7 @@ export default function App() {
             <Route
               element={
                 <ProtectedRoute
-                  rolesPermitidos={[
-                    ROLES.ADMINISTRADOR,
-                    ROLES.DOCENTE,
-                  ]}
+                  rolesPermitidos={[ROLES.ADMINISTRADOR, ROLES.DOCENTE]}
                 />
               }
             >
@@ -51,9 +48,7 @@ export default function App() {
             {/* Solo administrador */}
             <Route
               element={
-                <ProtectedRoute
-                  rolesPermitidos={[ROLES.ADMINISTRADOR]}
-                />
+                <ProtectedRoute rolesPermitidos={[ROLES.ADMINISTRADOR]} />
               }
             >
               <Route path="/usuarios" element={<Usuarios />} />
@@ -64,18 +59,11 @@ export default function App() {
             <Route
               element={
                 <ProtectedRoute
-                  rolesPermitidos={[
-                    ROLES.ADMINISTRADOR,
-                    ROLES.CONTROL_INGRESO,
-                  ]}
+                  rolesPermitidos={[ROLES.ADMINISTRADOR, ROLES.CONTROL_INGRESO]}
                 />
               }
             >
-              <Route
-  path="/control-ingreso"
-  element={<VerificacionMovil />}
-/>
-
+              <Route path="/control-ingreso" element={<VerificacionMovil />} />
               <Route
                 path="/incidencias"
                 element={

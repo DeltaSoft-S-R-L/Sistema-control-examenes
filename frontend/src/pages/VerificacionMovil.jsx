@@ -1,5 +1,7 @@
+
 import React, { useEffect, useState } from "react";
 import api from "../services/api";
+import QrScanner from "../components/qr/QrScanner";
 
 export default function VerificacionMovil() {
   const [examenes, setExamenes] = useState([]);
@@ -51,7 +53,44 @@ export default function VerificacionMovil() {
     if (!fecha) return "Sin fecha";
     return String(fecha).slice(0, 10);
   };
+  if (seleccionado) {
+    return (
+      <div className="container-fluid px-0">
+        <div className="mx-auto" style={{ maxWidth: 650 }}>
+          <button
+            type="button"
+            className="btn btn-outline-secondary mb-3"
+            onClick={() => setSeleccionado(null)}
+          >
+            <i className="bi bi-arrow-left me-2" />
+            Volver a seleccionar examen
+          </button>
 
+          <h1 className="h4 fw-bold mb-2">Escanear QR</h1>
+
+          <p className="mb-3">
+            <strong>Examen:</strong> {seleccionado.nombre}
+          </p>
+
+          <QrScanner
+            key={seleccionado.id_examen}
+            onResult={(codigo) => {
+              console.log("Examen seleccionado:", seleccionado.id_examen);
+              console.log("QR detectado:", codigo);
+            }}
+            onError={(error) => {
+              console.error("Error del lector QR:", error);
+            }}
+          />
+
+          <div className="alert alert-warning small mt-3">
+            Modo de prueba: todavía no se verifican estudiantes ni se registran
+            ingresos.
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="container-fluid px-0">
       <div className="mx-auto" style={{ maxWidth: 650 }}>
@@ -147,25 +186,6 @@ export default function VerificacionMovil() {
               </button>
             )}
           </>
-        )}
-
-        {seleccionado && (
-          <div className="card border-primary mt-4">
-            <div className="card-body">
-              <h2 className="h5">Examen seleccionado</h2>
-              <p className="mb-2">{seleccionado.nombre}</p>
-              <p className="text-muted small mb-3">
-                El lector QR se integrará en la tarea #130.
-              </p>
-              <button
-                type="button"
-                className="btn btn-outline-secondary w-100"
-                onClick={() => setSeleccionado(null)}
-              >
-                Cambiar selección
-              </button>
-            </div>
-          </div>
         )}
       </div>
     </div>
