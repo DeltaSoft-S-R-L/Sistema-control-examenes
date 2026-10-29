@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\HabilitacionController;
 use App\Http\Controllers\Api\IncidenciaController;
 use App\Http\Controllers\Api\IngresoController;
 use App\Http\Controllers\Api\UsuarioController;
+use App\Http\Controllers\Api\VerificacionController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\DocenteAsignaturaController;
 use App\Http\Controllers\Api\PasswordSetupController;
@@ -198,5 +199,17 @@ Route::get('/docente/mis-materias', [
         Route::put('/incidencias/{incidencia}', [IncidenciaController::class, 'update']);
         Route::patch('/incidencias/{incidencia}', [IncidenciaController::class, 'update']);
         Route::delete('/incidencias/{incidencia}', [IncidenciaController::class, 'destroy']);
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Verificación de Estudiantes (QR y CI/SIS)
+    |--------------------------------------------------------------------------
+    */
+    Route::middleware('role:ADMINISTRADOR,CONTROL_INGRESO')->group(function () {
+        Route::post('/verificar/qr', [VerificacionController::class, 'verificarQr']);
+        Route::post('/verificar/documento', [VerificacionController::class, 'verificarDocumento']);
+        Route::post('/verificar/ci-sis', [VerificacionController::class, 'verificarDocumento']);
+        Route::get('/verificar/generar-qr/{id_estudiante}', [VerificacionController::class, 'generarQrPrueba']);
     });
 });
