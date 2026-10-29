@@ -118,7 +118,7 @@ class HabilitacionController extends Controller
     {
         $habilitacion = Habilitacion::findOrFail($id);
 
-        // Retrocompatibilidad frontend
+        // Retrocompatibilidad frontend: mapear el antiguo 'motivo' a 'motivo_detalle'
         if ($request->has('motivo') && !$request->has('motivo_detalle')) {
             $request->merge(['motivo_detalle' => $request->input('motivo')]);
         }
@@ -127,10 +127,6 @@ class HabilitacionController extends Controller
             'estado' => 'sometimes|required|string|in:HABILITADO,NO_HABILITADO,habilitado,no_habilitado',
             'motivo_tipo' => 'nullable|string|in:ACADEMICO,MORA,DOCUMENTACION,OTRO,academico,mora,documentacion,otro',
             'motivo_detalle' => 'nullable|string|max:500',
-        ], [
-            'estado.in' => 'El estado debe ser HABILITADO o NO_HABILITADO.',
-            'motivo_tipo.in' => 'El tipo de motivo no es válido.',
-            'motivo_detalle.max' => 'El motivo no puede superar los 500 caracteres.',
         ]);
 
         if (isset($data['estado'])) {
@@ -141,13 +137,14 @@ class HabilitacionController extends Controller
 
         if ($estadoActual === 'NO_HABILITADO') {
             $data['motivo_tipo'] = strtoupper($data['motivo_tipo'] ?? $habilitacion->motivo_tipo ?? 'OTRO');
-            // Solo registrar quién y cuándo si apenas lo estamos inhabilitando
+            
+            // Registrar usuario y hora solo en el momento que se inhabilita
             if ($habilitacion->estado !== 'NO_HABILITADO') {
                 $data['inhabilitado_por'] = auth()->id();
                 $data['inhabilitado_at'] = now();
             }
         } else {
-            // Si el nuevo estado es HABILITADO, limpiamos todo
+            // Limpiar campos de auditoría si vuelve a estar HABILITADO
             $data['motivo_tipo'] = null;
             $data['motivo_detalle'] = null;
             $data['inhabilitado_por'] = null;
