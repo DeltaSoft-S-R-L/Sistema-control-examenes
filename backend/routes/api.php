@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\IngresoController;
 use App\Http\Controllers\Api\UsuarioController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\DocenteAsignaturaController;
+use App\Http\Controllers\Api\PasswordSetupController;
 
 /*
 |--------------------------------------------------------------------------
@@ -29,6 +30,19 @@ Route::get('/health', fn () => response()->json([
 
 // Autenticación (público)
 Route::post('/login', [AuthController::class, 'login']);
+
+// Configuración de contraseña mediante enlace de correo (público)
+Route::middleware('throttle:6,1')->group(function () {
+    Route::post('/configurar-contrasena/verificar', [
+        PasswordSetupController::class,
+        'verificar'
+    ]);
+
+    Route::post('/configurar-contrasena', [
+        PasswordSetupController::class,
+        'configurar'
+    ]);
+});
 
 // Rutas protegidas con Sanctum
 Route::middleware('auth:sanctum')->group(function () {

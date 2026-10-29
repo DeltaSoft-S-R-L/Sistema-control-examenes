@@ -51,7 +51,7 @@ class StoreUsuarioRequest extends FormRequest
                 'required',
                 'email',
                 'max:150',
-                'regex:/^[^@\s]+@umss\.edu\.bo$/i',
+                'regex:/^[^@\s]+@(umss\.edu\.bo|gmail\.com)$/i',
                 'unique:usuario,correo',
             ],
 
@@ -65,11 +65,12 @@ class StoreUsuarioRequest extends FormRequest
             ],
 
             'password' => [
-                'required',
+            Rule::requiredIf(fn () => !$this->boolean('enviar_correo')),
+                'nullable',
                 'string',
                 'min:8',
-                'regex:/[a-zA-Z]/', // al menos una letra
-                'regex:/[0-9]/',    // al menos un número
+                'regex:/[a-zA-Z]/',
+                'regex:/[0-9]/',
             ],
 
             'id_rol' => [
@@ -88,6 +89,8 @@ class StoreUsuarioRequest extends FormRequest
                 'sometimes',
                 'boolean',
             ],
+
+            'enviar_correo' => ['sometimes', 'boolean'],
         ];
     }
 
@@ -108,7 +111,7 @@ class StoreUsuarioRequest extends FormRequest
             'correo.email'    => 'El correo electrónico no tiene un formato válido.',
             'correo.max'      => 'El correo electrónico no puede superar los 150 caracteres.',
             'correo.unique'   => 'El correo electrónico ya está registrado.',
-            'correo.regex' => 'El correo debe ser institucional de la UMSS (@umss.edu.bo).',
+            'correo.regex'    => 'El correo debe ser institucional de la UMSS (@umss.edu.bo) o un correo de Gmail (@gmail.com).',
 
             'username.required' => 'El nombre de usuario es obligatorio.',
             'username.min'      => 'El nombre de usuario debe tener al menos 3 caracteres.',
