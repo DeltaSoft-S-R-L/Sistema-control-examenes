@@ -45,7 +45,8 @@ return new class extends Migration
         });
 
         Schema::table('estudiante', function (Blueprint $table) {
-            $table->unsignedBigInteger('id_carrera');
+            //$table->unsignedBigInteger('id_carrera');
+            $table->unsignedBigInteger('id_carrera')->nullable();
 
             $table->foreign('id_carrera')
                 ->references('id_carrera')

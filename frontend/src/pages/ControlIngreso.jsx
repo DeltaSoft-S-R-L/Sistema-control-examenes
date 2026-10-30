@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
+import BannerErrorVerificacion from '../components/verificacion/BannerErrorVerificacion';
+import { formatearErrorVerificacion } from '../utils/verificacionErrores';
 
 export default function ControlIngreso() {
   const [examenes, setExamenes] = useState([]);
@@ -58,11 +60,7 @@ export default function ControlIngreso() {
       setCamaraActiva(true);
     } catch (err) {
       console.error('Error al acceder a la cámara:', err);
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        setErrorCamara('Acceso a la cámara denegado. Permita el uso de la cámara en su navegador o utilice verificación por CI/SIS.');
-      } else {
-        setErrorCamara('No se pudo inicializar la cámara. Verifique que no esté en uso por otra app.');
-      }
+      setErrorCamara(formatearErrorVerificacion(err));
       setCamaraActiva(false);
     }
   };
@@ -192,13 +190,19 @@ export default function ControlIngreso() {
       </div>
 
       {/* Alerta de Error si ocurre */}
-      {errorAlerta && (
-        <div className="alert alert-danger shadow-sm rounded-3 py-2 px-3 d-flex align-items-center mb-3" role="alert">
-          <i className="bi bi-exclamation-triangle-fill fs-5 me-2"></i>
-          <div className="small fw-semibold flex-fill">{errorAlerta}</div>
-          <button type="button" className="btn-close btn-sm" onClick={() => setErrorAlerta(null)}></button>
-        </div>
-      )}
+      <BannerErrorVerificacion
+        errorInfo={errorAlerta}
+        onCerrar={() => setErrorAlerta(null)}
+        onReintentar={() => {
+          if (metodo === 'ci_sis') handleVerificarDocumento();
+          else handleVerificarQr();
+        }}
+        onCambiarMetodoCisIs={() => {
+          setMetodo('ci_sis');
+          setErrorAlerta(null);
+          setTimeout(() => inputIdentificadorRef.current?.focus(), 50);
+        }}
+      />
 
       {/* SI NO HAY RESULTADO: Muestra Selector de Modo y Formulario de Ingreso */}
       {!resultado ? (
@@ -271,10 +275,15 @@ export default function ControlIngreso() {
               /* MODO QR */
               <div>
                 {errorCamara && (
-                  <div className="alert alert-warning py-2 small mb-3">
-                    <i className="bi bi-camera-video-off me-2"></i>
-                    {errorCamara}
-                  </div>
+                  <BannerErrorVerificacion
+                    errorInfo={errorCamara}
+                    onCerrar={() => setErrorCamara(null)}
+                    onCambiarMetodoCisIs={() => {
+                      setMetodo('ci_sis');
+                      setErrorCamara(null);
+                      setTimeout(() => inputIdentificadorRef.current?.focus(), 50);
+                    }}
+                  />
                 )}
 
                 {!camaraActiva ? (
