@@ -12,6 +12,10 @@ use Illuminate\Http\Request;
 
 class VerificacionController extends Controller
 {
+    public function __construct(
+        protected HabilitacionService $habilitacionService
+    ) {}
+
     /**
      * Verificación de estudiante mediante Código QR.
      * POST /api/verificar/qr
@@ -127,15 +131,15 @@ class VerificacionController extends Controller
             ], 404);
         }
 
-        // 2. Si el estudiante fue identificado: llamar a HabilitacionService
-        $habilitacion = HabilitacionService::verificarHabilitacion($estudiante, $examen);
+        // 2. Si el estudiante fue identificado: llamar a HabilitacionService::comprobar
+        $habilitacion = $this->habilitacionService->comprobar($examen->id_examen, $estudiante->id_estudiante);
 
         // 3. Registrar auditoría con el resultado de la habilitación
-        $resultadoAuditoria = $habilitacion['habilitado'] ? 'EXITO' : 'FALLO';
+        $resultadoAuditoria = $habilitacion->habilitado ? 'EXITO' : 'FALLO';
         $detalleAuditoria = "Verificación por {$metodo} para examen ID {$examen->id_examen} ('{$examen->nombre}'). " .
             "Estudiante: {$estudiante->nombre} {$estudiante->apellido} (CI: {$estudiante->ci}, SIS: {$estudiante->codigo_universitario}). " .
-            "Estado: {$habilitacion['estado']}" .
-            ($habilitacion['motivo'] ? " - Motivo: {$habilitacion['motivo']}" : "");
+            "Estado: {$habilitacion->estado}" .
+            ($habilitacion->motivo ? " - Motivo: {$habilitacion->motivo}" : "");
 
         AuditoriaService::registrar(
             $request->user()?->id_usuario,
@@ -165,7 +169,12 @@ class VerificacionController extends Controller
                 'nombre'    => $examen->nombre,
                 'fecha'     => $examen->fecha ? (is_string($examen->fecha) ? substr($examen->fecha, 0, 10) : $examen->fecha->format('Y-m-d')) : null,
             ],
-            'habilitacion' => $habilitacion,
+            'habilitacion' => [
+                'estado'          => $habilitacion->estado,
+                'habilitado'      => $habilitacion->habilitado,
+                'motivo'          => $habilitacion->motivo,
+                'id_habilitacion' => $habilitacion->id_habilitacion,
+            ],
         ]);
     }
 
