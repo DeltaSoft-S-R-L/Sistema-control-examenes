@@ -7,11 +7,16 @@ use App\Models\Carrera;
 use App\Models\Estudiante;
 use App\Models\Examen;
 use App\Models\Facultad;
+use App\Models\Habilitacion;
 use App\Models\NormaExamen;
 use App\Models\Rol;
 use App\Models\Usuario;
+use App\Rules\EstudianteHabilitadoEnExamen;
+use App\Rules\ExamenExistente;
+use App\Rules\NormaExamenNoDuplicada;
 use App\Utilities\PasswordHasher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Validator;
 use Tests\TestCase;
 
 class NormaExamenApiTest extends TestCase
@@ -154,6 +159,12 @@ class NormaExamenApiTest extends TestCase
             'id_carrera' => $carrera->id_carrera,
             'correo' => 'maria.lopez@test.com',
             'estado' => 'ACTIVO',
+        ]);
+
+        Habilitacion::create([
+            'id_examen' => $this->examen1->id_examen,
+            'id_estudiante' => $this->estudiante2->id_estudiante,
+            'estado' => 'HABILITADO',
         ]);
     }
 
@@ -572,5 +583,297 @@ class NormaExamenApiTest extends TestCase
         $this->assertDatabaseHas('norma_examen', [
             'id_norma_examen' => $norma->id_norma_examen,
         ]);
+    }
+
+    public function test_crear_norma_particular_con_estudiante_no_habilitado_retorna_422(): void
+    {
+        $payload = [
+            'tipo' => 'PARTICULAR',
+            'descripcion' => 'Permiso especial para estudiante no asignado.',
+            'estudiante_id' => $this->estudiante1->id_estudiante,
+        ];
+
+        $response = $this->postJson(
+            "/api/examenes/{$this->examen1->id_examen}/normas",
+            $payload,
+            $this->headers($this->docenteToken)
+        );
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['estudiante_id'])
+            ->assertJsonPath('errors.estudiante_id.0', 'El estudiante no está habilitado en este examen.');
+    }
+
+    public function test_crear_norma_particular_con_estudiante_con_estado_no_habilitado_retorna_422(): void
+    {
+        Habilitacion::create([
+            'id_examen' => $this->examen1->id_examen,
+            'id_estudiante' => $this->estudiante1->id_estudiante,
+            'estado' => 'NO_HABILITADO',
+            'motivo' => 'Inhabilitado por falta de documentacion',
+        ]);
+
+        $payload = [
+            'tipo' => 'PARTICULAR',
+            'descripcion' => 'Permiso especial para estudiante inhabilitado.',
+            'estudiante_id' => $this->estudiante1->id_estudiante,
+        ];
+
+        $response = $this->postJson(
+            "/api/examenes/{$this->examen1->id_examen}/normas",
+            $payload,
+            $this->headers($this->docenteToken)
+        );
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['estudiante_id'])
+            ->assertJsonPath('errors.estudiante_id.0', 'El estudiante no está habilitado en este examen.');
+    }
+
+    public function test_rechaza_duplicado_exacto_general_retorna_422(): void
+    {
+        NormaExamen::create([
+            'id_examen' => $this->examen1->id_examen,
+            'id_estudiante' => null,
+            'tipo' => 'GENERAL',
+            'descripcion' => 'Prohibido usar calculadora programable.',
+            'created_by' => $this->docenteUser->id_usuario,
+        ]);
+
+        $payload = [
+            'tipo' => 'GENERAL',
+            'descripcion' => 'Prohibido usar calculadora programable.',
+        ];
+
+        $response = $this->postJson(
+            "/api/examenes/{$this->examen1->id_examen}/normas",
+            $payload,
+            $this->headers($this->docenteToken)
+        );
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['descripcion'])
+            ->assertJsonPath('errors.descripcion.0', 'Ya existe una norma idéntica registrada para este examen.');
+    }
+
+    public function test_rechaza_duplicado_exacto_con_diferencias_de_mayusculas_y_espacios_retorna_422(): void
+    {
+        NormaExamen::create([
+            'id_examen' => $this->examen1->id_examen,
+            'id_estudiante' => null,
+            'tipo' => 'GENERAL',
+            'descripcion' => 'Uso obligatorio de boligrafo azul.',
+            'created_by' => $this->docenteUser->id_usuario,
+        ]);
+
+        $payload = [
+            'tipo' => 'GENERAL',
+            'descripcion' => "   USO   OBLIGATORIO   DE   BOLIGRAFO   AZUL.   \n",
+        ];
+
+        $response = $this->postJson(
+            "/api/examenes/{$this->examen1->id_examen}/normas",
+            $payload,
+            $this->headers($this->docenteToken)
+        );
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['descripcion'])
+            ->assertJsonPath('errors.descripcion.0', 'Ya existe una norma idéntica registrada para este examen.');
+    }
+
+    public function test_rechaza_duplicado_exacto_particular_para_mismo_estudiante_retorna_422(): void
+    {
+        NormaExamen::create([
+            'id_examen' => $this->examen1->id_examen,
+            'id_estudiante' => $this->estudiante2->id_estudiante,
+            'tipo' => 'PARTICULAR',
+            'descripcion' => 'Permiso para rendir examen con computadora portatil.',
+            'created_by' => $this->docenteUser->id_usuario,
+        ]);
+
+        $payload = [
+            'tipo' => 'PARTICULAR',
+            'descripcion' => '  permiso para rendir examen con computadora portatil.  ',
+            'estudiante_id' => $this->estudiante2->id_estudiante,
+        ];
+
+        $response = $this->postJson(
+            "/api/examenes/{$this->examen1->id_examen}/normas",
+            $payload,
+            $this->headers($this->docenteToken)
+        );
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['descripcion'])
+            ->assertJsonPath('errors.descripcion.0', 'Ya existe una norma idéntica registrada para este examen.');
+    }
+
+    public function test_permite_misma_descripcion_particular_para_diferente_estudiante_retorna_201(): void
+    {
+        Habilitacion::create([
+            'id_examen' => $this->examen1->id_examen,
+            'id_estudiante' => $this->estudiante1->id_estudiante,
+            'estado' => 'HABILITADO',
+        ]);
+
+        NormaExamen::create([
+            'id_examen' => $this->examen1->id_examen,
+            'id_estudiante' => $this->estudiante2->id_estudiante,
+            'tipo' => 'PARTICULAR',
+            'descripcion' => 'Permiso para usar calculadora cientifica.',
+            'created_by' => $this->docenteUser->id_usuario,
+        ]);
+
+        $payload = [
+            'tipo' => 'PARTICULAR',
+            'descripcion' => 'Permiso para usar calculadora cientifica.',
+            'estudiante_id' => $this->estudiante1->id_estudiante,
+        ];
+
+        $response = $this->postJson(
+            "/api/examenes/{$this->examen1->id_examen}/normas",
+            $payload,
+            $this->headers($this->docenteToken)
+        );
+
+        $response->assertStatus(201)
+            ->assertJsonPath('estudiante.id', $this->estudiante1->id_estudiante)
+            ->assertJsonPath('descripcion', 'Permiso para usar calculadora cientifica.');
+    }
+
+    public function test_permite_misma_descripcion_en_diferente_examen_retorna_201(): void
+    {
+        NormaExamen::create([
+            'id_examen' => $this->examen1->id_examen,
+            'id_estudiante' => null,
+            'tipo' => 'GENERAL',
+            'descripcion' => 'Norma de prueba inter-examen.',
+            'created_by' => $this->docenteUser->id_usuario,
+        ]);
+
+        $payload = [
+            'tipo' => 'GENERAL',
+            'descripcion' => 'Norma de prueba inter-examen.',
+        ];
+
+        $response = $this->postJson(
+            "/api/examenes/{$this->examen2->id_examen}/normas",
+            $payload,
+            $this->headers($this->docenteToken)
+        );
+
+        $response->assertStatus(201);
+    }
+
+    public function test_rechaza_descripcion_vacia_o_solo_espacios_retorna_422(): void
+    {
+        $payload = [
+            'tipo' => 'GENERAL',
+            'descripcion' => '     ',
+        ];
+
+        $response = $this->postJson(
+            "/api/examenes/{$this->examen1->id_examen}/normas",
+            $payload,
+            $this->headers($this->docenteToken)
+        );
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['descripcion'])
+            ->assertJsonPath('errors.descripcion.0', 'La descripción de la norma es obligatoria.');
+    }
+
+    public function test_rechaza_descripcion_que_supera_1000_caracteres_retorna_422(): void
+    {
+        $payload = [
+            'tipo' => 'GENERAL',
+            'descripcion' => str_repeat('a', 1001),
+        ];
+
+        $response = $this->postJson(
+            "/api/examenes/{$this->examen1->id_examen}/normas",
+            $payload,
+            $this->headers($this->docenteToken)
+        );
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['descripcion'])
+            ->assertJsonPath('errors.descripcion.0', 'La descripción no puede superar los 1000 caracteres.');
+    }
+
+    public function test_permite_descripcion_de_hasta_1000_caracteres_retorna_201(): void
+    {
+        $payload = [
+            'tipo' => 'GENERAL',
+            'descripcion' => str_repeat('b', 1000),
+        ];
+
+        $response = $this->postJson(
+            "/api/examenes/{$this->examen1->id_examen}/normas",
+            $payload,
+            $this->headers($this->docenteToken)
+        );
+
+        $response->assertStatus(201);
+    }
+
+    public function test_rules_reutilizables_pueden_instanciarse_y_validar_independientemente(): void
+    {
+        $validadorExamen = Validator::make(
+            ['examen_id' => 99999],
+            ['examen_id' => [new ExamenExistente()]]
+        );
+        $this->assertTrue($validadorExamen->fails());
+        $this->assertEquals('El examen seleccionado no existe.', $validadorExamen->errors()->first('examen_id'));
+
+        $validadorExamenValido = Validator::make(
+            ['examen_id' => $this->examen1->id_examen],
+            ['examen_id' => [new ExamenExistente()]]
+        );
+        $this->assertTrue($validadorExamenValido->passes());
+
+        $validadorHabilitacionFalla = Validator::make(
+            [
+                'tipo' => 'PARTICULAR',
+                'estudiante_id' => $this->estudiante1->id_estudiante,
+            ],
+            [
+                'estudiante_id' => [new EstudianteHabilitadoEnExamen($this->examen1->id_examen)],
+            ]
+        );
+        $this->assertTrue($validadorHabilitacionFalla->fails());
+        $this->assertEquals('El estudiante no está habilitado en este examen.', $validadorHabilitacionFalla->errors()->first('estudiante_id'));
+
+        $validadorHabilitacionPasa = Validator::make(
+            [
+                'tipo' => 'PARTICULAR',
+                'estudiante_id' => $this->estudiante2->id_estudiante,
+            ],
+            [
+                'estudiante_id' => [new EstudianteHabilitadoEnExamen($this->examen1->id_examen)],
+            ]
+        );
+        $this->assertTrue($validadorHabilitacionPasa->passes());
+
+        NormaExamen::create([
+            'id_examen' => $this->examen1->id_examen,
+            'id_estudiante' => null,
+            'tipo' => 'GENERAL',
+            'descripcion' => 'Regla independiente de prueba',
+            'created_by' => $this->docenteUser->id_usuario,
+        ]);
+
+        $validadorDuplicadoFalla = Validator::make(
+            [
+                'tipo' => 'GENERAL',
+                'descripcion' => '  regla independiente   de prueba  ',
+            ],
+            [
+                'descripcion' => [new NormaExamenNoDuplicada($this->examen1->id_examen)],
+            ]
+        );
+        $this->assertTrue($validadorDuplicadoFalla->fails());
+        $this->assertEquals('Ya existe una norma idéntica registrada para este examen.', $validadorDuplicadoFalla->errors()->first('descripcion'));
     }
 }
