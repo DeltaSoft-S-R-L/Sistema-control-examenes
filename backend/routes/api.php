@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\UsuarioController;
 use App\Http\Controllers\Api\VerificacionController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\DocenteAsignaturaController;
+use App\Http\Controllers\Api\NormaController;
 use App\Http\Controllers\Api\PasswordSetupController;
 
 /*
@@ -131,7 +132,13 @@ Route::get('/docente/mis-materias', [
     */
     Route::get('/examenes', [ExamenController::class, 'index']);
     Route::get('/examenes/{id}/auditoria', [ExamenController::class, 'auditoria']);
+    Route::get('/examenes/{id}/normas', [NormaController::class, 'index']);
     Route::get('/examenes/{examene}', [ExamenController::class, 'show']);
+
+    Route::middleware('role:ADMINISTRADOR,DOCENTE')->group(function () {
+        Route::post('/examenes/{id}/normas', [NormaController::class, 'store']);
+        Route::delete('/examenes/{id}/normas/{id_norma}', [NormaController::class, 'destroy']);
+    });
 
     Route::middleware('permission:GESTIONAR_EXAMENES')->group(function () {
         Route::post('/examenes', [ExamenController::class, 'store']);

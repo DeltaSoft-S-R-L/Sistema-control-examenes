@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
+import StudentCard from '../components/estudiantes/StudentCard';
+import MotivoInhabilitacionModal from '../components/habilitaciones/MotivoInhabilitacionModal';
 
 export default function ControlIngreso() {
   const [examenes, setExamenes] = useState([]);
@@ -341,123 +343,23 @@ export default function ControlIngreso() {
         </div>
       ) : (
         /* ========================================================================= */
-        /* TARJETAS DE RESULTADO (VERDE / ROJA) */
+        /* TARJETA DE RESULTADO (StudentCard) Y MODAL DE MOTIVO */
         /* ========================================================================= */
         <div>
-          {resultado.habilitacion?.estado === 'HABILITADO' ? (
-            /* 1. TARJETA VERDE: ESTUDIANTE HABILITADO */
-            <div className="card border-success border-3 shadow-lg rounded-4 p-4 text-center bg-success-subtle mb-3">
-              <div className="mb-2">
-                <i className="bi bi-check-circle-fill display-2 text-success"></i>
-              </div>
-              <h2 className="fw-bold text-success text-uppercase mb-2">
-                Estudiante Habilitado
-              </h2>
-              <span className="badge bg-success fs-6 fw-semibold px-3 py-2 mb-4">
-                <i className="bi bi-door-open-fill me-1"></i>ACCESO AUTORIZADO
-              </span>
+          <StudentCard
+            estudiante={resultado.estudiante}
+            habilitacion={resultado.habilitacion}
+            onSiguiente={handleSiguienteEstudiante}
+            onVerMotivo={() => setMostrarModalMotivo(true)}
+          />
 
-              {/* Datos del estudiante */}
-              <div className="bg-white rounded-3 p-3 text-start shadow-sm mb-4 border border-success-subtle">
-                <div className="row g-2">
-                  <div className="col-12">
-                    <small className="text-muted text-uppercase fw-bold d-block">Estudiante:</small>
-                    <span className="fs-5 fw-bold text-dark">
-                      {resultado.estudiante?.nombre} {resultado.estudiante?.apellido}
-                    </span>
-                  </div>
-                  <div className="col-6">
-                    <small className="text-muted text-uppercase fw-bold d-block">C.I.:</small>
-                    <span className="fw-bold text-dark fs-6">{resultado.estudiante?.ci}</span>
-                  </div>
-                  <div className="col-6">
-                    <small className="text-muted text-uppercase fw-bold d-block">Código SIS:</small>
-                    <span className="fw-bold text-primary fs-6">{resultado.estudiante?.codigo_universitario}</span>
-                  </div>
-                  {resultado.estudiante?.carrera && (
-                    <div className="col-12 pt-2 border-top">
-                      <small className="text-muted text-uppercase fw-bold d-block">Carrera:</small>
-                      <span className="fw-semibold text-secondary small">{resultado.estudiante?.carrera}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Botón Siguiente Estudiante */}
-              <button
-                type="button"
-                className="btn btn-success btn-lg w-100 py-3 fw-bold fs-5 shadow"
-                onClick={handleSiguienteEstudiante}
-              >
-                <i className="bi bi-arrow-right-circle me-2"></i>Siguiente estudiante
-              </button>
-            </div>
-          ) : (
-            /* 2. TARJETA ROJA: ESTUDIANTE NO HABILITADO / NO ASOCIADO */
-            <div className="card border-danger border-3 shadow-lg rounded-4 p-4 text-center bg-danger-subtle mb-3">
-              <div className="mb-2">
-                <i className="bi bi-x-circle-fill display-2 text-danger"></i>
-              </div>
-              <h2 className="fw-bold text-danger text-uppercase mb-2">
-                {resultado.habilitacion?.estado === 'NO_HABILITADO'
-                  ? 'Estudiante No Habilitado'
-                  : 'Estudiante No Asociado'}
-              </h2>
-              <span className="badge bg-danger fs-6 fw-semibold px-3 py-2 mb-4">
-                <i className="bi bi-slash-circle me-1"></i>ACCESO DENEGADO
-              </span>
-
-              {/* Datos del estudiante */}
-              <div className="bg-white rounded-3 p-3 text-start shadow-sm mb-3 border border-danger-subtle">
-                <div className="row g-2">
-                  <div className="col-12">
-                    <small className="text-muted text-uppercase fw-bold d-block">Estudiante:</small>
-                    <span className="fs-5 fw-bold text-dark">
-                      {resultado.estudiante?.nombre} {resultado.estudiante?.apellido}
-                    </span>
-                  </div>
-                  <div className="col-6">
-                    <small className="text-muted text-uppercase fw-bold d-block">C.I.:</small>
-                    <span className="fw-bold text-dark">{resultado.estudiante?.ci}</span>
-                  </div>
-                  <div className="col-6">
-                    <small className="text-muted text-uppercase fw-bold d-block">Código SIS:</small>
-                    <span className="fw-bold text-primary">{resultado.estudiante?.codigo_universitario}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Botón Ver Motivo */}
-              <button
-                type="button"
-                className="btn btn-outline-danger btn-lg w-100 py-2 fw-bold mb-3 bg-white"
-                onClick={() => setMostrarModalMotivo(true)}
-              >
-                <i className="bi bi-info-circle me-2"></i>Ver motivo de inhabilitación
-              </button>
-
-              {/* Despliegue de Motivo si se presionó */}
-              {mostrarModalMotivo && (
-                <div className="alert alert-danger text-start p-3 rounded-3 mb-4 shadow-sm border border-danger">
-                  <h6 className="fw-bold text-danger mb-1">
-                    <i className="bi bi-exclamation-octagon-fill me-2"></i>Motivo Registrado:
-                  </h6>
-                  <p className="mb-0 text-dark">
-                    {resultado.habilitacion?.motivo || 'No se especificó un motivo para esta inhabilitación.'}
-                  </p>
-                </div>
-              )}
-
-              {/* Botón Siguiente Estudiante */}
-              <button
-                type="button"
-                className="btn btn-danger btn-lg w-100 py-3 fw-bold fs-5 shadow"
-                onClick={handleSiguienteEstudiante}
-              >
-                <i className="bi bi-arrow-right-circle me-2"></i>Siguiente estudiante
-              </button>
-            </div>
-          )}
+          <MotivoInhabilitacionModal
+            isOpen={mostrarModalMotivo}
+            onClose={() => setMostrarModalMotivo(false)}
+            motivo={resultado.habilitacion?.motivo}
+            estado={resultado.habilitacion?.estado}
+            estudiante={resultado.estudiante}
+          />
         </div>
       )}
     </div>

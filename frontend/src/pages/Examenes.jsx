@@ -3,6 +3,7 @@ import api from '../services/api';
 import NuevoExamenModal from '../components/examenes/NuevoExamenModal';
 import EditarExamenModal from '../components/examenes/EditarExamenModal';
 import AuditoriaExamenModal from '../components/examenes/AuditoriaExamenModal';
+import NormasExamenModal from '../components/examenes/NormasExamenModal';
 
 export default function Examenes() {
   const [examenes, setExamenes] = useState([]);
@@ -12,6 +13,8 @@ export default function Examenes() {
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [examenAEditar, setExamenAEditar] = useState(null);
   const [examenAuditando, setExamenAuditando] = useState(null);
+  const [isNormasModalOpen, setIsNormasModalOpen] = useState(false);
+  const [examenNormas, setExamenNormas] = useState(null);
   const [mensaje, setMensaje] = useState(null);
   const [error, setError] = useState(null);
 
@@ -62,6 +65,11 @@ export default function Examenes() {
   const handleAbrirAuditoria = (examen) => {
     setExamenAuditando(examen);
     setIsAuditModalOpen(true);
+  };
+
+  const handleAbrirNormas = (examen) => {
+    setExamenNormas(examen);
+    setIsNormasModalOpen(true);
   };
 
   const handleEliminar = async (id, nombre) => {
@@ -321,6 +329,14 @@ export default function Examenes() {
                           <div className="btn-group btn-group-sm" role="group">
                             <button
                               type="button"
+                              className="btn btn-outline-primary"
+                              title="Gestionar normas del examen"
+                              onClick={() => handleAbrirNormas(ex)}
+                            >
+                              <i className="bi bi-file-earmark-ruled"></i>
+                            </button>
+                            <button
+                              type="button"
                               className="btn btn-outline-warning"
                               title="Modificar sesión de examen"
                               onClick={() => handleAbrirEditar(ex)}
@@ -388,6 +404,15 @@ export default function Examenes() {
         onClose={() => {
           setIsAuditModalOpen(false);
           setExamenAuditando(null);
+        }}
+      />
+      {/* Modal Normas del Examen */}
+      <NormasExamenModal
+        isOpen={isNormasModalOpen}
+        examen={examenNormas}
+        onClose={() => {
+          setIsNormasModalOpen(false);
+          setExamenNormas(null);
         }}
       />
     </div>
