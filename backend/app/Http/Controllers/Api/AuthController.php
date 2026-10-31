@@ -18,8 +18,10 @@ class AuthController extends Controller
         ]);
 
         $identificador = trim($request->username);
-        $usuario = Usuario::where('username', $identificador)
-            ->orWhere('correo', $identificador)
+        $usuario = Usuario::where(function ($query) use ($identificador) {
+            $query->where('username', $identificador)
+                ->orWhere('correo', $identificador);
+        })
             ->first();
 
         if (! $usuario || ! PasswordHasher::verify($request->password, $usuario->password_hash)) {
