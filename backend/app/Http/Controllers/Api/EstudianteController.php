@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Asignatura;
 use App\Models\Carrera;
 use App\Models\Estudiante;
+use App\Services\QrTokenService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -750,21 +751,42 @@ if ($asignaturas !== null) {
         return response()->json($estudiante);
     }
 
-public function destroy(Request $request, string $id)
-{
-    if (!$this->esAdministrador($request)) {
+    public function destroy(Request $request, string $id)
+    {
+        if (!$this->esAdministrador($request)) {
+            return response()->json([
+                'message' => 'Solo el administrador puede eliminar estudiantes.'
+            ], 403);
+        }
+
+        $estudiante = Estudiante::findOrFail($id);
+
+        $estudiante->delete();
+
         return response()->json([
-            'message' => 'Solo el administrador puede eliminar estudiantes.'
-        ], 403);
+            'message' => 'Estudiante eliminado.'
+        ]);
     }
 
-    $estudiante = Estudiante::findOrFail($id);
+    /**
+     * Generar código QR para un estudiante (S3-VER01-01).
+     */
+    public function generarQr(Request $request, string|int $id, QrTokenService $qrService)
+    {
+        $estudiante = Estudiante::find($id);
 
-    $estudiante->delete();
+        if (!$estudiante) {
+            return response()->json([
+                'message' => 'Estudiante no encontrado.',
+            ], 404);
+        }
 
-    return response()->json([
-        'message' => 'Estudiante eliminado.'
-    ]);
-}
+        $svg = $qrService->generarSvg($estudiante);
+
+        return response($svg, 200, [
+            'Content-Type' => 'image/svg+xml',
+            'Content-Disposition' => sprintf('inline; filename="qr-estudiante-%s.svg"', $estudiante->id_estudiante),
+        ]);
+    }
 
 }
