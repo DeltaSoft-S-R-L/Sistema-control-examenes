@@ -1,30 +1,35 @@
-import React from 'react';
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  Navigate,
-} from 'react-router-dom';
 
-import Layout from './components/Layout';
-import ProtectedRoute from './components/ProtectedRoute';
+import React from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Examenes from './pages/Examenes';
-import Estudiantes from './pages/Estudiantes';
-import Ambientes from './pages/Ambientes';
-import Usuarios from './pages/Usuarios';
-import Habilitaciones from './pages/Habilitaciones';
-import ModuloEnConstruccion from './pages/ModuloEnConstruccion';
+import Layout from "./components/Layout";
+import ProtectedRoute from "./components/ProtectedRoute";
 
-import { ROLES } from './utils/auth';
+// Páginas
+import Login from "./pages/Login";
+import ConfigurarContrasena from "./pages/ConfigurarContrasena";
+import Dashboard from "./pages/Dashboard";
+import Examenes from "./pages/Examenes";
+import Estudiantes from "./pages/Estudiantes";
+import Ambientes from "./pages/Ambientes";
+import Usuarios from "./pages/Usuarios";
+import Habilitaciones from "./pages/Habilitaciones";
+import ControlIngreso from "./pages/ControlIngreso";
+import VerificacionMovil from "./pages/VerificacionMovil";
+import ModuloEnConstruccion from "./pages/ModuloEnConstruccion";
+
+import { ROLES } from "./utils/auth";
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Rutas públicas */}
         <Route path="/login" element={<Login />} />
+        <Route
+          path="/configurar-contrasena"
+          element={<ConfigurarContrasena />}
+        />
 
         {/* Cualquier usuario autenticado */}
         <Route element={<ProtectedRoute />}>
@@ -72,12 +77,12 @@ export default function App() {
             >
               <Route
                 path="/control-ingreso"
-                element={
-                  <ModuloEnConstruccion
-                    titulo="Control de ingreso"
-                    descripcion="El módulo de control de ingreso se encuentra actualmente en construcción."
-                  />
-                }
+                element={<ControlIngreso />}
+              />
+
+              <Route
+                path="/verificacion-movil"
+                element={<VerificacionMovil />}
               />
 
               <Route
@@ -91,7 +96,7 @@ export default function App() {
               />
             </Route>
 
-            {/* Los tres roles pueden consultar reportes */}
+            {/* Reportes */}
             <Route
               path="/reportes"
               element={
@@ -104,6 +109,7 @@ export default function App() {
           </Route>
         </Route>
 
+        {/* Ruta no encontrada */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

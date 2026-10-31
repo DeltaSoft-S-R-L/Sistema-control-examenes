@@ -7,11 +7,11 @@ function agruparPorEstudiante(normas) {
   const grupos = new Map();
   normas.forEach((norma) => {
     const estudiante = norma.estudiante || {};
-    const id = norma.id_estudiante ?? estudiante.id_estudiante ?? estudiante.id ?? 'sin-estudiante';
+    const id = norma.id_estudiante ?? estudiante.id_estudiante ?? estudiante.id ?? norma.id_habilitacion ?? 'sin-estudiante';
     if (!grupos.has(id)) {
       grupos.set(id, {
         id,
-        nombre: [estudiante.nombre, estudiante.apellido].filter(Boolean).join(' ') || norma.nombre_estudiante || 'Estudiante',
+        nombre: estudiante.nombre_completo || [estudiante.nombre, estudiante.apellido].filter(Boolean).join(' ') || norma.nombre_estudiante || 'Estudiante',
         ci: estudiante.ci || estudiante.documento || norma.ci || 'CI no disponible',
         normas: [],
       });
@@ -43,10 +43,17 @@ export default function FichaExamenModal({ isOpen, examen, onClose, renderAccion
     try {
       const res = await api.get(`/examenes/${examen.id_examen}/normas`);
       const data = res.data?.data ?? res.data ?? {};
-      setNormas({
-        generales: getLista(data.normas_generales ?? data.generales),
-        particulares: getLista(data.normas_particulares ?? data.particulares),
-      });
+      if (Array.isArray(data)) {
+        setNormas({
+          generales: data.filter((norma) => String(norma.tipo).toUpperCase() === 'GENERAL'),
+          particulares: data.filter((norma) => String(norma.tipo).toUpperCase() === 'PARTICULAR'),
+        });
+      } else {
+        setNormas({
+          generales: getLista(data.normas_generales ?? data.generales),
+          particulares: getLista(data.normas_particulares ?? data.particulares),
+        });
+      }
     } catch (err) {
       console.error('Error al cargar normas del examen:', err);
       setError(err.response?.data?.message || 'No se pudieron cargar las normas del examen.');

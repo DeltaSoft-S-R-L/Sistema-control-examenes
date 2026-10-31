@@ -11,9 +11,12 @@ use App\Http\Controllers\Api\HabilitacionController;
 use App\Http\Controllers\Api\IncidenciaController;
 use App\Http\Controllers\Api\IngresoController;
 use App\Http\Controllers\Api\UsuarioController;
+use App\Http\Controllers\Api\VerificacionController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\DocenteAsignaturaController;
 use App\Models\Rol;
+use App\Http\Controllers\Api\NormaController;
+use App\Http\Controllers\Api\PasswordSetupController;
 
 /*
 |--------------------------------------------------------------------------
@@ -30,6 +33,19 @@ Route::get('/health', fn () => response()->json([
 
 // Autenticación (público)
 Route::post('/login', [AuthController::class, 'login']);
+
+// Configuración de contraseña mediante enlace de correo (público)
+Route::middleware('throttle:6,1')->group(function () {
+    Route::post('/configurar-contrasena/verificar', [
+        PasswordSetupController::class,
+        'verificar'
+    ]);
+
+    Route::post('/configurar-contrasena', [
+        PasswordSetupController::class,
+        'configurar'
+    ]);
+});
 
 // Rutas protegidas con Sanctum
 Route::middleware('auth:sanctum')->group(function () {
@@ -123,9 +139,14 @@ Route::get('/docente/mis-materias', [
     |--------------------------------------------------------------------------
     */
     Route::get('/examenes', [ExamenController::class, 'index']);
-    Route::get('/examenes/{id}/normas', [ExamenController::class, 'normas']);
     Route::get('/examenes/{id}/auditoria', [ExamenController::class, 'auditoria']);
+    Route::get('/examenes/{id}/normas', [NormaController::class, 'index']);
     Route::get('/examenes/{examene}', [ExamenController::class, 'show']);
+
+    Route::middleware('role:ADMINISTRADOR,DOCENTE')->group(function () {
+        Route::post('/examenes/{id}/normas', [NormaController::class, 'store']);
+        Route::delete('/examenes/{id}/normas/{id_norma}', [NormaController::class, 'destroy']);
+    });
 
     Route::middleware('permission:GESTIONAR_EXAMENES')->group(function () {
         Route::post('/examenes', [ExamenController::class, 'store']);
@@ -195,5 +216,16 @@ Route::get('/docente/mis-materias', [
         Route::put('/incidencias/{incidencia}', [IncidenciaController::class, 'update']);
         Route::patch('/incidencias/{incidencia}', [IncidenciaController::class, 'update']);
         Route::delete('/incidencias/{incidencia}', [IncidenciaController::class, 'destroy']);
+    });
+    /*
+    |--------------------------------------------------------------------------
+    | Verificación de Estudiantes (QR y CI/SIS)
+    |--------------------------------------------------------------------------
+    */
+    Route::middleware('role:ADMINISTRADOR,CONTROL_INGRESO')->group(function () {
+        Route::post('/verificar/qr', [VerificacionController::class, 'verificarQr']);
+        Route::post('/verificar/documento', [VerificacionController::class, 'verificarDocumento']);
+        Route::post('/verificar/ci-sis', [VerificacionController::class, 'verificarDocumento']);
+        Route::get('/verificar/generar-qr/{id_estudiante}', [VerificacionController::class, 'generarQrPrueba']);
     });
 });

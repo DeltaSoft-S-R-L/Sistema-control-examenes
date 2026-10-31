@@ -101,32 +101,6 @@ class ExamenController extends Controller
         return response()->json($examen);
     }
 
-    // GET /api/examenes/{id}/normas
-    public function normas(string $id)
-    {
-        $examen = Examen::with([
-            'reglas',
-            'habilitaciones.estudiante',
-            'habilitaciones.reglasIndividuales',
-        ])->findOrFail($id);
-
-        $normasParticulares = $examen->habilitaciones
-            ->flatMap(function ($habilitacion) {
-                return $habilitacion->reglasIndividuales->map(function ($regla) use ($habilitacion) {
-                    return array_merge($regla->toArray(), [
-                        'id_estudiante' => $habilitacion->id_estudiante,
-                        'estudiante' => $habilitacion->estudiante,
-                    ]);
-                });
-            })
-            ->values();
-
-        return response()->json([
-            'normas_generales' => $examen->reglas,
-            'normas_particulares' => $normasParticulares,
-        ]);
-    }
-
     // ─────────────────────────────────────────────
     // PUT/PATCH /api/examenes/{id} (Modificar Examen con Auditoría)
     // ─────────────────────────────────────────────
