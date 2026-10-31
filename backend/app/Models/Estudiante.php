@@ -31,6 +31,26 @@ class Estudiante extends Model
             : strtoupper(trim($value));
     }
 
+    /**
+     * Scope para búsqueda indexada por documento (CI o SIS/código universitario) (EST-02 / S3-VER01-03).
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @param  string  $tipo  'CI' o 'SIS'
+     * @param  string  $valor Documento normalizado
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeBuscarPorDocumento($query, string $tipo, string $valor)
+    {
+        $tipoNorm = strtoupper(trim($tipo));
+        $columna = $tipoNorm === 'SIS' ? 'codigo_universitario' : 'ci';
+
+        return $query->where(function ($q) use ($columna, $valor) {
+            $q->where($columna, $valor)
+              ->orWhereRaw("UPPER({$columna}) = ?", [$valor])
+              ->orWhereRaw("REPLACE(UPPER({$columna}), ' ', '') = ?", [$valor]);
+        });
+    }
+
     public function habilitaciones()
     {
         return $this->hasMany(Habilitacion::class, 'id_estudiante', 'id_estudiante');

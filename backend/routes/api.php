@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\HabilitacionController;
 use App\Http\Controllers\Api\IncidenciaController;
 use App\Http\Controllers\Api\IngresoController;
 use App\Http\Controllers\Api\UsuarioController;
+use App\Http\Controllers\Api\VerificacionController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\DocenteAsignaturaController;
 
@@ -68,6 +69,8 @@ Route::get('/docente/mis-materias', [
     |--------------------------------------------------------------------------
     */
     Route::get('/estudiantes', [EstudianteController::class, 'index']);
+    Route::get('/estudiantes/{id}/qr', [EstudianteController::class, 'generarQr'])
+        ->middleware('role:ADMINISTRADOR');
     Route::get('/estudiantes/{estudiante}', [EstudianteController::class, 'show']);
 
     Route::middleware('permission:GESTIONAR_ESTUDIANTES')->group(function () {
@@ -185,4 +188,14 @@ Route::get('/docente/mis-materias', [
         Route::patch('/incidencias/{incidencia}', [IncidenciaController::class, 'update']);
         Route::delete('/incidencias/{incidencia}', [IncidenciaController::class, 'destroy']);
     });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Verificación de Identidad (VER-01)
+    |--------------------------------------------------------------------------
+    */
+    Route::post('/verificaciones/qr', [VerificacionController::class, 'verificarPorQr'])
+        ->middleware(['role:CONTROL_INGRESO,ADMINISTRADOR', 'throttle:60,1']);
+    Route::post('/verificaciones/documento', [VerificacionController::class, 'verificarPorDocumento'])
+        ->middleware(['role:CONTROL_INGRESO,ADMINISTRADOR', 'throttle:60,1']);
 });
