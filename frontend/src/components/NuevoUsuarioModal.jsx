@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import api from "../services/api";
 
 export default function NuevoUsuarioModal({ isOpen, onClose, onSuccess }) {
@@ -16,6 +16,33 @@ export default function NuevoUsuarioModal({ isOpen, onClose, onSuccess }) {
   const [error, setError] = useState(null);
   const [errorCorreo, setErrorCorreo] = useState("");
   const [loading, setLoading] = useState(false);
+  const [roles, setRoles] = useState([]);
+  const [cargandoRoles, setCargandoRoles] = useState(false);
+  const [errorRoles, setErrorRoles] = useState("");
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const controller = new AbortController();
+    const cargarRoles = async () => {
+      setCargandoRoles(true);
+      setErrorRoles("");
+      try {
+        const respuesta = await api.get("/roles", { signal: controller.signal });
+        setRoles(Array.isArray(respuesta.data) ? respuesta.data : respuesta.data?.data || []);
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          setRoles([]);
+          setErrorRoles(err.response?.data?.message || "No se pudieron cargar los roles.");
+        }
+      } finally {
+        if (!controller.signal.aborted) setCargandoRoles(false);
+      }
+    };
+
+    cargarRoles();
+    return () => controller.abort();
+  }, [isOpen]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -204,12 +231,16 @@ export default function NuevoUsuarioModal({ isOpen, onClose, onSuccess }) {
                     value={formData.id_rol}
                     onChange={handleChange}
                     required
+                    disabled={cargandoRoles || roles.length === 0}
                   >
-                    <option value="">Seleccione...</option>
-                    <option value="1">Administrador</option>
-                    <option value="2">Docente</option>
-                    <option value="3">Personal de control</option>
+                    <option value="">{cargandoRoles ? "Cargando roles..." : "Seleccione..."}</option>
+                    {roles.map((rol) => (
+                      <option key={rol.id_rol} value={rol.id_rol}>
+                        {{ ADMINISTRADOR: "Administrador", DOCENTE: "Docente", CONTROL_INGRESO: "Personal de control" }[rol.nombre] || rol.nombre}
+                      </option>
+                    ))}
                   </select>
+                  {errorRoles && <div className="form-text text-danger" role="alert">{errorRoles}</div>}
                 </div>
               </div>
 

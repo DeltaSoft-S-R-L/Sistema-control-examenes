@@ -149,7 +149,7 @@ if (!$this->esAdministrador($request)) {
             'apellido'             => 'required|string|max:100',
             'codigo_universitario' => 'required|string|max:50|unique:estudiante,codigo_universitario',
             'id_carrera'           => 'required|integer|exists:carrera,id_carrera',
-            'asignaturas'          => 'required|array|min:1',
+            'asignaturas'          => 'nullable|array',
             'asignaturas.*'        => 'integer|distinct|exists:asignatura,id_asignatura',
             'correo'               => 'nullable|email|max:150',
             'estado'               => [
@@ -161,7 +161,7 @@ if (!$this->esAdministrador($request)) {
             ],
         ]);
 
-$asignaturas = $data['asignaturas'];
+$asignaturas = $data['asignaturas'] ?? [];
 unset($data['asignaturas']);
 
 $cantidadAsignaturasValidas = Asignatura::whereIn(
@@ -694,13 +694,15 @@ if (!$this->esAdministrador($request)) {
             'apellido'             => 'sometimes|required|string|max:100',
             'codigo_universitario' => "sometimes|required|string|max:50|unique:estudiante,codigo_universitario,{$id},id_estudiante",
             'id_carrera'           => 'sometimes|required|integer|exists:carrera,id_carrera',
-            'asignaturas'          => 'sometimes|required|array|min:1',
+            'asignaturas'          => 'sometimes|nullable|array',
             'asignaturas.*'        => 'integer|distinct|exists:asignatura,id_asignatura',
             'correo'               => 'nullable|email|max:150',
             'estado'               => 'sometimes|required|in:ACTIVO,INACTIVO',
         ]);
 
-        $asignaturas = $data['asignaturas'] ?? null;
+$asignaturas = array_key_exists('asignaturas', $data)
+    ? ($data['asignaturas'] ?? [])
+    : null;
 unset($data['asignaturas']);
 
 $idCarrera = $data['id_carrera'] ?? $estudiante->id_carrera;

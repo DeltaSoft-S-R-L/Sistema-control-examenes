@@ -232,9 +232,6 @@ export default function NuevoEstudianteModal({
       nuevosErrores.idCarrera = "Seleccione una carrera.";
     }
 
-    if (formulario.asignaturas.length === 0) {
-      nuevosErrores.asignaturas = "Seleccione al menos una materia.";
-    }
     setErrores(nuevosErrores);
 
     return Object.keys(nuevosErrores).length === 0;
@@ -614,7 +611,7 @@ export default function NuevoEstudianteModal({
                     {/* MATERIAS */}
                     <div className="col-12">
                       <label className="form-label fw-semibold">
-                        Materias <span className="text-danger">*</span>
+                        Materias <span className="text-muted small">(opcional)</span>
                       </label>
 
                       <div

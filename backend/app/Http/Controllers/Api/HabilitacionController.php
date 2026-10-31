@@ -24,7 +24,9 @@ class HabilitacionController extends Controller
             $query->where('estado', $request->estado);
         }
 
-        return response()->json($query->paginate(20));
+        $perPage = min(max($request->integer('per_page', 20), 1), 1000);
+
+        return response()->json($query->paginate($perPage));
     }
 
     public function store(StoreHabilitacionRequest $request)
@@ -104,6 +106,9 @@ public function storeMasiva(StoreHabilitacionMasivaRequest $request)
     public function update(Request $request, string $id)
     {
         $habilitacion = Habilitacion::findOrFail($id);
+        $usuario = $request->user();
+        $usuario->loadMissing('rol');
+        $rol = strtoupper((string) $usuario->rol?->nombre);
 
         $data = $request->validate([
             'estado' => 'sometimes|required|string|in:HABILITADO,NO_HABILITADO,habilitado,no_habilitado',
@@ -114,11 +119,44 @@ public function storeMasiva(StoreHabilitacionMasivaRequest $request)
             'motivo.max'         => 'El motivo no puede superar los 500 caracteres.',
         ]);
 
+        if ($rol === 'DOCENTE') {
+            if (strtoupper($data['estado'] ?? '') !== 'NO_HABILITADO') {
+                return response()->json([
+                    'message' => 'Los docentes solo pueden revocar habilitaciones.',
+                ], 403);
+            }
+
+            $puedeRevocar = DB::table('habilitacion as h')
+                ->join('estudiante as e', 'e.id_estudiante', '=', 'h.id_estudiante')
+                ->join('examen as ex', 'ex.id_examen', '=', 'h.id_examen')
+                ->join('docente_asignatura as da', function ($join) {
+                    $join->on('da.id_carrera', '=', 'e.id_carrera')
+                        ->on('da.id_asignatura', '=', 'ex.id_asignatura');
+                })
+                ->where('da.id_usuario', $usuario->id_usuario)
+                ->where('h.id_habilitacion', $habilitacion->id_habilitacion)
+                ->exists();
+
+            if (!$puedeRevocar) {
+                return response()->json([
+                    'message' => 'No puede revocar habilitaciones fuera de sus materias asignadas.',
+                ], 403);
+            }
+        } elseif ($rol !== 'ADMINISTRADOR' && !$usuario->tienePermiso('GESTIONAR_HABILITACIONES')) {
+            return response()->json([
+                'message' => 'No tiene permisos para realizar esta acción.',
+            ], 403);
+        }
+
         if (isset($data['estado'])) {
             $data['estado'] = strtoupper($data['estado']);
         }
 
-        $habilitacion->update($data);
+        $habilitacion = DB::transaction(function () use ($habilitacion, $data) {
+            $habilitacion->update($data);
+
+            return $habilitacion->fresh();
+        });
 
         return response()->json($habilitacion);
     }
