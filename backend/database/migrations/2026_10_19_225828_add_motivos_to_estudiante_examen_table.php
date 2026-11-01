@@ -27,16 +27,22 @@ return new class extends Migration
                 'motivo_detalle' => DB::raw("COALESCE(motivo_detalle, 'Sin motivo registrado')")
             ]);
 
-        DB::statement("
-            ALTER TABLE habilitacion 
-            ADD CONSTRAINT check_motivo_tipo_not_null 
-            CHECK (estado = 'HABILITADO' OR motivo_tipo IS NOT NULL)
-        ");
+        // Aislamiento para que no falle en tests de SQLite y expansión de valores
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("
+                ALTER TABLE habilitacion 
+                ADD CONSTRAINT check_motivo_tipo_not_null 
+                CHECK (estado = 'HABILITADO' OR (motivo_tipo IN ('ACADEMICO', 'MORA', 'DOCUMENTACION', 'OTRO')))
+            ");
+        }
     }
 
     public function down(): void
     {
-        DB::statement('ALTER TABLE habilitacion DROP CONSTRAINT IF EXISTS check_motivo_tipo_not_null');
+        // Aislamiento para que no falle en tests de SQLite
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement('ALTER TABLE habilitacion DROP CONSTRAINT IF EXISTS check_motivo_tipo_not_null');
+        }
 
         Schema::table('habilitacion', function (Blueprint $table) {
             $table->dropForeign(['inhabilitado_por']);

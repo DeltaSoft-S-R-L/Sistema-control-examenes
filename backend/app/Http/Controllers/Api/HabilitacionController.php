@@ -170,7 +170,7 @@ class HabilitacionController extends Controller
      * Consulta el estado y motivo de inhabilitación de un estudiante en un examen (HAB-02).
      * Resuelve en exactamente 1 sola consulta SQL incluyendo los datos del usuario que inhabilitó.
      */
-    public function consultarMotivo(string $examen, string $estudiante)
+    public function consultarMotivo(string $examen, string $estudiante): \Illuminate\Http\JsonResponse
     {
         $habilitacion = Habilitacion::query()
             ->select([
