@@ -12,6 +12,14 @@ class StoreHabilitacionRequest extends FormRequest
         return true;
     }
 
+    public function prepareForValidation()
+    {
+        // Retrocompatibilidad con el frontend actual
+        if ($this->has('motivo') && !$this->has('motivo_detalle')) {
+            $this->merge(['motivo_detalle' => $this->input('motivo')]);
+        }
+    }
+
     public function rules(): array
     {
         return [
@@ -37,11 +45,16 @@ class StoreHabilitacionRequest extends FormRequest
                 Rule::in(['HABILITADO', 'NO_HABILITADO', 'habilitado', 'no_habilitado']),
             ],
 
-            'motivo' => [
+            'motivo_tipo' => [
+                'nullable',
+                'string',
+                Rule::in(['ACADEMICO', 'MORA', 'DOCUMENTACION', 'OTRO', 'academico', 'mora', 'documentacion', 'otro']),
+            ],
+
+            'motivo_detalle' => [
                 'nullable',
                 'string',
                 'max:500',
-                'required_if:estado,NO_HABILITADO,no_habilitado',
             ],
         ];
     }
@@ -59,8 +72,8 @@ class StoreHabilitacionRequest extends FormRequest
             'id_examen.exists'       => 'El examen seleccionado no existe.',
 
             'estado.in'              => 'El estado debe ser HABILITADO o NO_HABILITADO.',
-            'motivo.required_if'     => 'El motivo es obligatorio cuando el estado es NO_HABILITADO.',
-            'motivo.max'             => 'El motivo no puede superar los 500 caracteres.',
+            'motivo_tipo.in'         => 'El tipo de motivo no es válido.',
+            'motivo_detalle.max'     => 'El motivo no puede superar los 500 caracteres.',
         ];
     }
 }
