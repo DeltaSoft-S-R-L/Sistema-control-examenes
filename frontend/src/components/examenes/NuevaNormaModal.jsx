@@ -92,6 +92,7 @@ export default function NuevaNormaModal({ isOpen, onClose, idExamen, onSuccess }
       };
       if (tipo === 'PARTICULAR') {
         payload.id_estudiante = Number(idEstudiante);
+        payload.estudiante_id = Number(idEstudiante);
       }
 
       await api.post(`/examenes/${idExamen}/normas`, payload);
@@ -102,7 +103,10 @@ export default function NuevaNormaModal({ isOpen, onClose, idExamen, onSuccess }
       if (err.response?.status === 422 && err.response?.data?.errors) {
         const backendErrors = {};
         Object.entries(err.response.data.errors).forEach(([campo, mensajes]) => {
-          backendErrors[campo] = Array.isArray(mensajes) ? mensajes[0] : mensajes;
+          const msg = Array.isArray(mensajes) ? mensajes[0] : mensajes;
+          backendErrors[campo] = msg;
+          if (campo === 'estudiante_id') backendErrors.id_estudiante = msg;
+          if (campo === 'id_estudiante') backendErrors.estudiante_id = msg;
         });
         setErrores(backendErrors);
       } else {

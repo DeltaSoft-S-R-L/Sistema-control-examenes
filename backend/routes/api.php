@@ -134,8 +134,11 @@ Route::get('/docente/mis-materias', [
     */
     Route::get('/examenes', [ExamenController::class, 'index']);
     Route::get('/examenes/{id}/auditoria', [ExamenController::class, 'auditoria']);
-    Route::get('/examenes/{id}/normas', [NormaController::class, 'index']);
     Route::get('/examenes/{examene}', [ExamenController::class, 'show']);
+
+    Route::middleware('role:ADMINISTRADOR,DOCENTE,CONTROL_INGRESO')->group(function () {
+        Route::get('/examenes/{id}/normas', [NormaController::class, 'index']);
+    });
 
     Route::middleware('role:ADMINISTRADOR,DOCENTE')->group(function () {
         Route::post('/examenes/{id}/normas', [NormaController::class, 'store']);
@@ -214,8 +217,6 @@ Route::get('/docente/mis-materias', [
         Route::delete('/incidencias/{incidencia}', [IncidenciaController::class, 'destroy']);
     });
 
-    /*
-    |--------------------------------------------------------------------------
     /*
     |--------------------------------------------------------------------------
     | Verificación de Identidad (VER-01)
