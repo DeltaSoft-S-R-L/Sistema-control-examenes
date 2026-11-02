@@ -50,4 +50,29 @@ class AuditLog extends Model
             'id_usuario'
         );
     }
+
+    public function getMetodoAttribute(): ?string
+    {
+        return $this->informacion['metodo'] ?? null;
+    }
+
+    public function getExamenIdAttribute(): ?int
+    {
+        return isset($this->informacion['examen_id']) ? (int) $this->informacion['examen_id'] : null;
+    }
+
+    public function getEstudianteIdAttribute(): ?int
+    {
+        return isset($this->informacion['estudiante_id']) ? (int) $this->informacion['estudiante_id'] : null;
+    }
+
+    public function getResultadoAttribute(): ?string
+    {
+        return $this->informacion['resultado'] ?? null;
+    }
+
+    public function getValorEnmascaradoAttribute(): ?string
+    {
+        return $this->informacion['valor_enmascarado'] ?? null;
+    }
 }

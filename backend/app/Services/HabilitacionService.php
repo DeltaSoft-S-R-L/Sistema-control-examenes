@@ -36,7 +36,7 @@ class HabilitacionService
             return [
                 'estado'          => 'NO_HABILITADO',
                 'habilitado'      => false,
-                'motivo'          => $habilitacion->motivo ?: 'Inhabilitado para rendir este examen.',
+                'motivo'          => $habilitacion->motivo_detalle ?: $habilitacion->motivo ?: 'Inhabilitado para rendir este examen.',
                 'id_habilitacion' => $habilitacion->id_habilitacion,
             ];
         }
