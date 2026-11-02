@@ -14,6 +14,8 @@ use App\Http\Controllers\Api\UsuarioController;
 use App\Http\Controllers\Api\VerificacionController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\DocenteAsignaturaController;
+use App\Http\Controllers\Api\NormaController;
+use App\Http\Controllers\Api\PasswordSetupController;
 
 /*
 |--------------------------------------------------------------------------
@@ -30,6 +32,19 @@ Route::get('/health', fn () => response()->json([
 
 // Autenticación (público)
 Route::post('/login', [AuthController::class, 'login']);
+
+// Configuración de contraseña mediante enlace de correo (público)
+Route::middleware('throttle:6,1')->group(function () {
+    Route::post('/configurar-contrasena/verificar', [
+        PasswordSetupController::class,
+        'verificar'
+    ]);
+
+    Route::post('/configurar-contrasena', [
+        PasswordSetupController::class,
+        'configurar'
+    ]);
+});
 
 // Rutas protegidas con Sanctum y verificación de cuenta activa
 Route::middleware(['auth:sanctum', 'active'])->group(function () {
@@ -119,7 +134,13 @@ Route::get('/docente/mis-materias', [
     */
     Route::get('/examenes', [ExamenController::class, 'index']);
     Route::get('/examenes/{id}/auditoria', [ExamenController::class, 'auditoria']);
+    Route::get('/examenes/{id}/normas', [NormaController::class, 'index']);
     Route::get('/examenes/{examene}', [ExamenController::class, 'show']);
+
+    Route::middleware('role:ADMINISTRADOR,DOCENTE')->group(function () {
+        Route::post('/examenes/{id}/normas', [NormaController::class, 'store']);
+        Route::delete('/examenes/{id}/normas/{id_norma}', [NormaController::class, 'destroy']);
+    });
 
     Route::middleware('permission:GESTIONAR_EXAMENES')->group(function () {
         Route::post('/examenes', [ExamenController::class, 'store']);
@@ -151,6 +172,11 @@ Route::get('/docente/mis-materias', [
     Route::get('/habilitaciones', [HabilitacionController::class, 'index']);
     Route::get('/habilitaciones/{habilitacione}', [HabilitacionController::class, 'show']);
 
+    // Consulta del motivo de inhabilitación por estudiante y examen 
+    Route::get('/examenes/{examen}/estudiantes/{estudiante}/inhabilitacion', [HabilitacionController::class, 'consultarMotivo'])
+        ->middleware('role:ADMINISTRADOR,DOCENTE,CONTROL,PERSONAL_CONTROL,admin,docente,control,CONTROL_INGRESO,control_ingreso');
+        
+
     Route::middleware('permission:GESTIONAR_HABILITACIONES')->group(function () {
         Route::post('/habilitaciones', [HabilitacionController::class, 'store']);
         Route::post('/habilitaciones/masiva', [HabilitacionController::class, 'storeMasiva']);
@@ -158,7 +184,6 @@ Route::get('/docente/mis-materias', [
         Route::patch('/habilitaciones/{habilitacione}', [HabilitacionController::class, 'update']);
         Route::delete('/habilitaciones/{habilitacione}', [HabilitacionController::class, 'destroy']);
     });
-
     /*
     |--------------------------------------------------------------------------
     | Control de ingreso
@@ -191,6 +216,8 @@ Route::get('/docente/mis-materias', [
 
     /*
     |--------------------------------------------------------------------------
+    /*
+    |--------------------------------------------------------------------------
     | Verificación de Identidad (VER-01)
     |--------------------------------------------------------------------------
     */
@@ -198,4 +225,16 @@ Route::get('/docente/mis-materias', [
         ->middleware(['role:CONTROL_INGRESO,ADMINISTRADOR', 'throttle:60,1']);
     Route::post('/verificaciones/documento', [VerificacionController::class, 'verificarPorDocumento'])
         ->middleware(['role:CONTROL_INGRESO,ADMINISTRADOR', 'throttle:60,1']);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Verificación de Estudiantes (QR y CI/SIS - origin/dev)
+    |--------------------------------------------------------------------------
+    */
+    Route::middleware('role:ADMINISTRADOR,CONTROL_INGRESO')->group(function () {
+        Route::post('/verificar/qr', [VerificacionController::class, 'verificarQr']);
+        Route::post('/verificar/documento', [VerificacionController::class, 'verificarDocumento']);
+        Route::post('/verificar/ci-sis', [VerificacionController::class, 'verificarDocumento']);
+        Route::get('/verificar/generar-qr/{id_estudiante}', [VerificacionController::class, 'generarQrPrueba']);
+    });
 });

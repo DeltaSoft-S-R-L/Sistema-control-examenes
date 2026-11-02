@@ -19,11 +19,6 @@ private function esAdministrador(Request $request): bool
     return strtoupper($request->user()->rol?->nombre ?? '') === 'ADMINISTRADOR';
 }
 
-private function escaparLike(string $valor): string
-{
-    return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $valor);
-}
-
 public function index(Request $request)
 {
     $usuario = $request->user();
@@ -35,19 +30,9 @@ public function index(Request $request)
         ], 403);
     }
 
-    if ($rol === 'DOCENTE') {
-        $query = Estudiante::with([
-            'carrera',
-            'asignaturas' => function ($q) use ($usuario) {
-                $q->whereExists(function ($sub) use ($usuario) {
-                    $sub->selectRaw('1')
-                        ->from('docente_asignatura as da')
-                        ->whereColumn('da.id_asignatura', 'asignatura.id_asignatura')
-                        ->where('da.id_usuario', $usuario->id_usuario);
-                });
-            },
-        ]);
+    $query = Estudiante::with(['carrera', 'asignaturas']);
 
+    if ($rol === 'DOCENTE') {
         $query->whereExists(function ($subquery) use ($usuario) {
             $subquery->selectRaw('1')
                 ->from('estudiante_asignatura as ea')
@@ -68,9 +53,8 @@ public function index(Request $request)
                 )
                 ->where('da.id_usuario', $usuario->id_usuario);
         });
-    } else {
-        $query = Estudiante::with(['carrera', 'asignaturas']);
     }
+
 
     // Filtrar estudiantes por una materia específica.
     if ($request->filled('id_asignatura')) {
@@ -88,7 +72,8 @@ public function index(Request $request)
             $q->where('asignatura.id_asignatura', $idAsignatura);
         });
 
-        // Para docentes, comprobar también la carrera y que tengan asignada esta materia.
+        // Para docentes, comprobar también la carrera
+        // y que tengan asignada esta materia.
         if ($rol === 'DOCENTE') {
             $query->whereExists(function ($subquery) use ($usuario, $idAsignatura) {
                 $subquery->selectRaw('1')
@@ -108,7 +93,7 @@ public function index(Request $request)
     }
 
     if ($request->filled('buscar')) {
-        $buscar = $this->escaparLike($request->buscar);
+        $buscar = $request->buscar;
 
         $query->where(function ($q) use ($buscar) {
             $q->where('nombre', 'ilike', "%{$buscar}%")
@@ -118,9 +103,35 @@ public function index(Request $request)
         });
     }
 
-    $estudiantes = $query->orderBy('apellido')->paginate(20);
 
-    return response()->json($estudiantes);
+$estudiantes = $query->orderBy('apellido')->paginate(20);
+
+if ($rol === 'DOCENTE') {
+    $asignaciones = DB::table('docente_asignatura')
+        ->where('id_usuario', $usuario->id_usuario)
+        ->get(['id_carrera', 'id_asignatura']);
+
+    $materiasPorCarrera = $asignaciones
+        ->groupBy('id_carrera')
+        ->map(fn ($filas) => $filas->pluck('id_asignatura')->all());
+
+    $estudiantes->getCollection()->each(
+        function ($estudiante) use ($materiasPorCarrera) {
+            $idsPermitidos = $materiasPorCarrera
+                ->get($estudiante->id_carrera, []);
+
+            $estudiante->setRelation(
+                'asignaturas',
+                $estudiante->asignaturas
+                    ->whereIn('id_asignatura', $idsPermitidos)
+                    ->values()
+            );
+        }
+    );
+}
+
+return response()->json($estudiantes);
+
 }
 
 
@@ -663,34 +674,20 @@ return response()->json($estudiante);
 
     public function update(Request $request, string $id)
     {
-        $usuario = $request->user();
-        $rol = strtoupper($usuario?->rol?->nombre ?? '');
-        $esAdmin = $rol === 'ADMINISTRADOR';
-        $tienePermiso = $esAdmin || $rol === 'DOCENTE' || ($usuario && $usuario->tienePermiso('GESTIONAR_ESTUDIANTES'));
 
-        if (!$tienePermiso) {
-            return response()->json([
-                'message' => 'No tiene permisos para modificar estudiantes.',
-            ], 403);
-        }
+if (!$this->esAdministrador($request)) {
+    return response()->json([
+        'message' => 'Solo el administrador puede modificar estudiantes.'
+    ], 403);
+}
 
         $estudiante = Estudiante::findOrFail($id);
 
-        if (!$esAdmin && $rol === 'DOCENTE') {
-            $pertenece = DB::table('estudiante_asignatura as ea')
-                ->join('docente_asignatura as da', 'da.id_asignatura', '=', 'ea.id_asignatura')
-                ->where('ea.id_estudiante', $estudiante->id_estudiante)
-                ->where('da.id_usuario', $usuario->id_usuario)
-                ->exists();
-
-            if (!$pertenece) {
-                return response()->json([
-                    'message' => 'No tiene permisos para modificar estudiantes que no pertenecen a sus materias.',
-                ], 403);
-            }
-        }
-
-        $this->normalizarEstado($request);
+        if ($request->has('estado') && is_string($request->input('estado'))) {
+    $request->merge([
+        'estado' => strtoupper(trim($request->input('estado'))),
+    ]);
+}
 
         $data = $request->validate([
             'ci'                   => "sometimes|required|string|max:20|unique:estudiante,ci,{$id},id_estudiante",
@@ -751,22 +748,22 @@ if ($asignaturas !== null) {
         return response()->json($estudiante);
     }
 
-    public function destroy(Request $request, string $id)
-    {
-        if (!$this->esAdministrador($request)) {
-            return response()->json([
-                'message' => 'Solo el administrador puede eliminar estudiantes.'
-            ], 403);
-        }
-
-        $estudiante = Estudiante::findOrFail($id);
-
-        $estudiante->delete();
-
+public function destroy(Request $request, string $id)
+{
+    if (!$this->esAdministrador($request)) {
         return response()->json([
-            'message' => 'Estudiante eliminado.'
-        ]);
+            'message' => 'Solo el administrador puede eliminar estudiantes.'
+        ], 403);
     }
+
+    $estudiante = Estudiante::findOrFail($id);
+
+    $estudiante->delete();
+
+    return response()->json([
+        'message' => 'Estudiante eliminado.'
+    ]);
+}
 
     /**
      * Generar código QR para un estudiante (S3-VER01-01).

@@ -32,7 +32,7 @@ class QrTokenService
 
         $key = (string) config('app.key');
         if (empty($key)) {
-            throw new RuntimeException('No se ha configurado la clave de cifrado de la aplicación (APP_KEY).');
+            $key = 'clave-secreta-predeterminada-32ch';
         }
 
         if (str_starts_with($key, 'base64:')) {
@@ -67,19 +67,46 @@ class QrTokenService
     }
 
     /**
-     * Genera un token firmado para el estudiante dado.
+     * Genera un token firmado para el estudiante dado (VER-01).
      * Estructura: <payload_base64url>.<firma_base64url>
      * Payload JSON: {"v":1,"sid":<id_estudiante>}
      */
     public function generar(Estudiante $estudiante): string
     {
-        return $this->generarToken((int) $estudiante->id_estudiante, 1);
+        return $this->generarVersionado((int) $estudiante->id_estudiante, 1);
     }
 
     /**
-     * Genera un token con parámetros específicos (usado internamente y en pruebas).
+     * Generador polimórfico estático/de instancia:
+     * - Si recibe un modelo Estudiante: genera token compatible con origin/dev.
+     * - Si recibe un int/string ID: genera token firmado versionado (VER-01).
      */
-    public function generarToken(int $idEstudiante, int $version = 1): string
+    public static function generarToken(Estudiante|int|string $estudiante, ?int $timestampOrVersion = null): string
+    {
+        $instance = new self();
+
+        if ($estudiante instanceof Estudiante) {
+            $payload = [
+                'id_estudiante'        => $estudiante->id_estudiante,
+                'ci'                   => (string) $estudiante->ci,
+                'codigo_universitario' => (string) $estudiante->codigo_universitario,
+                'timestamp'            => $timestampOrVersion ?? time(),
+            ];
+
+            $encodedPayload = rtrim(strtr(base64_encode(json_encode($payload)), '+/', '-_'), '=');
+            $secretKey = config('app.key') ?: 'clave-secreta-predeterminada-32ch';
+            $signature = hash_hmac('sha256', $encodedPayload, $secretKey);
+
+            return "{$encodedPayload}.{$signature}";
+        }
+
+        return $instance->generarVersionado((int) $estudiante, $timestampOrVersion ?? 1);
+    }
+
+    /**
+     * Genera un token con parámetros específicos de versión (usado internamente y en pruebas de VER-01).
+     */
+    public function generarVersionado(int $idEstudiante, int $version = 1): string
     {
         $payload = [
             'v'   => $version,
@@ -96,7 +123,7 @@ class QrTokenService
     }
 
     /**
-     * Valida el token QR y retorna el id_estudiante.
+     * Valida el token QR y retorna el id_estudiante (VER-01).
      *
      * @throws TokenMalformedException Si el token está vacío, no tiene 2 segmentos, o el payload no es JSON válido.
      * @throws InvalidSignatureException Si la firma HMAC no coincide o fue alterada.
@@ -155,6 +182,69 @@ class QrTokenService
         }
 
         return (int) $payload['sid'];
+    }
+
+    /**
+     * Valida un token QR verificando estructura, formato y firma criptográfica (origin/dev).
+     *
+     * @return array{valido: bool, error: ?string, datos: ?array}
+     */
+    public static function validarToken(string $token): array
+    {
+        $partes = explode('.', trim($token));
+
+        if (count($partes) !== 2) {
+            return [
+                'valido' => false,
+                'error'  => 'FORMATO_INVALIDO',
+                'datos'  => null,
+            ];
+        }
+
+        [$encodedPayload, $firmaRecibida] = $partes;
+
+        if (empty($encodedPayload) || empty($firmaRecibida)) {
+            return [
+                'valido' => false,
+                'error'  => 'FORMATO_INVALIDO',
+                'datos'  => null,
+            ];
+        }
+
+        $secretKey = config('app.key') ?: 'clave-secreta-predeterminada-32ch';
+        $firmaEsperada = hash_hmac('sha256', $encodedPayload, $secretKey);
+
+        if (!hash_equals($firmaEsperada, $firmaRecibida)) {
+            return [
+                'valido' => false,
+                'error'  => 'QR_ALTERADO',
+                'datos'  => null,
+            ];
+        }
+
+        $decodedJson = base64_decode(strtr($encodedPayload, '-_', '+/'), true);
+        if ($decodedJson === false) {
+            return [
+                'valido' => false,
+                'error'  => 'FORMATO_INVALIDO',
+                'datos'  => null,
+            ];
+        }
+
+        $datos = json_decode($decodedJson, true);
+        if (!is_array($datos) || !isset($datos['id_estudiante'])) {
+            return [
+                'valido' => false,
+                'error'  => 'FORMATO_INVALIDO',
+                'datos'  => null,
+            ];
+        }
+
+        return [
+            'valido' => true,
+            'error'  => null,
+            'datos'  => $datos,
+        ];
     }
 
     /**

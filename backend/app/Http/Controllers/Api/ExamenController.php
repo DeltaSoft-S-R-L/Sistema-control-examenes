@@ -17,7 +17,7 @@ class ExamenController extends Controller
     private function docenteTieneMateria($usuario, int $idAsignatura): bool
     {
         $rol = strtoupper($usuario?->rol?->nombre ?? '');
-        if ($rol === 'ADMINISTRADOR') {
+        if (in_array($rol, ['ADMINISTRADOR', 'ADMIN', 'CONTROL', 'CONTROL_INGRESO'], true)) {
             return true;
         }
 

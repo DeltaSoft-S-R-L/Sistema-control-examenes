@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreUsuarioRequest;
 use App\Models\Usuario;
+use App\Mail\BienvenidaUsuarioMail;
+use Illuminate\Support\Facades\Mail;
 use App\Utilities\PasswordHasher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Str;
 
 class UsuarioController extends Controller
 {
@@ -34,23 +37,67 @@ class UsuarioController extends Controller
             'apellido'      => $data['apellido'],
             'correo'        => $data['correo'],
             'username'      => $data['username'],
-            'password_hash' => PasswordHasher::hash($data['password']),
+            'password_hash' => PasswordHasher::hash(
+    $request->boolean('enviar_correo')
+        ? bin2hex(random_bytes(32))
+        : $data['password']
+),
             'id_rol'        => $data['id_rol'],
             'estado'        => $estado,
         ]);
 
         // Cargar la relación de rol para incluirla en la respuesta
         $usuario->load('rol');
+        
+$tokenConfiguracion = null;
+
+if ($request->boolean('enviar_correo')) {
+    // Invalidar cualquier token de configuración anterior.
+    DB::table('password_setup_tokens')
+        ->where('id_usuario', $usuario->id_usuario)
+        ->delete();
+
+    // Generar un token criptográficamente seguro.
+    $tokenConfiguracion = Str::random(64);
+
+    // Guardar solamente su hash, nunca el token original.
+    DB::table('password_setup_tokens')->insert([
+        'id_usuario' => $usuario->id_usuario,
+        'token_hash' => hash('sha256', $tokenConfiguracion),
+        'expires_at' => now()->addMinutes(30),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+}
+        $correoEnviado = false;
+        $errorCorreo = false;
+
+if ($request->boolean('enviar_correo')) {
+    try {
+        $enlaceConfiguracion = rtrim(
+    config('app.frontend_url'),
+    '/'
+) . '/configurar-contrasena?token=' . urlencode($tokenConfiguracion);
+
+Mail::to($usuario->correo)->send(
+    new BienvenidaUsuarioMail($usuario, $enlaceConfiguracion)
+);
+
+        $correoEnviado = true;
+    } catch (\Throwable $e) {
+        $errorCorreo = true;
+
+        report($e);
+    }
+}
 
         return response()->json([
-            'message' => 'Usuario registrado correctamente.',
-            'usuario' => $usuario,
-        ], 201);
-    }
-
-    private function escaparLike(string $valor): string
-    {
-        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $valor);
+    'message' => $errorCorreo
+        ? 'Usuario registrado correctamente, pero no se pudo enviar el correo.'
+        : 'Usuario registrado correctamente.',
+    'usuario' => $usuario,
+    'correo_enviado' => $correoEnviado,
+], 201);
     }
 
     /**
@@ -66,7 +113,7 @@ class UsuarioController extends Controller
         }
 
         if ($request->filled('buscar')) {
-            $buscar = $this->escaparLike($request->input('buscar'));
+            $buscar = $request->input('buscar');
             $query->where(function ($q) use ($buscar) {
                 $q->where('nombre', 'ilike', '%' . $buscar . '%')
                   ->orWhere('apellido', 'ilike', '%' . $buscar . '%')
@@ -103,7 +150,6 @@ class UsuarioController extends Controller
      */
     public function update(Request $request, Usuario $usuario)
     {
-        $adminActual = $request->user();
         if ($request->has('estado') && is_string($request->input('estado'))) {
             $request->merge([
                 'estado' => strtoupper(trim($request->input('estado'))),
@@ -117,7 +163,7 @@ class UsuarioController extends Controller
                 'required',
                 'email',
                 'max:150',
-                'regex:/^[^@\s]+@umss\.edu\.bo$/i',
+                'regex:/^[^@\s]+@(umss\.edu\.bo|gmail\.com)$/i',
                 Rule::unique('usuario', 'correo')
                     ->ignore($usuario->id_usuario, 'id_usuario'),
             ],
@@ -152,20 +198,14 @@ class UsuarioController extends Controller
             $datos['estado'] = strtoupper($datos['estado']);
         }
 
-        // Impedir auto-revocación del propio administrador logueado
-        if ($adminActual && (int) $adminActual->id_usuario === (int) $usuario->id_usuario) {
-            if (($datos['estado'] ?? null) === 'REVOCADO') {
-                return response()->json([
-                    'message' => 'No puede revocar su propia cuenta de administrador.',
-                ], 422);
-            }
-        }
-
         $usuario->update($datos);
 
-        // Si el estado se actualizó a REVOCADO, invalidar inmediatamente todos los tokens (USR-03)
+        // Si el estado se actualizó a REVOCADO, invalidar inmediatamente todos los tokens y sesiones (USR-03)
         if (($datos['estado'] ?? null) === 'REVOCADO') {
             $usuario->tokens()->delete();
+            if (Schema::hasTable('sessions')) {
+                DB::table('sessions')->where('user_id', $usuario->id_usuario)->delete();
+            }
         }
 
         $usuario->load('rol');
@@ -209,8 +249,11 @@ class UsuarioController extends Controller
             'estado' => 'REVOCADO',
         ]);
 
-        // 5. Invalidar todos los tokens Sanctum del usuario revocado (USR-03)
+        // 5. Invalidar todas las sesiones / tokens Sanctum del usuario revocado (USR-03)
         $usuario->tokens()->delete();
+        if (Schema::hasTable('sessions')) {
+            DB::table('sessions')->where('user_id', $usuario->id_usuario)->delete();
+        }
 
         $usuario->load('rol');
 

@@ -34,9 +34,15 @@ export default function ConfirmarRevocarModal({
     setErrorMessage(null);
 
     try {
-      // Se utiliza el endpoint dedicado de revocación atómica
-      const userId = usuario.id_usuario || usuario.id;
-      await api.patch(`/usuarios/${userId}/revocar`);
+      // Se realiza una sola solicitud al backend.
+      await api.put(`/usuarios/${usuario.id_usuario || usuario.id}`, {
+        nombre: usuario.nombre,
+        apellido: usuario.apellido,
+        correo: usuario.correo,
+        username: usuario.username,
+        id_rol: usuario.id_rol || usuario.rol?.id_rol,
+        estado: 'REVOCADO',
+      });
 
       setLoading(false);
 

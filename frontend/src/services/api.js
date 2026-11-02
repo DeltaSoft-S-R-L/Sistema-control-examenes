@@ -20,14 +20,11 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor to handle unauthorized or revoked session errors
+// Response interceptor to handle unauthorized errors
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const status = error.response ? error.response.status : null;
-    const errorMsg = String(error.response?.data?.message || '').toLowerCase();
-
-    if (status === 401 || (status === 403 && (errorMsg.includes('revocad') || errorMsg.includes('inactiv')))) {
+    if (error.response && error.response.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('usuario');
       if (window.location.pathname !== '/login') {

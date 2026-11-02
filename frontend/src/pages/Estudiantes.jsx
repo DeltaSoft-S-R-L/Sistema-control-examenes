@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import api from "../services/api";
 import ImportarEstudiantesModal from "../components/estudiantes/ImportarEstudiantesModal";
 import EditarEstudianteModal from "../components/estudiantes/EditarEstudianteModal";
@@ -8,9 +8,6 @@ export default function Estudiantes() {
   const usuario = JSON.parse(localStorage.getItem("usuario") || "{}");
   const esAdministrador =
     String(usuario.rol || "").toUpperCase() === "ADMINISTRADOR";
-  const esDocente =
-    String(usuario.rol || "").toUpperCase() === "DOCENTE";
-  const puedeEditar = esAdministrador || esDocente;
 
   const [estudiantes, setEstudiantes] = useState([]);
   const [totalEstudiantes, setTotalEstudiantes] = useState(0);
@@ -412,7 +409,7 @@ export default function Estudiantes() {
                       </td>
 
                       <td className="text-center">
-                        {puedeEditar ? (
+                        {esAdministrador ? (
                           <button
                             type="button"
                             className="btn btn-sm btn-outline-primary"

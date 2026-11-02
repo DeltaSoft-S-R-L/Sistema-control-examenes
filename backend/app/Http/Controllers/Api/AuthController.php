@@ -7,6 +7,7 @@ use App\Models\Usuario;
 use App\Utilities\PasswordHasher;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\DB;
 
 class AuthController extends Controller
 {
@@ -17,7 +18,7 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $usuario = Usuario::with('rol')->where('username', $request->username)->first();
+        $usuario = Usuario::where('username', $request->username)->first();
 
         if (! $usuario || ! PasswordHasher::verify($request->password, $usuario->password_hash)) {
             throw ValidationException::withMessages([
@@ -31,6 +32,19 @@ class AuthController extends Controller
             ]);
         }
 
+        // Impedir el inicio de sesión mientras exista un enlace
+// de configuración de contraseña pendiente.
+$tieneConfiguracionPendiente = DB::table('password_setup_tokens')
+    ->where('id_usuario', $usuario->id_usuario)
+    ->exists();
+
+if ($tieneConfiguracionPendiente) {
+    throw ValidationException::withMessages([
+        'username' => [
+            'Debe configurar su contraseña mediante el enlace enviado a su correo electrónico. Si el enlace expiró, contacte al administrador.'
+        ],
+    ]);
+}
         $expiresAt = now()->addMinutes((int) config('sanctum.expiration'));
         $token = $usuario->createToken('api-token', ['*'], $expiresAt)->plainTextToken;
 

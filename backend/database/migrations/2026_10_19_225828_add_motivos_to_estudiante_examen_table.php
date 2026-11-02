@@ -1,0 +1,57 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('habilitacion', function (Blueprint $table) {
+            $table->renameColumn('motivo', 'motivo_detalle');
+            $table->string('motivo_tipo')->nullable();
+            $table->unsignedBigInteger('inhabilitado_por')->nullable();
+            $table->foreign('inhabilitado_por')
+                  ->references('id_usuario')
+                  ->on('usuario')
+                  ->nullOnDelete();
+            $table->timestamp('inhabilitado_at')->nullable();
+        });
+
+        DB::table('habilitacion')
+            ->where('estado', 'NO_HABILITADO')
+            ->update([
+                'motivo_tipo' => 'OTRO',
+                'motivo_detalle' => DB::raw("COALESCE(motivo_detalle, 'Sin motivo registrado')")
+            ]);
+
+        // Aislamiento para que no falle en tests de SQLite y expansión de valores
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("
+                ALTER TABLE habilitacion 
+                ADD CONSTRAINT check_motivo_tipo_not_null 
+                CHECK (estado = 'HABILITADO' OR (motivo_tipo IN ('ACADEMICO', 'MORA', 'DOCUMENTACION', 'OTRO')))
+            ");
+        }
+    }
+
+    public function down(): void
+    {
+        // Aislamiento para que no falle en tests de SQLite
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement('ALTER TABLE habilitacion DROP CONSTRAINT IF EXISTS check_motivo_tipo_not_null');
+        }
+
+        Schema::table('habilitacion', function (Blueprint $table) {
+            $table->dropForeign(['inhabilitado_por']);
+            $table->dropColumn([
+                'motivo_tipo',
+                'inhabilitado_por',
+                'inhabilitado_at'
+            ]);
+            $table->renameColumn('motivo_detalle', 'motivo');
+        });
+    }
+};
