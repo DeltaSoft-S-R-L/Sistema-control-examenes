@@ -46,8 +46,8 @@ Route::middleware('throttle:6,1')->group(function () {
     ]);
 });
 
-// Rutas protegidas con Sanctum
-Route::middleware('auth:sanctum')->group(function () {
+// Rutas protegidas con Sanctum y verificación de cuenta activa
+Route::middleware(['auth:sanctum', 'active'])->group(function () {
 
     // Sesión
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -84,6 +84,8 @@ Route::get('/docente/mis-materias', [
     |--------------------------------------------------------------------------
     */
     Route::get('/estudiantes', [EstudianteController::class, 'index']);
+    Route::get('/estudiantes/{id}/qr', [EstudianteController::class, 'generarQr'])
+        ->middleware('role:ADMINISTRADOR');
     Route::get('/estudiantes/{estudiante}', [EstudianteController::class, 'show']);
 
     Route::middleware('permission:GESTIONAR_ESTUDIANTES')->group(function () {
@@ -217,7 +219,19 @@ Route::get('/docente/mis-materias', [
 
     /*
     |--------------------------------------------------------------------------
-    | Verificación de Estudiantes (QR y CI/SIS)
+    /*
+    |--------------------------------------------------------------------------
+    | Verificación de Identidad (VER-01)
+    |--------------------------------------------------------------------------
+    */
+    Route::post('/verificaciones/qr', [VerificacionController::class, 'verificarPorQr'])
+        ->middleware(['role:CONTROL_INGRESO,ADMINISTRADOR', 'throttle:60,1']);
+    Route::post('/verificaciones/documento', [VerificacionController::class, 'verificarPorDocumento'])
+        ->middleware(['role:CONTROL_INGRESO,ADMINISTRADOR', 'throttle:60,1']);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Verificación de Estudiantes (QR y CI/SIS - origin/dev)
     |--------------------------------------------------------------------------
     */
     Route::middleware('role:ADMINISTRADOR,CONTROL_INGRESO')->group(function () {

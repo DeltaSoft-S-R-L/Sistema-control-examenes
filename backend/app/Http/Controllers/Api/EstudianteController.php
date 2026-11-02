@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Asignatura;
 use App\Models\Carrera;
 use App\Models\Estudiante;
+use App\Services\QrTokenService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -763,5 +764,26 @@ public function destroy(Request $request, string $id)
         'message' => 'Estudiante eliminado.'
     ]);
 }
+
+    /**
+     * Generar código QR para un estudiante (S3-VER01-01).
+     */
+    public function generarQr(Request $request, string|int $id, QrTokenService $qrService)
+    {
+        $estudiante = Estudiante::find($id);
+
+        if (!$estudiante) {
+            return response()->json([
+                'message' => 'Estudiante no encontrado.',
+            ], 404);
+        }
+
+        $svg = $qrService->generarSvg($estudiante);
+
+        return response($svg, 200, [
+            'Content-Type' => 'image/svg+xml',
+            'Content-Disposition' => sprintf('inline; filename="qr-estudiante-%s.svg"', $estudiante->id_estudiante),
+        ]);
+    }
 
 }

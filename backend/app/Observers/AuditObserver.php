@@ -34,8 +34,10 @@ class AuditObserver
         string $accion,
         array $informacion
     ): void {
+        $idUsuario = Auth::guard('sanctum')->id() ?? request()->user()?->id_usuario ?? Auth::id();
+
         AuditLog::create([
-            'id_usuario' => Auth::id(),
+            'id_usuario' => $idUsuario,
             'accion' => $accion,
             'entidad' => $model->getTable(),
             'id_registro' => (string) $model->getKey(),
