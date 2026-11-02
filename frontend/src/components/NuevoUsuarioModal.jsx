@@ -11,14 +11,20 @@ export default function NuevoUsuarioModal({ isOpen, onClose, onSuccess }) {
     password: "",
     id_rol: "",
     estado: "ACTIVO",
+    enviar_correo: false,
   });
   const [error, setError] = useState(null);
   const [errorCorreo, setErrorCorreo] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+      ...(name === "enviar_correo" && checked ? { password: "" } : {}),
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -27,18 +33,27 @@ export default function NuevoUsuarioModal({ isOpen, onClose, onSuccess }) {
     setErrorCorreo("");
 
     const correo = formData.correo.trim();
-    const formatoCorreo = /^[^@\s]+@umss\.edu\.bo$/i;
+    const formatoCorreo = /^[^@\s]+@(umss\.edu\.bo|gmail\.com)$/i;
 
     if (!formatoCorreo.test(correo)) {
       setErrorCorreo(
-        "El correo debe ser institucional de la UMSS (@umss.edu.bo).",
+        "El correo debe ser institucional de la UMSS (@umss.edu.bo) o un correo de Gmail (@gmail.com).",
       );
       return;
     }
     setLoading(true);
 
     try {
-      await api.post("/usuarios", formData);
+      const respuesta = await api.post("/usuarios", formData);
+
+      if (formData.enviar_correo && !respuesta.data.correo_enviado) {
+        setError(
+          "El usuario fue registrado correctamente, pero no se pudo enviar el correo. No intentes registrarlo nuevamente.",
+        );
+
+        if (onSuccess) onSuccess();
+        return;
+      }
 
       // Se limpia el formulario incluyendo password
       setFormData({
@@ -49,6 +64,7 @@ export default function NuevoUsuarioModal({ isOpen, onClose, onSuccess }) {
         password: "",
         id_rol: "",
         estado: "ACTIVO",
+        enviar_correo: false,
       });
 
       if (onSuccess) onSuccess();
@@ -107,7 +123,7 @@ export default function NuevoUsuarioModal({ isOpen, onClose, onSuccess }) {
                 </div>
                 <div className="col-md-6 mb-3">
                   <label className="form-label small fw-bold">
-                    Correo institucional
+                    Correo electrónico
                   </label>
                   <input
                     type="email"
@@ -160,16 +176,24 @@ export default function NuevoUsuarioModal({ isOpen, onClose, onSuccess }) {
               {/* FILA 3: Contrasena y Rol */}
               <div className="row">
                 <div className="col-md-6 mb-3">
-                  <label className="form-label small fw-bold">Contraseña</label>
+                  <label className="form-label small fw-bold">
+                    Contraseña {!formData.enviar_correo && "*"}
+                  </label>
+
                   <input
                     type="password"
                     className="form-control bg-light"
                     name="password"
                     value={formData.password}
                     onChange={handleChange}
-                    minLength="8"
-                    placeholder="Mínimo 8 caracteres"
-                    required
+                    minLength={8}
+                    placeholder={
+                      formData.enviar_correo
+                        ? "El usuario la configurará por correo"
+                        : "Mínimo 8 caracteres"
+                    }
+                    required={!formData.enviar_correo}
+                    disabled={formData.enviar_correo}
                   />
                 </div>
                 <div className="col-md-6 mb-3">
@@ -203,6 +227,24 @@ export default function NuevoUsuarioModal({ isOpen, onClose, onSuccess }) {
                     <option value="ACTIVO">Activo</option>
                     <option value="REVOCADO">Revocado</option>
                   </select>
+                </div>
+              </div>
+              {/* FILA 5: Enviar correo */}
+              <div className="form-check mb-3">
+                <input
+                  type="checkbox"
+                  className="form-check-input"
+                  id="enviar_correo"
+                  name="enviar_correo"
+                  checked={formData.enviar_correo}
+                  onChange={handleChange}
+                />
+                <label className="form-check-label" htmlFor="enviar_correo">
+                  Enviar enlace para configurar contraseña por correo
+                </label>
+                <div className="form-text">
+                  El usuario recibirá un enlace válido durante 30 minutos para
+                  crear su propia contraseña.
                 </div>
               </div>
             </form>

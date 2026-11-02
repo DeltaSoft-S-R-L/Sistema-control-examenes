@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreUsuarioRequest;
 use App\Models\Usuario;
+use App\Mail\BienvenidaUsuarioMail;
+use Illuminate\Support\Facades\Mail;
 use App\Utilities\PasswordHasher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Str;
 
 class UsuarioController extends Controller
 {
@@ -34,18 +37,67 @@ class UsuarioController extends Controller
             'apellido'      => $data['apellido'],
             'correo'        => $data['correo'],
             'username'      => $data['username'],
-            'password_hash' => PasswordHasher::hash($data['password']),
+            'password_hash' => PasswordHasher::hash(
+    $request->boolean('enviar_correo')
+        ? bin2hex(random_bytes(32))
+        : $data['password']
+),
             'id_rol'        => $data['id_rol'],
             'estado'        => $estado,
         ]);
 
         // Cargar la relación de rol para incluirla en la respuesta
         $usuario->load('rol');
+        
+$tokenConfiguracion = null;
+
+if ($request->boolean('enviar_correo')) {
+    // Invalidar cualquier token de configuración anterior.
+    DB::table('password_setup_tokens')
+        ->where('id_usuario', $usuario->id_usuario)
+        ->delete();
+
+    // Generar un token criptográficamente seguro.
+    $tokenConfiguracion = Str::random(64);
+
+    // Guardar solamente su hash, nunca el token original.
+    DB::table('password_setup_tokens')->insert([
+        'id_usuario' => $usuario->id_usuario,
+        'token_hash' => hash('sha256', $tokenConfiguracion),
+        'expires_at' => now()->addMinutes(30),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+}
+        $correoEnviado = false;
+        $errorCorreo = false;
+
+if ($request->boolean('enviar_correo')) {
+    try {
+        $enlaceConfiguracion = rtrim(
+    config('app.frontend_url'),
+    '/'
+) . '/configurar-contrasena?token=' . urlencode($tokenConfiguracion);
+
+Mail::to($usuario->correo)->send(
+    new BienvenidaUsuarioMail($usuario, $enlaceConfiguracion)
+);
+
+        $correoEnviado = true;
+    } catch (\Throwable $e) {
+        $errorCorreo = true;
+
+        report($e);
+    }
+}
 
         return response()->json([
-            'message' => 'Usuario registrado correctamente.',
-            'usuario' => $usuario,
-        ], 201);
+    'message' => $errorCorreo
+        ? 'Usuario registrado correctamente, pero no se pudo enviar el correo.'
+        : 'Usuario registrado correctamente.',
+    'usuario' => $usuario,
+    'correo_enviado' => $correoEnviado,
+], 201);
     }
 
     /**
@@ -111,7 +163,7 @@ class UsuarioController extends Controller
                 'required',
                 'email',
                 'max:150',
-                'regex:/^[^@\s]+@umss\.edu\.bo$/i',
+                'regex:/^[^@\s]+@(umss\.edu\.bo|gmail\.com)$/i',
                 Rule::unique('usuario', 'correo')
                     ->ignore($usuario->id_usuario, 'id_usuario'),
             ],
