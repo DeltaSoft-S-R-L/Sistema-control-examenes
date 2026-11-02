@@ -11,6 +11,7 @@ return new class extends Migration
     {
         Schema::table('habilitacion', function (Blueprint $table) {
             $table->renameColumn('motivo', 'motivo_detalle');
+            $table->string('motivo')->nullable();
             $table->string('motivo_tipo')->nullable();
             $table->unsignedBigInteger('inhabilitado_por')->nullable();
             $table->foreign('inhabilitado_por')

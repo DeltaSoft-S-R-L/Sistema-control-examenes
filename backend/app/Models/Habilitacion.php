@@ -14,11 +14,24 @@ class Habilitacion extends Model
         'id_estudiante',
         'id_examen',
         'estado',
+        'motivo',
         'motivo_tipo',
         'motivo_detalle',
         'inhabilitado_por',
         'inhabilitado_at',
     ];
+
+    public function setMotivoAttribute($value): void
+    {
+        $this->attributes['motivo_detalle'] = $value;
+    }
+
+    public function getMotivoAttribute()
+    {
+        return !empty($this->attributes['motivo_detalle'])
+            ? $this->attributes['motivo_detalle']
+            : ($this->attributes['motivo'] ?? null);
+    }
 
     protected $casts = [
         'inhabilitado_at' => 'datetime',
