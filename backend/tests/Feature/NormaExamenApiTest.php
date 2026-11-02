@@ -276,6 +276,39 @@ class NormaExamenApiTest extends TestCase
         $response->assertStatus(401);
     }
 
+    public function test_sin_token_no_se_puede_crear_ni_eliminar_normas(): void
+    {
+        $headers = ['Accept' => 'application/json'];
+        $norma = NormaExamen::create([
+            'id_examen' => $this->examen1->id_examen,
+            'id_estudiante' => null,
+            'tipo' => 'GENERAL',
+            'descripcion' => 'Norma protegida contra peticiones anonimas.',
+            'created_by' => $this->docenteUser->id_usuario,
+        ]);
+
+        $crear = $this->postJson(
+            "/api/examenes/{$this->examen1->id_examen}/normas",
+            [
+                'tipo' => 'GENERAL',
+                'descripcion' => 'Intento de alta anonimo.',
+            ],
+            $headers
+        );
+        $crear->assertStatus(401);
+
+        $eliminar = $this->deleteJson(
+            "/api/examenes/{$this->examen1->id_examen}/normas/{$norma->id_norma_examen}",
+            [],
+            $headers
+        );
+        $eliminar->assertStatus(401);
+
+        $this->assertDatabaseHas('norma_examen', [
+            'id_norma_examen' => $norma->id_norma_examen,
+        ]);
+    }
+
     public function test_listar_normas_con_filtro_tipo(): void
     {
         NormaExamen::create([
@@ -516,6 +549,28 @@ class NormaExamenApiTest extends TestCase
 
         $response->assertStatus(204);
 
+        $this->assertDatabaseMissing('norma_examen', [
+            'id_norma_examen' => $norma->id_norma_examen,
+        ]);
+    }
+
+    public function test_admin_puede_eliminar_norma_de_un_examen_retorna_204(): void
+    {
+        $norma = NormaExamen::create([
+            'id_examen' => $this->examen1->id_examen,
+            'id_estudiante' => null,
+            'tipo' => 'GENERAL',
+            'descripcion' => 'Norma eliminada por administracion.',
+            'created_by' => $this->docenteUser->id_usuario,
+        ]);
+
+        $response = $this->deleteJson(
+            "/api/examenes/{$this->examen1->id_examen}/normas/{$norma->id_norma_examen}",
+            [],
+            $this->headers($this->adminToken)
+        );
+
+        $response->assertStatus(204);
         $this->assertDatabaseMissing('norma_examen', [
             'id_norma_examen' => $norma->id_norma_examen,
         ]);
