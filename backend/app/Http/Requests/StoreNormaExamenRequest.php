@@ -17,7 +17,7 @@ class StoreNormaExamenRequest extends FormRequest
 
     public function getExamenId(): int|string|null
     {
-        $examen = $this->route('examen');
+        $examen = $this->route('examen') ?? $this->route('id');
 
         if ($examen instanceof Examen) {
             return $examen->id_examen;
@@ -42,8 +42,20 @@ class StoreNormaExamenRequest extends FormRequest
             $merge['descripcion'] = trim($this->descripcion);
         }
 
+        if ($this->has('id_habilitacion') && ! $this->has('estudiante_id') && ! $this->has('id_estudiante')) {
+            $hab = \Illuminate\Support\Facades\DB::table('habilitacion')->where('id_habilitacion', $this->id_habilitacion)->first();
+            if ($hab) {
+                $merge['estudiante_id'] = $hab->id_estudiante;
+                $merge['id_estudiante'] = $hab->id_estudiante;
+            }
+        }
+
         if ($this->has('id_estudiante') && ! $this->has('estudiante_id')) {
             $merge['estudiante_id'] = $this->id_estudiante;
+        }
+
+        if ($this->has('estudiante_id') && ! $this->has('id_estudiante')) {
+            $merge['id_estudiante'] = $this->estudiante_id;
         }
 
         if ($this->has('id_examen') && ! $this->has('examen_id')) {
@@ -63,7 +75,7 @@ class StoreNormaExamenRequest extends FormRequest
             'tipo' => [
                 'required',
                 'string',
-                'in:GENERAL,PARTICULAR',
+                'in:GENERAL,PARTICULAR,general,particular',
             ],
             'descripcion' => [
                 'required',
@@ -75,8 +87,8 @@ class StoreNormaExamenRequest extends FormRequest
                 'nullable',
                 'integer',
                 'exists:estudiante,id_estudiante',
-                'required_if:tipo,PARTICULAR',
-                'prohibited_if:tipo,GENERAL',
+                'required_if:tipo,PARTICULAR,particular',
+                'prohibited_if:tipo,GENERAL,general',
                 new EstudianteHabilitadoEnExamen($examenId),
             ],
         ];
@@ -93,11 +105,11 @@ class StoreNormaExamenRequest extends FormRequest
     {
         return [
             'tipo.required' => 'El tipo de norma es obligatorio.',
-            'tipo.in' => 'El tipo de norma debe ser GENERAL o PARTICULAR.',
+            'tipo.in' => 'El tipo de norma debe ser General o Particular.',
             'descripcion.required' => 'La descripción de la norma es obligatoria.',
             'descripcion.string' => 'La descripción debe ser una cadena de texto.',
             'descripcion.max' => 'La descripción no puede superar los 1000 caracteres.',
-            'estudiante_id.required_if' => 'El estudiante es obligatorio cuando la norma es de tipo PARTICULAR.',
+            'estudiante_id.required_if' => 'Debe seleccionar un estudiante con habilitación válida para este examen.',
             'estudiante_id.prohibited_if' => 'No debe especificarse un estudiante cuando la norma es de tipo GENERAL.',
             'estudiante_id.exists' => 'El estudiante seleccionado no existe en el sistema.',
             'estudiante_id.integer' => 'El identificador del estudiante debe ser un número entero.',
@@ -106,5 +118,17 @@ class StoreNormaExamenRequest extends FormRequest
             'id_examen.exists' => 'El examen seleccionado no existe.',
             'id_examen.integer' => 'El identificador del examen debe ser un número entero.',
         ];
+    }
+
+    protected function failedValidation(\Illuminate\Contracts\Validation\Validator $validator)
+    {
+        $errors = $validator->errors();
+        if ($errors->has('estudiante_id') && ! $errors->has('id_estudiante')) {
+            $errors->add('id_estudiante', $errors->first('estudiante_id'));
+        }
+        if ($errors->has('id_estudiante') && ! $errors->has('estudiante_id')) {
+            $errors->add('estudiante_id', $errors->first('id_estudiante'));
+        }
+        parent::failedValidation($validator);
     }
 }

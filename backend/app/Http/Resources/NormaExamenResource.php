@@ -11,18 +11,30 @@ class NormaExamenResource extends JsonResource
 
     public function toArray(Request $request): array
     {
+        $id = $this->id_norma_examen ?? $this->id_norma ?? $this->id_regla_examen ?? $this->id_regla_individual;
+
         $data = [
-            'id' => $this->id_norma_examen,
+            'id' => $id,
+            'id_norma' => $id,
             'tipo' => $this->tipo,
             'descripcion' => $this->descripcion,
+            'estado' => $this->estado ?? 'ACTIVA',
+            'id_habilitacion' => $this->id_habilitacion ?? null,
         ];
 
         if ($this->tipo === 'PARTICULAR' && $this->estudiante) {
+            $est = $this->estudiante;
             $data['estudiante'] = [
-                'id' => $this->estudiante->id_estudiante,
-                'nombres' => $this->estudiante->nombre,
-                'apellidos' => $this->estudiante->apellido,
-                'CI' => $this->estudiante->ci,
+                'id' => $est->id_estudiante,
+                'id_estudiante' => $est->id_estudiante,
+                'nombre' => $est->nombre,
+                'nombres' => $est->nombre,
+                'apellido' => $est->apellido,
+                'apellidos' => $est->apellido,
+                'nombre_completo' => "{$est->nombre} {$est->apellido}",
+                'ci' => $est->ci,
+                'CI' => $est->ci,
+                'codigo_universitario' => $est->codigo_universitario,
             ];
         }
 
