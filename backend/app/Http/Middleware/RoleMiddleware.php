@@ -22,31 +22,7 @@ class RoleMiddleware
 
         $nombreRol = $usuario->rol?->nombre;
 
-        if (! $nombreRol) {
-            return response()->json([
-                'message' => 'No tiene permisos para realizar esta acción.',
-            ], 403);
-        }
-
-        $normalizedUserRole = strtoupper(trim((string) $nombreRol));
-        $normalizedAllowedRoles = array_map(fn ($r) => strtoupper(trim((string) $r)), $roles);
-
-        $authorized = in_array($normalizedUserRole, $normalizedAllowedRoles, true)
-            || in_array($nombreRol, $roles, true);
-
-        if (! $authorized) {
-            $synonyms = [
-                'ADMIN' => 'ADMINISTRADOR',
-                'ADMINISTRADOR' => 'ADMIN',
-                'CONTROL' => 'CONTROL_INGRESO',
-                'CONTROL_INGRESO' => 'CONTROL',
-            ];
-            if (isset($synonyms[$normalizedUserRole]) && in_array($synonyms[$normalizedUserRole], $normalizedAllowedRoles, true)) {
-                $authorized = true;
-            }
-        }
-
-        if (! $authorized) {
+        if (! $nombreRol || ! in_array($nombreRol, $roles, true)) {
             return response()->json([
                 'message' => 'No tiene permisos para realizar esta acción.',
             ], 403);
