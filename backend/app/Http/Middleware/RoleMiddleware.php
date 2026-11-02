@@ -8,6 +8,10 @@ use Symfony\Component\HttpFoundation\Response;
 
 class RoleMiddleware
 {
+    /**
+     * Permite el acceso únicamente a usuarios con alguno
+     * de los roles indicados en la ruta.
+     */
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
         $usuario = $request->user();
