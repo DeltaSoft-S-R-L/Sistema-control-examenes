@@ -28,7 +28,7 @@ class IngresoController extends Controller
         ]);
 
         $data['id_usuario'] = $request->user()->id_usuario;
-        $data['fecha_hora'] = now();
+        //$data['fecha_hora'] = now();
 
         $ingreso = Ingreso::create($data);
 
