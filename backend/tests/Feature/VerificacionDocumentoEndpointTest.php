@@ -7,6 +7,7 @@ use App\Models\Carrera;
 use App\Models\Estudiante;
 use App\Models\Examen;
 use App\Models\Facultad;
+use App\Models\Habilitacion;
 use App\Models\Ingreso;
 use App\Models\Rol;
 use App\Models\Usuario;
@@ -86,6 +87,13 @@ class VerificacionDocumentoEndpointTest extends TestCase
             'duracion_minutos' => 90,
             'descripcion'      => 'Evaluación parcial presencial',
             'estado'           => 'PROGRAMADO',
+        ]);
+
+        // Habilitación válida del estudiante para el examen
+        Habilitacion::create([
+            'id_estudiante' => $this->estudiante->id_estudiante,
+            'id_examen'     => $this->examen->id_examen,
+            'estado'        => 'HABILITADO',
         ]);
     }
 
@@ -178,6 +186,12 @@ class VerificacionDocumentoEndpointTest extends TestCase
             'id_carrera'           => $this->estudiante->id_carrera,
             'correo'               => 'lucia.morales@umss.edu.bo',
             'estado'               => 'ACTIVO',
+        ]);
+
+        Habilitacion::create([
+            'id_estudiante' => $estudianteComplemento->id_estudiante,
+            'id_examen'     => $this->examen->id_examen,
+            'estado'        => 'HABILITADO',
         ]);
 
         $response = $this->withHeaders([

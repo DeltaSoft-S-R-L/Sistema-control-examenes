@@ -2,19 +2,26 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\EstudianteNoAsociadoException;
 use App\Exceptions\Qr\InvalidSignatureException;
 use App\Exceptions\Qr\TokenMalformedException;
 use App\Exceptions\Qr\UnsupportedVersionException;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\VerificacionResource;
+use App\Models\AsignacionAmbiente;
 use App\Models\Estudiante;
 use App\Models\Examen;
+use App\Models\Habilitacion;
+use App\Models\IntentoIngreso;
+use App\Services\AmbienteValidacionService;
 use App\Services\AuditoriaService;
 use App\Services\AuditService;
 use App\Services\HabilitacionService;
+use App\Services\PertenenciaExamenService;
 use App\Services\QrTokenService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -40,7 +47,12 @@ class VerificacionController extends Controller
      * Verificar identidad de un estudiante mediante escaneo de código QR (S3-VER01-02 / S3-VER01-05).
      * POST /api/verificaciones/qr
      */
-    public function verificarPorQr(Request $request, QrTokenService $qrTokenService, AuditService $auditService): JsonResponse
+    public function verificarPorQr(
+        Request $request,
+        QrTokenService $qrTokenService,
+        AuditService $auditService,
+        PertenenciaExamenService $pertenenciaService
+    ): JsonResponse
     {
         $examenId = $request->input('examen_id');
         $token = $request->input('token');
@@ -133,9 +145,22 @@ class VerificacionController extends Controller
             ], 404);
         }
 
-        // 6. Criterio de No-Persistencia: No escribir en tablas de dominio (asistencia/ingreso es ING-01/ING-02 Sprint 4)
+        // 6. Validar pertenencia del estudiante al examen (VER-03 / S4-VER03-01 / S4-VER03-02)
+        try {
+            $pertenenciaService->verificarPertenencia((int) $estudiante->id_estudiante, (int) $examen->id_examen);
+        } catch (EstudianteNoAsociadoException $e) {
+            $this->registrarIntentoIndebidoExamenAjeno($request, $estudiante, (int) $examen->id_examen, 'QR');
 
-        // 7. Registrar auditoría de verificación exitosa
+            return response()->json([
+                'message' => 'El estudiante no pertenece a este examen.',
+                'code'    => 'NO_ASOCIADO',
+                'error'   => 'NO_ASOCIADO',
+            ], 422);
+        }
+
+        // 7. Criterio de No-Persistencia: No escribir en tablas de dominio (asistencia/ingreso es ING-01/ING-02 Sprint 4)
+
+        // 8. Registrar auditoría de verificación exitosa
         $this->auditar($auditService, [
             'metodo'        => 'QR',
             'examen_id'     => (int) $examenId,
@@ -143,7 +168,7 @@ class VerificacionController extends Controller
             'resultado'     => 'EXITOSO',
         ]);
 
-        // 8. Retornar recurso estandarizado
+        // 9. Retornar recurso estandarizado
         $resource = new VerificacionResource('QR', $estudiante, $examen);
 
         return response()->json($resource->resolve(), 200);
@@ -153,7 +178,11 @@ class VerificacionController extends Controller
      * Verificar identidad de un estudiante mediante CI o código SIS (S3-VER01-03 / S3-VER01-05).
      * POST /api/verificaciones/documento
      */
-    public function verificarPorDocumento(Request $request, AuditService $auditService): JsonResponse
+    public function verificarPorDocumento(
+        Request $request,
+        AuditService $auditService,
+        PertenenciaExamenService $pertenenciaService
+    ): JsonResponse
     {
         // 1. Normalización estricta de entrada
         $rawTipo = $request->input('tipo');
@@ -236,9 +265,22 @@ class VerificacionController extends Controller
             ], 404);
         }
 
-        // 5. Criterio de No-Persistencia: No escribir en tablas de dominio (asistencia/ingreso es ING-01/ING-02 Sprint 4)
+        // 5. Validar pertenencia del estudiante al examen (VER-03 / S4-VER03-01 / S4-VER03-02)
+        try {
+            $pertenenciaService->verificarPertenencia((int) $estudiante->id_estudiante, (int) $examen->id_examen);
+        } catch (EstudianteNoAsociadoException $e) {
+            $this->registrarIntentoIndebidoExamenAjeno($request, $estudiante, (int) $examen->id_examen, 'DOCUMENTO');
 
-        // 6. Registrar auditoría de verificación exitosa
+            return response()->json([
+                'message' => 'El estudiante no pertenece a este examen.',
+                'code'    => 'NO_ASOCIADO',
+                'error'   => 'NO_ASOCIADO',
+            ], 422);
+        }
+
+        // 6. Criterio de No-Persistencia: No escribir en tablas de dominio (asistencia/ingreso es ING-01/ING-02 Sprint 4)
+
+        // 7. Registrar auditoría de verificación exitosa
         $this->auditar($auditService, [
             'metodo'        => $tipo,
             'examen_id'     => (int) $examenId,
@@ -246,10 +288,163 @@ class VerificacionController extends Controller
             'resultado'     => 'EXITOSO',
         ]);
 
-        // 7. Retornar recurso estandarizado (metodo: CI | SIS)
+        // 8. Retornar recurso estandarizado (metodo: CI | SIS)
         $resource = new VerificacionResource($tipo, $estudiante, $examen);
 
         return response()->json($resource->resolve(), 200);
+    }
+
+    /**
+     * Registrar intento indebido de ingreso a examen ajeno y su correspondiente auditoría (S4-VER03-02).
+     */
+    private function registrarIntentoIndebidoExamenAjeno(Request $request, Estudiante $estudiante, int $idExamen, string $metodo): void
+    {
+        $idUsuario = Auth::guard('sanctum')->id()
+            ?? $request->user()?->id_usuario
+            ?? $request->user()?->id;
+
+        $idAsignacionAmbiente = $request->input('id_asignacion_ambiente')
+            ?? $request->input('asignacion_ambiente_id')
+            ?? $request->input('ambiente_id');
+
+        // 1. Persistir en la tabla existente intento_ingreso con tolerancia a fallos
+        try {
+            IntentoIngreso::create([
+                'id_estudiante'          => $estudiante->id_estudiante,
+                'id_examen'              => $idExamen,
+                'id_asignacion_ambiente' => $idAsignacionAmbiente ? (int) $idAsignacionAmbiente : null,
+                'id_usuario'             => $idUsuario ? (int) $idUsuario : null,
+                'fecha_hora'             => now(),
+                'motivo'                 => 'EXAMEN_NO_CORRESPONDIENTE',
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Error al persistir intento de ingreso indebido: ' . $e->getMessage(), [
+                'id_estudiante' => $estudiante->id_estudiante,
+                'id_examen'     => $idExamen,
+                'exception'     => $e,
+            ]);
+        }
+
+        // 2. Registrar en audit_logs mediante AuditService con tolerancia a fallos
+        try {
+            AuditService::registrar(
+                accion: 'INTENTO_INGRESO_EXAMEN_AJENO',
+                entidad: 'estudiante',
+                idRegistro: (string) $estudiante->id_estudiante,
+                informacion: [
+                    'id_examen_intentado' => $idExamen,
+                    'metodo'              => $metodo,
+                    'motivo'              => 'EXAMEN_NO_CORRESPONDIENTE',
+                ],
+                idUsuario: $idUsuario
+            );
+        } catch (\Throwable $e) {
+            Log::error('Error al registrar auditoría de intento de ingreso indebido: ' . $e->getMessage(), [
+                'id_estudiante' => $estudiante->id_estudiante,
+                'id_examen'     => $idExamen,
+                'exception'     => $e,
+            ]);
+        }
+    }
+
+    /**
+     * Verificar discrepancia de ambiente asignado vs actual del controlador de puerta (ING-04).
+     * POST /api/verificaciones/ambiente
+     */
+    public function verificarAmbiente(
+        Request $request,
+        AmbienteValidacionService $ambienteService
+    ): JsonResponse {
+        $validated = $request->validate([
+            'id_examen'              => ['required', 'integer', 'exists:examen,id_examen'],
+            'id_asignacion_ambiente' => ['required', 'integer', 'exists:asignacion_ambiente,id_asignacion_ambiente'],
+            'id_habilitacion'        => ['nullable', 'integer', 'exists:habilitacion,id_habilitacion'],
+            'id_estudiante'          => ['nullable', 'integer', 'exists:estudiante,id_estudiante'],
+        ], [
+            'id_examen.required'              => 'El campo id_examen es obligatorio.',
+            'id_examen.exists'                => 'El examen especificado no existe.',
+            'id_asignacion_ambiente.required' => 'El campo id_asignacion_ambiente es obligatorio.',
+            'id_asignacion_ambiente.exists'   => 'La asignación de ambiente especificada no existe.',
+        ]);
+
+        if (empty($validated['id_habilitacion']) && empty($validated['id_estudiante'])) {
+            return response()->json([
+                'message' => 'Debe proporcionar id_habilitacion o id_estudiante.',
+                'code'    => 'DATOS_INSUFICIENTES',
+                'error'   => 'DATOS_INSUFICIENTES',
+            ], 422);
+        }
+
+        $idUsuario = Auth::guard('sanctum')->id()
+            ?? $request->user()?->id_usuario
+            ?? $request->user()?->id;
+
+        if (!$idUsuario) {
+            return response()->json([
+                'message' => 'No autenticado.',
+            ], 401);
+        }
+
+        // Buscar habilitación
+        $habilitacion = null;
+        if (!empty($validated['id_habilitacion'])) {
+            $habilitacion = Habilitacion::with(['estudiante', 'asignacionAmbiente.ambiente'])->find($validated['id_habilitacion']);
+        } elseif (!empty($validated['id_estudiante'])) {
+            $habilitacion = Habilitacion::with(['estudiante', 'asignacionAmbiente.ambiente'])
+                ->where('id_estudiante', $validated['id_estudiante'])
+                ->where('id_examen', $validated['id_examen'])
+                ->first();
+        }
+
+        if (!$habilitacion || (int) $habilitacion->id_examen !== (int) $validated['id_examen']) {
+            return response()->json([
+                'message' => 'El estudiante no pertenece a este examen.',
+                'code'    => 'NO_ASOCIADO',
+                'error'   => 'NO_ASOCIADO',
+            ], 422);
+        }
+
+        // Validar estado de HABILITADO
+        if (strtoupper(trim((string) $habilitacion->estado)) !== 'HABILITADO') {
+            return response()->json([
+                'message' => 'El estudiante no se encuentra habilitado para este examen.',
+                'code'    => 'NO_HABILITADO',
+                'error'   => 'NO_HABILITADO',
+            ], 403);
+        }
+
+        // Validar que la asignación de ambiente pertenezca al examen
+        $asignacionAmbiente = AsignacionAmbiente::find($validated['id_asignacion_ambiente']);
+        if (!$asignacionAmbiente || (int) $asignacionAmbiente->id_examen !== (int) $validated['id_examen']) {
+            return response()->json([
+                'message' => 'El ambiente seleccionado no corresponde a este examen.',
+                'code'    => 'AMBIENTE_NO_CORRESPONDE',
+                'error'   => 'AMBIENTE_NO_CORRESPONDE',
+            ], 422);
+        }
+
+        // Validar correspondencia
+        $resultado = $ambienteService->validarCorrespondencia(
+            $habilitacion,
+            (int) $validated['id_asignacion_ambiente'],
+            (int) $idUsuario
+        );
+
+        if (!$resultado['valido']) {
+            return response()->json([
+                'message'           => 'El estudiante está habilitado, pero le corresponde ingresar en otro ambiente.',
+                'code'              => 'AULA_INCORRECTA',
+                'error'             => 'AULA_INCORRECTA',
+                'ambiente_asignado' => $resultado['ambiente_asignado'],
+            ], 422);
+        }
+
+        return response()->json([
+            'valido'            => true,
+            'coincide'          => true,
+            'message'           => 'El ambiente corresponde al estudiante.',
+            'ambiente_asignado' => $resultado['ambiente_asignado'],
+        ], 200);
     }
 
     // ─────────────────────────────────────────────────────────────────

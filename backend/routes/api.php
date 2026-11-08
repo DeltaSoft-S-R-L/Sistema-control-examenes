@@ -192,7 +192,7 @@ Route::get('/docente/mis-materias', [
     Route::get('/ingresos', [IngresoController::class, 'index']);
     Route::get('/ingresos/{ingreso}', [IngresoController::class, 'show']);
 
-    Route::middleware('permission:REGISTRAR_INGRESOS')->group(function () {
+    Route::middleware('role:CONTROL_INGRESO,ADMINISTRADOR,control,admin')->group(function () {
         Route::post('/ingresos', [IngresoController::class, 'store']);
         Route::put('/ingresos/{ingreso}', [IngresoController::class, 'update']);
         Route::patch('/ingresos/{ingreso}', [IngresoController::class, 'update']);
@@ -224,6 +224,8 @@ Route::get('/docente/mis-materias', [
     Route::post('/verificaciones/qr', [VerificacionController::class, 'verificarPorQr'])
         ->middleware(['role:CONTROL_INGRESO,ADMINISTRADOR', 'throttle:60,1']);
     Route::post('/verificaciones/documento', [VerificacionController::class, 'verificarPorDocumento'])
+        ->middleware(['role:CONTROL_INGRESO,ADMINISTRADOR', 'throttle:60,1']);
+    Route::post('/verificaciones/ambiente', [VerificacionController::class, 'verificarAmbiente'])
         ->middleware(['role:CONTROL_INGRESO,ADMINISTRADOR', 'throttle:60,1']);
 
     /*
