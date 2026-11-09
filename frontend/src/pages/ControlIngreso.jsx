@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
 import StudentCard from '../components/estudiantes/StudentCard';
 import MotivoInhabilitacionModal from '../components/habilitaciones/MotivoInhabilitacionModal';
+import { getUsuario } from '../utils/auth';
 
 export default function ControlIngreso() {
   const [examenes, setExamenes] = useState([]);
@@ -17,6 +18,7 @@ export default function ControlIngreso() {
   const [errorAlerta, setErrorAlerta] = useState(null);
   const [resultado, setResultado] = useState(null); // Objeto de respuesta
   const [mostrarModalMotivo, setMostrarModalMotivo] = useState(false);
+  const [operador, setOperador] = useState(null);
 
   // Cámara para QR en celular
   const [camaraActiva, setCamaraActiva] = useState(false);
@@ -26,6 +28,7 @@ export default function ControlIngreso() {
   const inputIdentificadorRef = useRef(null);
 
   useEffect(() => {
+    setOperador(getUsuario());
     cargarExamenes();
   }, []);
 
@@ -167,6 +170,13 @@ export default function ControlIngreso() {
           <i className="bi bi-shield-check me-2"></i>Control de Ingreso
         </h3>
         <p className="text-muted small mb-0">Verificación de credenciales en tiempo real</p>
+        
+        {operador && (
+          <div className="mt-2 d-inline-block bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-pill px-3 py-1 fw-semibold small">
+            <i className="bi bi-person-badge me-2"></i>
+            Controlador: {operador.nombres || operador.nombre} {operador.apellidos || operador.apellido}
+          </div>
+        )}
       </div>
 
       {/* Selector de Examen Activo */}
@@ -347,9 +357,11 @@ export default function ControlIngreso() {
         /* ========================================================================= */
         <div>
           <StudentCard
+            estado={resultado.habilitacion?.estado}
             estudiante={resultado.estudiante}
-            habilitacion={resultado.habilitacion}
-            onSiguiente={handleSiguienteEstudiante}
+            examen={examenes.find(e => e.id_examen === examenSeleccionado)}
+            fechaHora={resultado.timestamp || resultado.habilitacion?.updated_at || new Date().toISOString()}
+            onSiguienteEstudiante={handleSiguienteEstudiante}
             onVerMotivo={() => setMostrarModalMotivo(true)}
           />
 

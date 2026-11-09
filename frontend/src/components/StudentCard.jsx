@@ -38,9 +38,19 @@ function valorEstudiante(estudiante, claves) {
   return '—';
 }
 
-export default function StudentCard({ estado, estudiante, examen, onSiguienteEstudiante }) {
+export default function StudentCard({ estado, estudiante, examen, onSiguienteEstudiante, fechaHora }) {
   const variante = VARIANTES[normalizarEstado(estado)];
   if (!variante) return null;
+
+  // Función para formatear la fecha a DD/MM/AAAA HH:MM
+  const formatearFechaHora = (isoString) => {
+    if (!isoString) return '—';
+    const fecha = new Date(isoString);
+    return fecha.toLocaleString('es-BO', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: false
+    });
+  };
 
   const nombre = valorEstudiante(estudiante, ['nombre_completo', 'nombre_estudiante', 'nombre']);
   const ci = valorEstudiante(estudiante, ['ci', 'documento']);
@@ -61,9 +71,17 @@ export default function StudentCard({ estado, estudiante, examen, onSiguienteEst
         <div><dt>CI</dt><dd>{ci}</dd></div>
         <div><dt>Código SIS</dt><dd>{sis}</dd></div>
         <div><dt>Examen</dt><dd>{nombreExamen || '—'}</dd></div>
+        
+        {/* Nuevo campo de Fecha y Hora de Ingreso */}
+        {fechaHora && (
+          <div className="bg-light rounded p-1 mt-1 text-primary">
+            <dt><i className="bi bi-clock-history me-1"></i>Hora de Ingreso</dt>
+            <dd className="fw-bold m-0 ps-1">{formatearFechaHora(fechaHora)}</dd>
+          </div>
+        )}
       </dl>
       {onSiguienteEstudiante && (
-        <button type="button" className={`btn btn-${variante.tipo} w-100 student-card__next`} onClick={onSiguienteEstudiante}>
+        <button type="button" className={`btn btn-${variante.tipo} w-100 student-card__next mt-3`} onClick={onSiguienteEstudiante}>
           <i className="bi bi-arrow-right-circle me-2" aria-hidden="true" />Siguiente estudiante
         </button>
       )}
