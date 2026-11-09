@@ -29,3 +29,4 @@ class IngresoResource extends JsonResource
         ];
     }
 }
+

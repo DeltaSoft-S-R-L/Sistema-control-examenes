@@ -76,3 +76,4 @@ class IngresoExamen extends Model
         return $this->hasOne(Expulsion::class, 'id_ingreso', 'id_ingreso');
     }
 }
+
