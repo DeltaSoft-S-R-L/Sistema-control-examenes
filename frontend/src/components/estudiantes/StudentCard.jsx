@@ -8,6 +8,7 @@ import React from 'react';
 export default function StudentCard({
   estudiante,
   habilitacion,
+  examen,
   onSiguiente,
   onVerMotivo,
 }) {
@@ -15,6 +16,42 @@ export default function StudentCard({
 
   const esHabilitado = habilitacion?.estado === 'HABILITADO';
   const esNoAsociado = habilitacion?.estado === 'NO_ASOCIADO';
+  const estado = String(habilitacion?.estado || '').toUpperCase();
+  const esAulaIncorrecta = ['AULA_INCORRECTA', 'AULA_NO_CORRESPONDE', 'AULA_DISCREPANTE', 'AMBIENTE_INCORRECTO'].includes(estado);
+  const aula = habilitacion?.aula_asignada || habilitacion?.ambiente_asignado || habilitacion?.aula || habilitacion?.ambiente
+    || examen?.aula_asignada || examen?.ambiente_asignado || examen?.aula || examen?.ambiente;
+  const nombreAula = typeof aula === 'string' ? aula : (aula?.nombre || aula?.codigo || aula?.nombre_ambiente);
+  const bloque = habilitacion?.bloque || aula?.bloque || examen?.bloque;
+  const piso = habilitacion?.piso || aula?.piso || examen?.piso;
+
+  if (esAulaIncorrecta) {
+    return (
+      <div className="card student-card student-card--room-warning shadow-lg rounded-4 p-4 text-center mb-3" role="status" aria-live="polite">
+        <div className="mb-2">
+          <i className="bi bi-exclamation-triangle-fill display-2" aria-hidden="true"></i>
+        </div>
+        <h2 className="fw-bold text-uppercase mb-2">Aula incorrecta</h2>
+        <p className="student-card__room-instruction mb-2">DEBE DIRIGIRSE AL AULA:</p>
+        <p className="student-card__room-name">{nombreAula || 'Aula asignada no disponible'}</p>
+        {(bloque || piso) && (
+          <p className="student-card__room-location">
+            {[bloque && `Bloque ${bloque}`, piso && `Piso ${piso}`].filter(Boolean).join(' · ')}
+          </p>
+        )}
+        <div className="bg-white rounded-3 p-3 text-start shadow-sm mb-3 border">
+          <small className="text-muted text-uppercase fw-bold d-block">Estudiante</small>
+          <span className="fs-5 fw-bold text-dark">{estudiante.nombre} {estudiante.apellido}</span>
+          <div className="mt-2"><small className="text-muted text-uppercase fw-bold d-block">C.I.</small><span className="fw-bold text-dark">{estudiante.ci}</span></div>
+          {(estudiante.codigo_universitario || estudiante.codigo_sis) && (
+            <div className="mt-2"><small className="text-muted text-uppercase fw-bold d-block">Código SIS</small><span className="fw-bold text-dark">{estudiante.codigo_universitario || estudiante.codigo_sis}</span></div>
+          )}
+        </div>
+        <button type="button" className="btn btn-warning btn-lg w-100 py-3 fw-bold fs-5 shadow" onClick={onSiguiente}>
+          <i className="bi bi-arrow-right-circle me-2" aria-hidden="true"></i>Siguiente estudiante
+        </button>
+      </div>
+    );
+  }
 
   if (esHabilitado) {
     return (

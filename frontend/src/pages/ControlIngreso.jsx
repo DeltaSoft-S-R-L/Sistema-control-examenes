@@ -349,6 +349,7 @@ export default function ControlIngreso() {
           <StudentCard
             estudiante={resultado.estudiante}
             habilitacion={resultado.habilitacion}
+            examen={resultado.examen}
             onSiguiente={handleSiguienteEstudiante}
             onVerMotivo={() => setMostrarModalMotivo(true)}
           />
