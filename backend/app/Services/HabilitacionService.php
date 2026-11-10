@@ -5,13 +5,14 @@ namespace App\Services;
 use App\Models\Estudiante;
 use App\Models\Examen;
 use App\Models\Habilitacion;
+use App\Models\Ingreso;
 
 class HabilitacionService
 {
     /**
      * Consulta el estado de habilitación de un estudiante para una sesión de examen específica.
      *
-     * @return array{estado: string, habilitado: bool, motivo: ?string, id_habilitacion: ?int}
+     * @return array{estado: string, habilitado: bool, motivo: ?string, id_habilitacion: ?int, ingreso_previo?: array{fecha_hora: ?string, ambiente: ?string}}
      */
     public static function verificarHabilitacion(Estudiante $estudiante, Examen $examen): array
     {
@@ -43,6 +44,25 @@ class HabilitacionService
 
         // 3. Estudiante habilitado
         if ($estado === 'HABILITADO') {
+            $ingresoPrevio = Ingreso::with('asignacionAmbiente.ambiente')
+                ->where('id_habilitacion', $habilitacion->id_habilitacion)
+                ->where('id_examen', $examen->id_examen)
+                ->orderBy('fecha_hora')
+                ->first();
+
+            if ($ingresoPrevio) {
+                return [
+                    'estado'          => 'REINGRESO',
+                    'habilitado'      => false,
+                    'motivo'          => 'El estudiante ya registró un ingreso para este examen.',
+                    'id_habilitacion' => $habilitacion->id_habilitacion,
+                    'ingreso_previo'  => [
+                        'fecha_hora' => $ingresoPrevio->fecha_hora?->toIso8601String(),
+                        'ambiente'   => $ingresoPrevio->asignacionAmbiente?->ambiente?->nombre,
+                    ],
+                ];
+            }
+
             return [
                 'estado'          => 'HABILITADO',
                 'habilitado'      => true,
