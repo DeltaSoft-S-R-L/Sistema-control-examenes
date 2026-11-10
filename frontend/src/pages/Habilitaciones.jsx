@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '../services/api';
+import MotivoInhabilitacionModal from '../components/habilitaciones/MotivoInhabilitacionModal';
 
 const obtenerDatos = (respuesta) => respuesta.data.data || respuesta.data || [];
 
@@ -17,6 +18,9 @@ export default function Habilitaciones() {
   const [guardando, setGuardando] = useState(false);
   const [revocando, setRevocando] = useState(null);
   const [mensaje, setMensaje] = useState(null);
+  const [estudianteMotivo, setEstudianteMotivo] = useState(null);
+
+  const cerrarMotivoInhabilitacion = useCallback(() => setEstudianteMotivo(null), []);
 
   const cargarExamenes = async () => {
     try {
@@ -62,7 +66,8 @@ export default function Habilitaciones() {
 
     try {
       const respuesta = await api.get('/habilitaciones', {
-        params: { id_examen: idExamen, estado: 'HABILITADO' },
+        // Una sola consulta por examen permite mostrar ambos estados en la tabla.
+        params: { id_examen: idExamen, per_page: 1000 },
       });
       setHabilitaciones(obtenerDatos(respuesta));
     } catch (error) {
@@ -78,6 +83,10 @@ export default function Habilitaciones() {
   const idsPagina = useMemo(
     () => estudiantes.map((estudiante) => estudiante.id_estudiante),
     [estudiantes],
+  );
+  const habilitacionesPorEstudiante = useMemo(
+    () => new Map(habilitaciones.map((habilitacion) => [Number(habilitacion.id_estudiante), habilitacion])),
+    [habilitaciones],
   );
   const paginaSeleccionada = idsPagina.length > 0 && idsPagina.every((id) => seleccionados.includes(id));
 
@@ -144,17 +153,42 @@ export default function Habilitaciones() {
     const nombre = `${habilitacion.estudiante?.nombre ?? ''} ${habilitacion.estudiante?.apellido ?? ''}`.trim();
     if (!window.confirm(`¿Revocar la habilitación de ${nombre || 'este estudiante'} para el examen seleccionado?`)) return;
 
+    const motivo = window.prompt('Indique el motivo de la revocación (máximo 500 caracteres):');
+    if (motivo === null) return;
+
+    const motivoLimpio = motivo.trim();
+    if (!motivoLimpio) {
+      setMensaje({ tipo: 'warning', texto: 'Debe indicar un motivo para revocar la habilitación.' });
+      return;
+    }
+    if (motivoLimpio.length > 500) {
+      setMensaje({ tipo: 'warning', texto: 'El motivo no puede superar los 500 caracteres.' });
+      return;
+    }
+
     setRevocando(habilitacion.id_habilitacion);
     setMensaje(null);
     try {
       await api.patch(`/habilitaciones/${habilitacion.id_habilitacion}`, {
         estado: 'NO_HABILITADO',
+        motivo: motivoLimpio,
       });
-      setHabilitaciones((actuales) => actuales.filter((actual) => actual.id_habilitacion !== habilitacion.id_habilitacion));
+      setHabilitaciones((actuales) => actuales.map((actual) => (
+        actual.id_habilitacion === habilitacion.id_habilitacion
+          ? { ...actual, estado: 'NO_HABILITADO', motivo: motivoLimpio }
+          : actual
+      )));
       setMensaje({ tipo: 'success', texto: `Se revocó la habilitación de ${nombre || 'el estudiante'}.` });
     } catch (error) {
       console.error('Error al revocar habilitación:', error);
-      setMensaje({ tipo: 'danger', texto: 'No se pudo revocar la habilitación. Intente nuevamente.' });
+      const respuesta = error.response?.data;
+      const mensajeValidacion = respuesta?.errors
+        ? Object.values(respuesta.errors).flat().find(Boolean)
+        : null;
+      setMensaje({
+        tipo: 'danger',
+        texto: mensajeValidacion || respuesta?.message || 'No se pudo revocar la habilitación. Intente nuevamente.',
+      });
     } finally {
       setRevocando(null);
     }
@@ -239,15 +273,20 @@ export default function Habilitaciones() {
                   <th>CI</th>
                   <th>Nombre completo</th>
                   <th>Correo</th>
+                  <th>Estado</th>
+                  <th className="text-end pe-4">Motivo</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan="5" className="text-center py-5">Cargando estudiantes...</td></tr>
+                  <tr><td colSpan="7" className="text-center py-5">Cargando estudiantes...</td></tr>
                 ) : estudiantes.length === 0 ? (
-                  <tr><td colSpan="5" className="text-center py-5 text-muted">No se encontraron estudiantes activos.</td></tr>
+                  <tr><td colSpan="7" className="text-center py-5 text-muted">No se encontraron estudiantes activos.</td></tr>
                 ) : estudiantes.map((estudiante) => (
-                  <tr key={estudiante.id_estudiante}>
+                  (() => {
+                    const habilitacion = habilitacionesPorEstudiante.get(Number(estudiante.id_estudiante));
+                    const inhabilitado = habilitacion?.estado === 'NO_HABILITADO';
+                    return <tr key={estudiante.id_estudiante}>
                     <td className="ps-4">
                       <input
                         className="form-check-input"
@@ -261,7 +300,22 @@ export default function Habilitaciones() {
                     <td>{estudiante.ci}</td>
                     <td>{estudiante.nombre} {estudiante.apellido}</td>
                     <td className="text-muted">{estudiante.correo || '-'}</td>
-                  </tr>
+                    <td>
+                      {inhabilitado ? (
+                        <span className="badge text-bg-danger"><i className="bi bi-person-x-fill me-1" aria-hidden="true" />Inhabilitado</span>
+                      ) : habilitacion?.estado === 'HABILITADO' ? (
+                        <span className="badge text-bg-success">Habilitado</span>
+                      ) : <span className="text-muted">—</span>}
+                    </td>
+                    <td className="text-end pe-4">
+                      {inhabilitado && (
+                        <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => setEstudianteMotivo({ estudiante, habilitacion })}>
+                          Ver motivo
+                        </button>
+                      )}
+                    </td>
+                  </tr>;
+                  })()
                 ))}
               </tbody>
             </table>
@@ -294,7 +348,7 @@ export default function Habilitaciones() {
                   <tr><th className="ps-4">Código</th><th>CI</th><th>Estudiante</th><th>Correo</th><th className="text-end pe-4">Acción</th></tr>
                 </thead>
                 <tbody>
-                  {habilitaciones.map((habilitacion) => {
+                  {habilitaciones.filter((habilitacion) => habilitacion.estado === 'HABILITADO').map((habilitacion) => {
                     const estudiante = habilitacion.estudiante || {};
                     return (
                       <tr key={habilitacion.id_habilitacion}>
@@ -321,6 +375,15 @@ export default function Habilitaciones() {
           )}
         </div>
       </div>
+
+
+      {estudianteMotivo && (
+        <MotivoInhabilitacionModal
+          estudiante={estudianteMotivo.estudiante}
+          motivo={estudianteMotivo.habilitacion.motivo}
+          onClose={cerrarMotivoInhabilitacion}
+        />
+      )}
     </div>
   );
 }

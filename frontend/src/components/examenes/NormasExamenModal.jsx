@@ -49,12 +49,13 @@ export default function NormasExamenModal({ isOpen, onClose, examen }) {
       return;
     }
 
-    setEliminandoId(norma.id_norma);
+    const idNorma = norma.id_norma ?? norma.id;
+    setEliminandoId(idNorma);
     setMensaje(null);
     setError(null);
 
     try {
-      await api.delete(`/examenes/${examen.id_examen}/normas/${norma.id_norma}`, {
+      await api.delete(`/examenes/${examen.id_examen}/normas/${idNorma}`, {
         params: { tipo: norma.tipo },
       });
       setMensaje('Norma eliminada correctamente.');
@@ -204,10 +205,10 @@ export default function NormasExamenModal({ isOpen, onClose, examen }) {
                                 type="button"
                                 className="btn btn-sm btn-outline-danger"
                                 title="Eliminar norma"
-                                disabled={eliminandoId === norma.id_norma}
+                                disabled={eliminandoId === (norma.id_norma ?? norma.id)}
                                 onClick={() => handleEliminarNorma(norma)}
                               >
-                                {eliminandoId === norma.id_norma ? (
+                                {eliminandoId === (norma.id_norma ?? norma.id) ? (
                                   <span className="spinner-border spinner-border-sm" role="status"></span>
                                 ) : (
                                   <i className="bi bi-trash"></i>

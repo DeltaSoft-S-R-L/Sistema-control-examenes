@@ -1,142 +1,135 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import api from '../../services/api';
 
-/**
- * Modal para visualizar el motivo de inhabilitación o rechazo de un estudiante.
- * - Si recibe el prop `motivo` pre-cargado, lo muestra directamente sin hacer peticiones a la API.
- * - Si `estado === 'NO_ASOCIADO'`, muestra el mensaje explicativo adecuado sin petición.
- * - Si NO recibe `motivo` pero sí `idHabilitacion` (uso en listado HAB-02), consulta `GET /api/habilitaciones/{id}`.
- */
+const valor = (...valores) => valores.find((dato) => dato !== undefined && dato !== null && dato !== '');
+
+const etiquetasTipo = {
+  ACADEMICO: 'Académico',
+  ADMINISTRATIVO: 'Administrativo',
+  DOCUMENTAL: 'Documental',
+  DISCIPLINARIO: 'Disciplinario',
+  MORA: 'Mora',
+  DOCUMENTACION: 'Documentación',
+  OTRO: 'Otro',
+  GENERAL: 'General',
+};
+
+const claseTipo = (tipo) => ({
+  ACADEMICO: 'text-bg-primary',
+  ADMINISTRATIVO: 'text-bg-warning',
+  DOCUMENTAL: 'text-bg-info',
+  DISCIPLINARIO: 'text-bg-danger',
+  MORA: 'text-bg-warning',
+  DOCUMENTACION: 'text-bg-info',
+  OTRO: 'text-bg-secondary',
+  GENERAL: 'text-bg-secondary',
+}[tipo] || 'text-bg-dark');
+
 export default function MotivoInhabilitacionModal({
-  isOpen,
+  isOpen = true,
   onClose,
   idHabilitacion,
-  motivo: motivoProp,
+  motivo: motivoDato,
   estado,
-  estudiante,
+  estudiante: estudianteDato,
 }) {
-  const [motivoCargado, setMotivoCargado] = useState('');
+  const [motivoCargado, setMotivoCargado] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const dialogRef = useRef(null);
+  const closeRef = useRef(null);
+  const tituloId = useId();
 
   useEffect(() => {
-    if (!isOpen) {
-      setError(null);
-      return;
-    }
-
-    // 1. Si ya se recibe el motivo cargado directamente (desde verificación o estado previo)
-    if (motivoProp !== undefined && motivoProp !== null) {
-      setMotivoCargado(motivoProp);
+    if (!isOpen || motivoDato != null || !idHabilitacion) {
+      setMotivoCargado(null);
       setLoading(false);
       setError(null);
-      return;
+      return undefined;
     }
 
-    // 2. Si no viene motivo pero sí idHabilitacion (caso HAB-02 listado)
-    if (idHabilitacion) {
-      setLoading(true);
-      setError(null);
-      api
-        .get(`/habilitaciones/${idHabilitacion}`)
-        .then((res) => {
-          const data = res.data?.data || res.data || {};
-          setMotivoCargado(data.motivo || '');
-        })
-        .catch((err) => {
-          console.error('Error al obtener motivo de inhabilitación:', err);
-          setError('No se pudo cargar el motivo de inhabilitación.');
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    } else {
-      setMotivoCargado('');
-      setLoading(false);
-    }
-  }, [isOpen, motivoProp, idHabilitacion]);
+    let activo = true;
+    setLoading(true);
+    api.get(`/habilitaciones/${idHabilitacion}`)
+      .then((res) => {
+        if (activo) setMotivoCargado(res.data?.data || res.data || null);
+      })
+      .catch((err) => {
+        console.error('Error al obtener motivo de inhabilitación:', err);
+        if (activo) setError('No se pudo cargar el motivo de inhabilitación.');
+      })
+      .finally(() => {
+        if (activo) setLoading(false);
+      });
+
+    return () => { activo = false; };
+  }, [isOpen, motivoDato, idHabilitacion]);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const dialog = dialogRef.current;
+    const anterior = document.activeElement;
+    closeRef.current?.focus();
+    const atraparFoco = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose?.();
+      } else if (event.key === 'Tab' && dialog) {
+        const focuseables = [...dialog.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')];
+        if (!focuseables.length) { event.preventDefault(); dialog.focus(); return; }
+        const primero = focuseables[0];
+        const ultimo = focuseables[focuseables.length - 1];
+        if (event.shiftKey && document.activeElement === primero) { event.preventDefault(); ultimo.focus(); }
+        else if (!event.shiftKey && document.activeElement === ultimo) { event.preventDefault(); primero.focus(); }
+      }
+    };
+    document.addEventListener('keydown', atraparFoco);
+    return () => {
+      document.removeEventListener('keydown', atraparFoco);
+      anterior?.focus?.();
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
+  const estudiante = estudianteDato || {};
+  const registro = motivoDato ?? motivoCargado ?? {};
+  const motivo = typeof registro === 'string' ? { motivo: registro } : (registro || {});
+  const tipo = String(valor(motivo.motivo_tipo, motivo.tipo_motivo, motivo.tipo, motivo.categoria, 'OTRO')).toUpperCase();
+  const detalle = valor(motivo.motivo_detalle, motivo.detalle, motivo.motivo, motivo.descripcion, motivo.observacion);
+  const inhabilitadoPor = valor(motivo.inhabilitado_por?.nombre, motivo.inhabilitado_por, motivo.usuario?.nombre, motivo.usuario?.name, motivo.creado_por);
+  const fecha = valor(motivo.inhabilitado_at, motivo.inhabilitado_en, motivo.fecha_inhabilitacion, motivo.created_at, motivo.fecha);
+  const nombre = `${valor(estudiante.nombre, '')} ${valor(estudiante.apellido, '')}`.trim();
   const esNoAsociado = estado === 'NO_ASOCIADO';
 
   return (
-    <div
-      className="modal fade show d-block"
-      tabIndex="-1"
-      role="dialog"
-      aria-modal="true"
-      style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)', zIndex: 1055 }}
-    >
-      <div className="modal-dialog modal-dialog-centered">
-        <div className="modal-content border-0 shadow rounded-4">
-          <div className="modal-header border-0 pb-0">
-            <h5 className="modal-title fw-bold text-danger d-flex align-items-center">
-              <i className="bi bi-exclamation-octagon-fill me-2 fs-4"></i>
-              {esNoAsociado ? 'Estudiante No Asociado' : 'Motivo de Rechazo'}
-            </h5>
-            <button
-              type="button"
-              className="btn-close"
-              aria-label="Cerrar"
-              onClick={onClose}
-            ></button>
+    <div className="modal d-block bg-dark bg-opacity-50" role="presentation" style={{ zIndex: 1055 }}>
+      <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <section ref={dialogRef} className="modal-content rounded-4 shadow" role="dialog" aria-modal="true" aria-labelledby={tituloId} tabIndex={-1}>
+          <header className="modal-header">
+            <h2 className="modal-title fs-5 fw-bold" id={tituloId}>{esNoAsociado ? 'Estudiante no asociado' : 'Motivo de inhabilitación'}</h2>
+            <button ref={closeRef} type="button" className="btn-close" onClick={onClose} aria-label="Cerrar" />
+          </header>
+          <div className="modal-body">
+            {estudianteDato && <div className="bg-light p-3 rounded-3 mb-3 border">
+              <div className="fw-semibold">{nombre || 'Estudiante'}</div>
+              <div className="small text-muted">{estudiante.ci && <span className="me-3">CI: {estudiante.ci}</span>}{(estudiante.codigo_universitario || estudiante.codigo_sis) && <span>SIS: {estudiante.codigo_universitario || estudiante.codigo_sis}</span>}</div>
+            </div>}
+            {loading ? <div className="text-center py-4"><span className="spinner-border spinner-border-sm me-2" role="status" />Cargando motivo...</div>
+              : error ? <div className="alert alert-danger mb-0" role="alert">{error}</div>
+                : esNoAsociado ? <div className="alert alert-warning mb-0">El estudiante no se encuentra asociado a este examen.</div>
+                  : !detalle ? <p className="text-center text-muted py-3 mb-0">Sin motivo registrado</p> : <>
+                    <span className={`badge ${claseTipo(tipo)} mb-3`}>{etiquetasTipo[tipo] || tipo.replaceAll('_', ' ')}</span>
+                    <h3 className="h6 fw-bold">Detalle</h3>
+                    <p className="mb-4 text-break">{detalle}</p>
+                    <dl className="row small mb-0">
+                      <dt className="col-sm-4">Inhabilitó</dt><dd className="col-sm-8">{inhabilitadoPor || '—'}</dd>
+                      <dt className="col-sm-4">Fecha</dt><dd className="col-sm-8">{fecha ? new Date(fecha).toLocaleString() : '—'}</dd>
+                    </dl>
+                  </>}
           </div>
-
-          <div className="modal-body py-3">
-            {estudiante && (
-              <div className="bg-light p-3 rounded-3 mb-3 border">
-                <div className="fw-semibold text-dark">
-                  {estudiante.nombre} {estudiante.apellido}
-                </div>
-                <div className="small text-muted mt-1">
-                  {estudiante.ci && <span className="me-3">CI: {estudiante.ci}</span>}
-                  {(estudiante.codigo_universitario || estudiante.codigo_sis) && (
-                    <span>SIS: {estudiante.codigo_universitario || estudiante.codigo_sis}</span>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {loading ? (
-              <div className="text-center py-4">
-                <div className="spinner-border text-danger spinner-border-sm me-2" role="status"></div>
-                <span className="text-muted small">Cargando motivo...</span>
-              </div>
-            ) : error ? (
-              <div className="alert alert-danger py-2 small mb-0">{error}</div>
-            ) : esNoAsociado ? (
-              <div className="alert alert-warning py-3 mb-0 border border-warning-subtle rounded-3">
-                <div className="d-flex align-items-center mb-1">
-                  <i className="bi bi-info-circle-fill me-2 text-warning fs-5"></i>
-                  <span className="fw-semibold text-dark">Sin habilitación registrada</span>
-                </div>
-                <p className="mb-0 text-muted small">
-                  El estudiante no se encuentra asociado a este examen.
-                </p>
-              </div>
-            ) : (
-              <div className="alert alert-danger-subtle border border-danger-subtle p-3 rounded-3 mb-0">
-                <span className="fw-semibold text-danger d-block mb-1">
-                  <i className="bi bi-shield-x me-1"></i>Razón registrada:
-                </span>
-                <p className="mb-0 text-dark">
-                  {motivoCargado || 'No se especificó un motivo para esta inhabilitación.'}
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className="modal-footer border-0 pt-0">
-            <button
-              type="button"
-              className="btn btn-secondary rounded-pill px-4"
-              onClick={onClose}
-            >
-              Cerrar
-            </button>
-          </div>
-        </div>
+          <footer className="modal-footer"><button type="button" className="btn btn-secondary" onClick={onClose}>Cerrar</button></footer>
+        </section>
       </div>
     </div>
   );
