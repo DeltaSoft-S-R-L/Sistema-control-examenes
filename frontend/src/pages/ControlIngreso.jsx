@@ -104,14 +104,24 @@ export default function ControlIngreso() {
         id_examen: examenSeleccionado,
       });
       setResultado(res.data);
+      setLoading(false); // Éxito: quitamos el loading
     } catch (err) {
       console.error('Error al verificar documento:', err);
       const msg = err.response?.data?.message || 'Estudiante no encontrado en el sistema.';
       setErrorAlerta(msg);
-    } finally {
-      setLoading(false);
+
+      // --- HU-160: Feedback Sensorial y Bloqueo ---
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      
+      const audioError = new Audio('/error.mp3');
+      audioError.play().catch(e => console.warn('Reproducción de audio bloqueada por el navegador', e));
+
+      setTimeout(() => {
+        setLoading(false);
+      }, 2000);
     }
   };
+  
 
   const handleVerificarQr = async (tokenParaEnviar) => {
     const token = tokenParaEnviar || tokenQr;
@@ -135,14 +145,27 @@ export default function ControlIngreso() {
       });
       setResultado(res.data);
       detenerCamara();
+      setLoading(false); // Éxito: quitamos el loading inmediatamente
     } catch (err) {
       console.error('Error al verificar QR:', err);
       const msg = err.response?.data?.message || 'Código QR no reconocido o estudiante no encontrado.';
       setErrorAlerta(msg);
-    } finally {
-      setLoading(false);
+
+      //  Feedback Sensorial y Bloqueo ---
+      // 1. Vibración [200ms on, 100ms off, 200ms on]
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      
+      // 2. Sonido de error
+      const audioError = new Audio('/error.mp3');
+      audioError.play().catch(e => console.warn('Reproducción de audio bloqueada por el navegador', e));
+
+      // 3. Bloqueo temporal de la cámara/interfaz por 2 segundos
+      setTimeout(() => {
+        setLoading(false);
+      }, 2000);
     }
   };
+    
 
   const handleSiguienteEstudiante = () => {
     setResultado(null);
