@@ -18,6 +18,7 @@ class Estudiante extends Model
         'id_carrera',
         'correo',
         'estado',
+        'id_usuario',
     ];
 
     /**
@@ -84,5 +85,15 @@ class Estudiante extends Model
     public function normas()
     {
         return $this->hasMany(NormaExamen::class, 'id_estudiante', 'id_estudiante');
+
     }
+
+    public function usuario()
+{
+    return $this->belongsTo(
+        Usuario::class,
+        'id_usuario',
+        'id_usuario'
+    );
+}
 }

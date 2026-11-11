@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\DocenteAsignaturaController;
 use App\Models\Rol;
 use App\Http\Controllers\Api\NormaController;
 use App\Http\Controllers\Api\PasswordSetupController;
+use App\Http\Controllers\Api\PerfilEstudianteController;
 
 /*
 |--------------------------------------------------------------------------
@@ -53,6 +54,11 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     // Sesión
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+    // Perfil académico del estudiante autenticado
+Route::get('/estudiante/perfil', [
+    PerfilEstudianteController::class,
+    'mostrar'
+])->middleware('role:ESTUDIANTE');
 
     // Materias del docente autenticado
 Route::get('/docente/mis-materias', [
