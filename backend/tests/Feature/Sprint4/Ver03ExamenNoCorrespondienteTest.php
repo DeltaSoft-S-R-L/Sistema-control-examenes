@@ -200,7 +200,6 @@ class Ver03ExamenNoCorrespondienteTest extends TestCase
     // A. Estudiante de la materia correcta → 200 OK + habilitado
     // ─────────────────────────────────────────────────────────────────
 
-    /** @test */
     public function test_estudiante_de_la_materia_correcta_es_verificado_ok(): void
     {
         $response = $this->withToken($this->tokenControl)
@@ -220,7 +219,6 @@ class Ver03ExamenNoCorrespondienteTest extends TestCase
             ]);
     }
 
-    /** @test */
     public function test_estudiante_correcto_por_qr_retorna_200(): void
     {
         $token = QrTokenService::generarToken($this->estudianteDeA);
@@ -241,7 +239,6 @@ class Ver03ExamenNoCorrespondienteTest extends TestCase
     // B. Estudiante de otra materia → rechazo (NO_ASOCIADO) + log
     // ─────────────────────────────────────────────────────────────────
 
-    /** @test */
     public function test_estudiante_de_otra_materia_es_rechazado_en_examen_ajeno(): void
     {
         // estudianteDeB intenta entrar al ExamenA (donde no está inscripto)
@@ -261,7 +258,6 @@ class Ver03ExamenNoCorrespondienteTest extends TestCase
             ]);
     }
 
-    /** @test */
     public function test_rechazo_por_examen_ajeno_genera_registro_en_auditoria(): void
     {
         $auditAntes = \App\Models\Auditoria::count();
@@ -281,7 +277,6 @@ class Ver03ExamenNoCorrespondienteTest extends TestCase
         $this->assertEquals('FALLO', $log->resultado);
     }
 
-    /** @test */
     public function test_estudiante_de_otra_materia_por_qr_en_examen_ajeno_es_rechazado(): void
     {
         $token = QrTokenService::generarToken($this->estudianteDeB);
@@ -305,7 +300,6 @@ class Ver03ExamenNoCorrespondienteTest extends TestCase
     // C. Estudiante sin ninguna materia asignada → NO_ASOCIADO
     // ─────────────────────────────────────────────────────────────────
 
-    /** @test */
     public function test_estudiante_sin_ninguna_materia_asignada_retorna_no_asociado(): void
     {
         $response = $this->withToken($this->tokenControl)
@@ -325,7 +319,6 @@ class Ver03ExamenNoCorrespondienteTest extends TestCase
             ]);
     }
 
-    /** @test */
     public function test_estudiante_sin_materia_en_ningun_examen_es_rechazado_en_ambos(): void
     {
         foreach ([$this->examenA->id_examen, $this->examenB->id_examen] as $idExamen) {
@@ -344,7 +337,6 @@ class Ver03ExamenNoCorrespondienteTest extends TestCase
     // D. Ingreso duplicado → debe devolver 422 (no 500)
     // ─────────────────────────────────────────────────────────────────
 
-    /** @test */
     public function test_ingreso_duplicado_devuelve_422_no_500(): void
     {
         $habilitacion = Habilitacion::where('id_estudiante', $this->estudianteDeA->id_estudiante)
@@ -371,7 +363,6 @@ class Ver03ExamenNoCorrespondienteTest extends TestCase
     // E. Discrepancia de ambiente → audit_log DISCREPANCIA_AMBIENTE_INGRESO
     // ─────────────────────────────────────────────────────────────────
 
-    /** @test */
     public function test_ingreso_en_aula_incorrecta_registra_discrepancia_en_audit_logs(): void
     {
         $habilitacion = Habilitacion::where('id_estudiante', $this->estudianteDeA->id_estudiante)
