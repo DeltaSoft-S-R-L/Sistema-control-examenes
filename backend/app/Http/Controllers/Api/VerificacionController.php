@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\AccionAuditoria;
+use App\Enums\CodigoErrorVerificacion;
+use App\Enums\MotivoIntentoIngreso;
 use App\Exceptions\EstudianteNoAsociadoException;
 use App\Exceptions\Qr\InvalidSignatureException;
 use App\Exceptions\Qr\TokenMalformedException;
@@ -14,9 +17,7 @@ use App\Models\Examen;
 use App\Models\Habilitacion;
 use App\Models\IntentoIngreso;
 use App\Services\AmbienteValidacionService;
-use App\Services\AuditoriaService;
 use App\Services\AuditService;
-use App\Services\HabilitacionService;
 use App\Services\PertenenciaExamenService;
 use App\Services\QrTokenService;
 use Illuminate\Http\JsonResponse;
@@ -63,14 +64,14 @@ class VerificacionController extends Controller
                 'metodo'            => 'QR',
                 'examen_id'         => null,
                 'estudiante_id'     => null,
-                'resultado'         => 'VALIDACION_FALLIDA',
+                'resultado'         => CodigoErrorVerificacion::VALIDACION_FALLIDA->value,
                 'valor_enmascarado' => AuditService::enmascararValor(is_string($token) ? $token : null),
             ]);
 
             return response()->json([
                 'message' => 'El campo examen_id es obligatorio y debe ser numérico.',
-                'code'    => 'VALIDACION_FALLIDA',
-                'error'   => 'VALIDACION_FALLIDA',
+                'code'    => CodigoErrorVerificacion::VALIDACION_FALLIDA->value,
+                'error'   => CodigoErrorVerificacion::VALIDACION_FALLIDA->value,
             ], 422);
         }
 
@@ -80,14 +81,14 @@ class VerificacionController extends Controller
                 'metodo'            => 'QR',
                 'examen_id'         => (int) $examenId,
                 'estudiante_id'     => null,
-                'resultado'         => 'QR_INVALIDO',
+                'resultado'         => CodigoErrorVerificacion::QR_INVALIDO->value,
                 'valor_enmascarado' => AuditService::enmascararValor((string) $token),
             ]);
 
             return response()->json([
                 'message' => 'El código QR proporcionado es inválido o ha sido alterado.',
-                'code'    => 'QR_INVALIDO',
-                'error'   => 'QR_INVALIDO',
+                'code'    => CodigoErrorVerificacion::QR_INVALIDO->value,
+                'error'   => CodigoErrorVerificacion::QR_INVALIDO->value,
             ], 422);
         }
 
@@ -99,14 +100,14 @@ class VerificacionController extends Controller
                 'metodo'            => 'QR',
                 'examen_id'         => (int) $examenId,
                 'estudiante_id'     => null,
-                'resultado'         => 'QR_INVALIDO',
+                'resultado'         => CodigoErrorVerificacion::QR_INVALIDO->value,
                 'valor_enmascarado' => AuditService::enmascararValor($token),
             ]);
 
             return response()->json([
                 'message' => 'El código QR proporcionado es inválido o ha sido alterado.',
-                'code'    => 'QR_INVALIDO',
-                'error'   => 'QR_INVALIDO',
+                'code'    => CodigoErrorVerificacion::QR_INVALIDO->value,
+                'error'   => CodigoErrorVerificacion::QR_INVALIDO->value,
             ], 422);
         }
 
@@ -117,14 +118,14 @@ class VerificacionController extends Controller
                 'metodo'            => 'QR',
                 'examen_id'         => (int) $examenId,
                 'estudiante_id'     => null,
-                'resultado'         => 'ESTUDIANTE_NO_ENCONTRADO',
+                'resultado'         => CodigoErrorVerificacion::ESTUDIANTE_NO_ENCONTRADO->value,
                 'valor_enmascarado' => AuditService::enmascararValor($token),
             ]);
 
             return response()->json([
                 'message' => 'Estudiante no encontrado.',
-                'code'    => 'ESTUDIANTE_NO_ENCONTRADO',
-                'error'   => 'ESTUDIANTE_NO_ENCONTRADO',
+                'code'    => CodigoErrorVerificacion::ESTUDIANTE_NO_ENCONTRADO->value,
+                'error'   => CodigoErrorVerificacion::ESTUDIANTE_NO_ENCONTRADO->value,
             ], 404);
         }
 
@@ -135,13 +136,13 @@ class VerificacionController extends Controller
                 'metodo'        => 'QR',
                 'examen_id'     => (int) $examenId,
                 'estudiante_id' => $estudiante->id_estudiante,
-                'resultado'     => 'EXAMEN_NO_ENCONTRADO',
+                'resultado'     => CodigoErrorVerificacion::EXAMEN_NO_ENCONTRADO->value,
             ]);
 
             return response()->json([
                 'message' => 'Examen no encontrado.',
-                'code'    => 'EXAMEN_NO_ENCONTRADO',
-                'error'   => 'EXAMEN_NO_ENCONTRADO',
+                'code'    => CodigoErrorVerificacion::EXAMEN_NO_ENCONTRADO->value,
+                'error'   => CodigoErrorVerificacion::EXAMEN_NO_ENCONTRADO->value,
             ], 404);
         }
 
@@ -153,8 +154,8 @@ class VerificacionController extends Controller
 
             return response()->json([
                 'message' => 'El estudiante no pertenece a este examen.',
-                'code'    => 'NO_ASOCIADO',
-                'error'   => 'NO_ASOCIADO',
+                'code'    => CodigoErrorVerificacion::NO_ASOCIADO->value,
+                'error'   => CodigoErrorVerificacion::NO_ASOCIADO->value,
             ], 422);
         }
 
@@ -216,14 +217,14 @@ class VerificacionController extends Controller
                 'metodo'            => $metodoFallback,
                 'examen_id'         => is_numeric($examenId) ? (int) $examenId : null,
                 'estudiante_id'     => null,
-                'resultado'         => 'VALIDACION_FALLIDA',
+                'resultado'         => CodigoErrorVerificacion::VALIDACION_FALLIDA->value,
                 'valor_enmascarado' => AuditService::enmascararValor(is_string($rawValor) ? $rawValor : null),
             ]);
 
             return response()->json([
                 'message' => $validator->errors()->first(),
-                'code'    => 'VALIDACION_FALLIDA',
-                'error'   => 'VALIDACION_FALLIDA',
+                'code'    => CodigoErrorVerificacion::VALIDACION_FALLIDA->value,
+                'error'   => CodigoErrorVerificacion::VALIDACION_FALLIDA->value,
                 'errors'  => $validator->errors(),
             ], 422);
         }
@@ -236,14 +237,14 @@ class VerificacionController extends Controller
                 'metodo'            => $tipo,
                 'examen_id'         => (int) $examenId,
                 'estudiante_id'     => null,
-                'resultado'         => 'ESTUDIANTE_NO_ENCONTRADO',
+                'resultado'         => CodigoErrorVerificacion::ESTUDIANTE_NO_ENCONTRADO->value,
                 'valor_enmascarado' => AuditService::enmascararValor(is_string($valor) ? $valor : (string) $rawValor),
             ]);
 
             return response()->json([
                 'message' => 'Estudiante no encontrado.',
-                'code'    => 'ESTUDIANTE_NO_ENCONTRADO',
-                'error'   => 'ESTUDIANTE_NO_ENCONTRADO',
+                'code'    => CodigoErrorVerificacion::ESTUDIANTE_NO_ENCONTRADO->value,
+                'error'   => CodigoErrorVerificacion::ESTUDIANTE_NO_ENCONTRADO->value,
             ], 404);
         }
 
@@ -255,13 +256,13 @@ class VerificacionController extends Controller
                 'metodo'        => $tipo,
                 'examen_id'     => (int) $examenId,
                 'estudiante_id' => $estudiante->id_estudiante,
-                'resultado'     => 'EXAMEN_NO_ENCONTRADO',
+                'resultado'     => CodigoErrorVerificacion::EXAMEN_NO_ENCONTRADO->value,
             ]);
 
             return response()->json([
                 'message' => 'Examen no encontrado.',
-                'code'    => 'EXAMEN_NO_ENCONTRADO',
-                'error'   => 'EXAMEN_NO_ENCONTRADO',
+                'code'    => CodigoErrorVerificacion::EXAMEN_NO_ENCONTRADO->value,
+                'error'   => CodigoErrorVerificacion::EXAMEN_NO_ENCONTRADO->value,
             ], 404);
         }
 
@@ -273,8 +274,8 @@ class VerificacionController extends Controller
 
             return response()->json([
                 'message' => 'El estudiante no pertenece a este examen.',
-                'code'    => 'NO_ASOCIADO',
-                'error'   => 'NO_ASOCIADO',
+                'code'    => CodigoErrorVerificacion::NO_ASOCIADO->value,
+                'error'   => CodigoErrorVerificacion::NO_ASOCIADO->value,
             ], 422);
         }
 
@@ -315,7 +316,7 @@ class VerificacionController extends Controller
                 'id_asignacion_ambiente' => $idAsignacionAmbiente ? (int) $idAsignacionAmbiente : null,
                 'id_usuario'             => $idUsuario ? (int) $idUsuario : null,
                 'fecha_hora'             => now(),
-                'motivo'                 => 'EXAMEN_NO_CORRESPONDIENTE',
+                'motivo'                 => MotivoIntentoIngreso::EXAMEN_NO_CORRESPONDIENTE->value,
             ]);
         } catch (\Throwable $e) {
             Log::error('Error al persistir intento de ingreso indebido: ' . $e->getMessage(), [
@@ -328,13 +329,13 @@ class VerificacionController extends Controller
         // 2. Registrar en audit_logs mediante AuditService con tolerancia a fallos
         try {
             AuditService::registrar(
-                accion: 'INTENTO_INGRESO_EXAMEN_AJENO',
+                accion: AccionAuditoria::INTENTO_INGRESO_EXAMEN_AJENO->value,
                 entidad: 'estudiante',
                 idRegistro: (string) $estudiante->id_estudiante,
                 informacion: [
                     'id_examen_intentado' => $idExamen,
                     'metodo'              => $metodo,
-                    'motivo'              => 'EXAMEN_NO_CORRESPONDIENTE',
+                    'motivo'              => MotivoIntentoIngreso::EXAMEN_NO_CORRESPONDIENTE->value,
                 ],
                 idUsuario: $idUsuario
             );
@@ -370,8 +371,8 @@ class VerificacionController extends Controller
         if (empty($validated['id_habilitacion']) && empty($validated['id_estudiante'])) {
             return response()->json([
                 'message' => 'Debe proporcionar id_habilitacion o id_estudiante.',
-                'code'    => 'DATOS_INSUFICIENTES',
-                'error'   => 'DATOS_INSUFICIENTES',
+                'code'    => CodigoErrorVerificacion::DATOS_INSUFICIENTES->value,
+                'error'   => CodigoErrorVerificacion::DATOS_INSUFICIENTES->value,
             ], 422);
         }
 
@@ -399,8 +400,8 @@ class VerificacionController extends Controller
         if (!$habilitacion || (int) $habilitacion->id_examen !== (int) $validated['id_examen']) {
             return response()->json([
                 'message' => 'El estudiante no pertenece a este examen.',
-                'code'    => 'NO_ASOCIADO',
-                'error'   => 'NO_ASOCIADO',
+                'code'    => CodigoErrorVerificacion::NO_ASOCIADO->value,
+                'error'   => CodigoErrorVerificacion::NO_ASOCIADO->value,
             ], 422);
         }
 
@@ -408,8 +409,8 @@ class VerificacionController extends Controller
         if (strtoupper(trim((string) $habilitacion->estado)) !== 'HABILITADO') {
             return response()->json([
                 'message' => 'El estudiante no se encuentra habilitado para este examen.',
-                'code'    => 'NO_HABILITADO',
-                'error'   => 'NO_HABILITADO',
+                'code'    => CodigoErrorVerificacion::NO_HABILITADO->value,
+                'error'   => CodigoErrorVerificacion::NO_HABILITADO->value,
             ], 403);
         }
 
@@ -418,8 +419,8 @@ class VerificacionController extends Controller
         if (!$asignacionAmbiente || (int) $asignacionAmbiente->id_examen !== (int) $validated['id_examen']) {
             return response()->json([
                 'message' => 'El ambiente seleccionado no corresponde a este examen.',
-                'code'    => 'AMBIENTE_NO_CORRESPONDE',
-                'error'   => 'AMBIENTE_NO_CORRESPONDE',
+                'code'    => CodigoErrorVerificacion::AMBIENTE_NO_CORRESPONDE->value,
+                'error'   => CodigoErrorVerificacion::AMBIENTE_NO_CORRESPONDE->value,
             ], 422);
         }
 
@@ -433,8 +434,8 @@ class VerificacionController extends Controller
         if (!$resultado['valido']) {
             return response()->json([
                 'message'           => 'El estudiante está habilitado, pero le corresponde ingresar en otro ambiente.',
-                'code'              => 'AULA_INCORRECTA',
-                'error'             => 'AULA_INCORRECTA',
+                'code'              => CodigoErrorVerificacion::AULA_INCORRECTA->value,
+                'error'             => CodigoErrorVerificacion::AULA_INCORRECTA->value,
                 'ambiente_asignado' => $resultado['ambiente_asignado'],
             ], 422);
         }
@@ -445,179 +446,5 @@ class VerificacionController extends Controller
             'message'           => 'El ambiente corresponde al estudiante.',
             'ambiente_asignado' => $resultado['ambiente_asignado'],
         ], 200);
-    }
-
-    // ─────────────────────────────────────────────────────────────────
-    // Endpoints integrados de origin/dev (Móvil / Habilitación)
-    // ─────────────────────────────────────────────────────────────────
-
-    /**
-     * Verificación de estudiante mediante Código QR.
-     * POST /api/verificar/qr
-     */
-    public function verificarQr(Request $request)
-    {
-        $request->validate([
-            'qr_token'  => 'nullable|string',
-            'token'     => 'nullable|string',
-            'id_examen' => 'required|exists:examen,id_examen',
-        ]);
-
-        $token = trim((string) ($request->input('qr_token') ?? $request->input('token') ?? ''));
-        $examen = Examen::findOrFail($request->input('id_examen'));
-
-        if ($token === '') {
-            return response()->json([
-                'message'      => 'El token QR es requerido.',
-                'identificado' => false,
-            ], 422);
-        }
-
-        $resultadoToken = QrTokenService::validarToken($token);
-
-        if (!$resultadoToken['valido']) {
-            AuditoriaService::registrar(
-                $request->user()?->id_usuario,
-                'VERIFICACION_QR',
-                'ESTUDIANTE',
-                null,
-                'FALLO',
-                "Intento de verificación QR fallido. Error: {$resultadoToken['error']} para examen ID {$examen->id_examen}."
-            );
-
-            $mensajeError = $resultadoToken['error'] === 'QR_ALTERADO'
-                ? 'El código QR ha sido alterado o la firma es inválida.'
-                : 'El formato del token QR no es válido.';
-
-            return response()->json([
-                'message'      => $mensajeError,
-                'error'        => $resultadoToken['error'],
-                'identificado' => false,
-            ], 422);
-        }
-
-        $idEstudiante = $resultadoToken['datos']['id_estudiante'] ?? null;
-        $estudiante = $idEstudiante ? Estudiante::with('carrera')->find($idEstudiante) : null;
-
-        return $this->procesarResultadoVerificacion($estudiante, $examen, 'QR', $request);
-    }
-
-    /**
-     * Verificación de estudiante mediante Cédula de Identidad (CI) o Código SIS.
-     * POST /api/verificar/documento
-     */
-    public function verificarDocumento(Request $request)
-    {
-        $request->validate([
-            'identificador' => 'nullable|string',
-            'ci_sis'        => 'nullable|string',
-            'documento'     => 'nullable|string',
-            'id_examen'     => 'required|exists:examen,id_examen',
-        ]);
-
-        $identificador = trim((string) (
-            $request->input('identificador') ??
-            $request->input('ci_sis') ??
-            $request->input('documento') ??
-            ''
-        ));
-
-        $examen = Examen::findOrFail($request->input('id_examen'));
-
-        if ($identificador === '') {
-            return response()->json([
-                'message'      => 'Debe ingresar un número de CI o Código SIS.',
-                'identificado' => false,
-            ], 422);
-        }
-
-        $estudiante = Estudiante::with('carrera')
-            ->where(function ($query) use ($identificador) {
-                $query->where('ci', $identificador)
-                      ->orWhere('codigo_universitario', $identificador);
-            })
-            ->first();
-
-        return $this->procesarResultadoVerificacion($estudiante, $examen, 'CI_SIS', $request);
-    }
-
-    /**
-     * Método compartido y unificado para procesar la verificación y auditoría de origin/dev.
-     */
-    protected function procesarResultadoVerificacion(?Estudiante $estudiante, Examen $examen, string $metodo, Request $request)
-    {
-        if (!$estudiante) {
-            AuditoriaService::registrar(
-                $request->user()?->id_usuario,
-                "VERIFICACION_{$metodo}",
-                'ESTUDIANTE',
-                null,
-                'FALLO',
-                "Identificación fallida por {$metodo}. Estudiante no encontrado para examen ID {$examen->id_examen}."
-            );
-
-            return response()->json([
-                'message'      => 'Estudiante no encontrado en el sistema.',
-                'identificado' => false,
-            ], 404);
-        }
-
-        $habilitacion = HabilitacionService::verificarHabilitacion($estudiante, $examen);
-
-        $resultadoAuditoria = $habilitacion['habilitado'] ? 'EXITO' : 'FALLO';
-        $detalleAuditoria = "Verificación por {$metodo} para examen ID {$examen->id_examen} ('{$examen->nombre}'). " .
-            "Estudiante: {$estudiante->nombre} {$estudiante->apellido} (CI: {$estudiante->ci}, SIS: {$estudiante->codigo_universitario}). " .
-            "Estado: {$habilitacion['estado']}" .
-            ($habilitacion['motivo'] ? " - Motivo: {$habilitacion['motivo']}" : "");
-
-        AuditoriaService::registrar(
-            $request->user()?->id_usuario,
-            "VERIFICACION_{$metodo}",
-            'ESTUDIANTE',
-            $estudiante->id_estudiante,
-            $resultadoAuditoria,
-            $detalleAuditoria
-        );
-
-        return response()->json([
-            'identificado' => true,
-            'metodo'       => $metodo,
-            'estudiante'   => [
-                'id_estudiante'        => $estudiante->id_estudiante,
-                'nombre'               => $estudiante->nombre,
-                'apellido'             => $estudiante->apellido,
-                'ci'                   => $estudiante->ci,
-                'codigo_universitario' => $estudiante->codigo_universitario,
-                'correo'               => $estudiante->correo,
-                'carrera'              => $estudiante->carrera?->nombre ?? null,
-                'estado'               => $estudiante->estado,
-            ],
-            'examen' => [
-                'id_examen' => $examen->id_examen,
-                'nombre'    => $examen->nombre,
-                'fecha'     => $examen->fecha ? (is_string($examen->fecha) ? substr($examen->fecha, 0, 10) : $examen->fecha->format('Y-m-d')) : null,
-            ],
-            'habilitacion' => $habilitacion,
-        ]);
-    }
-
-    /**
-     * Endpoint utilitario para generar tokens QR firmados de prueba.
-     * GET/POST /api/verificar/generar-qr/{id_estudiante}
-     */
-    public function generarQrPrueba(string $idEstudiante)
-    {
-        $estudiante = Estudiante::findOrFail($idEstudiante);
-        $token = QrTokenService::generarToken($estudiante);
-
-        return response()->json([
-            'token'      => $token,
-            'estudiante' => [
-                'id_estudiante'        => $estudiante->id_estudiante,
-                'nombre_completo'      => "{$estudiante->nombre} {$estudiante->apellido}",
-                'ci'                   => $estudiante->ci,
-                'codigo_universitario' => $estudiante->codigo_universitario,
-            ],
-        ]);
     }
 }

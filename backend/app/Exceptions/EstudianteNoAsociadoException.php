@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Exceptions;
 
+use App\Enums\CodigoErrorVerificacion;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,11 +18,11 @@ class EstudianteNoAsociadoException extends Exception
     public function __construct(
         string $message = 'El estudiante no pertenece a este examen.',
         int $statusCode = 422,
-        string $errorCode = 'NO_ASOCIADO',
+        CodigoErrorVerificacion|string $errorCode = CodigoErrorVerificacion::NO_ASOCIADO,
         ?Throwable $previous = null
     ) {
         $this->statusCode = $statusCode;
-        $this->errorCode = $errorCode;
+        $this->errorCode = $errorCode instanceof CodigoErrorVerificacion ? $errorCode->value : $errorCode;
         parent::__construct($message, $statusCode, $previous);
     }
 

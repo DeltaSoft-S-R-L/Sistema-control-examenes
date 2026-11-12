@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\CodigoErrorVerificacion;
 use App\Exceptions\EstudianteNoAsociadoException;
 use App\Models\Habilitacion;
 
@@ -29,7 +30,7 @@ class PertenenciaExamenService
             ->first();
 
         if ($habilitacion === null) {
-            throw new EstudianteNoAsociadoException();
+            throw new EstudianteNoAsociadoException(errorCode: CodigoErrorVerificacion::NO_ASOCIADO);
         }
 
         return $habilitacion;

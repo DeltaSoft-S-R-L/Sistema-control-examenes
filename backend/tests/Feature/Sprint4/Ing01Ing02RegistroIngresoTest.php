@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Sprint4;
 
+use App\Enums\AccionAuditoria;
 use App\Models\Ambiente;
 use App\Models\AsignacionAmbiente;
 use App\Models\Asignatura;
@@ -410,5 +411,40 @@ class Ing01Ing02RegistroIngresoTest extends TestCase
                 'fecha_hora_primer_ingreso' => $primerIngreso->fecha_hora->toIso8601String(),
                 'ambiente'                  => 'Aula 624',
             ]);
+    }
+
+    /**
+     * Caso 7 (Atomicidad): Si falla el registro de auditoría dentro de la transacción de POST /api/ingresos,
+     * se ejecuta rollback completo y no queda guardado ni el ingreso ni registros parciales de auditoría.
+     */
+    public function test_fallo_al_registrar_auditoria_revierte_el_ingreso_por_atomicidad(): void
+    {
+        $auditLogsIniciales = AuditLog::count();
+        $simularFallo = true;
+
+        AuditLog::creating(function (AuditLog $log) use (&$simularFallo): void {
+            if ($simularFallo && $log->accion === AccionAuditoria::REGISTRO_INGRESO_EXAMEN->value) {
+                throw new \RuntimeException('Fallo simulado en auditoría transaccional.');
+            }
+        });
+
+        try {
+            $response = $this->withHeaders([
+                'Authorization' => "Bearer {$this->controlToken}",
+                'Accept'        => 'application/json',
+            ])->postJson('/api/ingresos', [
+                'id_examen'              => $this->examen->id_examen,
+                'id_habilitacion'        => $this->habilitacionValida->id_habilitacion,
+                'id_asignacion_ambiente' => $this->asignacionAmbiente->id_asignacion_ambiente,
+            ]);
+
+            $response->assertStatus(500);
+        } finally {
+            $simularFallo = false;
+        }
+
+        // Debe ejecutarse rollback total: 0 ingresos y ningún nuevo audit_log de ingreso
+        $this->assertSame(0, Ingreso::count());
+        $this->assertSame($auditLogsIniciales, AuditLog::count());
     }
 }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\AccionAuditoria;
+use App\Enums\MotivoIntentoIngreso;
 use App\Models\AsignacionAmbiente;
 use App\Models\Habilitacion;
 use App\Models\IntentoIngreso;
@@ -45,7 +47,7 @@ class AmbienteValidacionService
         $asignacionCorrecta = AsignacionAmbiente::with('ambiente')->find($habilitacion->id_asignacion_ambiente);
         $ambienteData = $this->formatearAmbiente($asignacionCorrecta);
 
-        // 1. Persistir anomalía en intento_ingreso con motivo = 'AULA_INCORRECTA'
+        // 1. Persistir anomalía en intento_ingreso con motivo = MotivoIntentoIngreso::AULA_INCORRECTA
         try {
             IntentoIngreso::create([
                 'id_estudiante'          => $habilitacion->id_estudiante,
@@ -53,7 +55,7 @@ class AmbienteValidacionService
                 'id_asignacion_ambiente' => $idAsignacionAmbienteActual,
                 'id_usuario'             => $idUsuario,
                 'fecha_hora'             => now(),
-                'motivo'                 => 'AULA_INCORRECTA',
+                'motivo'                 => MotivoIntentoIngreso::AULA_INCORRECTA->value,
             ]);
         } catch (\Throwable $e) {
             Log::error('Error al registrar intento con aula incorrecta: ' . $e->getMessage(), [
@@ -65,7 +67,7 @@ class AmbienteValidacionService
         // 2. Registrar en audit_logs mediante AuditService
         try {
             AuditService::registrar(
-                accion: 'DISCREPANCIA_AMBIENTE_INGRESO',
+                accion: AccionAuditoria::DISCREPANCIA_AMBIENTE_INGRESO->value,
                 entidad: 'ingreso',
                 idRegistro: (string) $habilitacion->id_habilitacion,
                 informacion: [
@@ -74,7 +76,7 @@ class AmbienteValidacionService
                     'id_asignacion_ambiente_puerta'   => $idAsignacionAmbienteActual,
                     'id_asignacion_ambiente_asignada' => (int) $habilitacion->id_asignacion_ambiente,
                     'ambiente_asignado'               => $ambienteData,
-                    'motivo'                          => 'AULA_INCORRECTA',
+                    'motivo'                          => MotivoIntentoIngreso::AULA_INCORRECTA->value,
                 ],
                 idUsuario: $idUsuario
             );
