@@ -806,8 +806,20 @@ COPY public.carrera_asignatura (id_carrera, id_asignatura) FROM stdin;
 -- =========================================================
 
 COPY public.ambiente (id_ambiente, codigo, nombre, ubicacion, capacidad, estado) FROM stdin;
-1	A101	Laboratorio 101	Bloque A	30	DISPONIBLE
-2	A102	Laboratorio 102	Bloque A	30	DISPONIBLE
+1	A101	Laboratorio de Cómputo 101	Bloque A - Piso 1	30	DISPONIBLE
+2	A102	Laboratorio de Cómputo 102	Bloque A - Piso 1	35	DISPONIBLE
+3	A103	Aula de Cómputo Especializado 103	Bloque A - Piso 1	25	DISPONIBLE
+4	B201	Aula Magna Central	Bloque B - Piso 2	150	DISPONIBLE
+5	B202	Aula Teórica 202	Bloque B - Piso 2	45	DISPONIBLE
+6	B203	Aula Teórica 203	Bloque B - Piso 2	60	DISPONIBLE
+7	C301	Laboratorio de Redes y Telecomunicaciones	Bloque C - Piso 3	20	DISPONIBLE
+8	C302	Laboratorio de Electrónica y Sistemas Embebidos	Bloque C - Piso 3	28	DISPONIBLE
+9	D401	Auditorio de Tecnología	Bloque D - Planta Baja	120	DISPONIBLE
+10	D402	Aula Escalonada 402	Bloque D - Piso 4	80	DISPONIBLE
+11	E101	Aula Polivalente 101	Bloque E - Piso 1	50	DISPONIBLE
+12	E102	Taller de Proyectos de Software	Bloque E - Piso 1	32	DISPONIBLE
+13	F201	Sala de Grados y Conferencias	Edificio Central - Piso 2	75	DISPONIBLE
+14	S101	Laboratorio de Desarrollo de Sistemas	Pabellón de Sistemas - Piso 1	40	DISPONIBLE
 \.
 
 
@@ -933,7 +945,7 @@ COPY public.auditoria (id_auditoria, id_usuario, accion, entidad, id_registro, f
 -- SECUENCIAS
 -- =========================================================
 
-SELECT pg_catalog.setval('public.ambiente_id_ambiente_seq', 2, true);
+SELECT pg_catalog.setval('public.ambiente_id_ambiente_seq', 14, true);
 
 SELECT pg_catalog.setval('public.asignacion_ambiente_id_asignacion_ambiente_seq', 2, true);
 
