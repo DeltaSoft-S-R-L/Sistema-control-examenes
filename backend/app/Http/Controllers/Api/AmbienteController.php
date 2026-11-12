@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Ambiente;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AmbienteController extends Controller
 {
@@ -12,8 +13,23 @@ class AmbienteController extends Controller
     {
         $query = Ambiente::query();
 
-        if ($request->has('estado')) {
-            $query->where('estado', $request->estado);
+        if ($request->filled('estado')) {
+            $estado = strtoupper($request->estado);
+            $query->where('estado', $estado);
+        }
+
+        if ($request->filled('buscar')) {
+            $buscar = $request->buscar;
+            $like = DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
+            $query->where(function ($q) use ($buscar, $like) {
+                $q->where('nombre', $like, "%{$buscar}%")
+                  ->orWhere('codigo', $like, "%{$buscar}%")
+                  ->orWhere('ubicacion', $like, "%{$buscar}%");
+            });
+        }
+
+        if ($request->filled('capacidad_min') && is_numeric($request->capacidad_min)) {
+            $query->where('capacidad', '>=', max(1, (int) $request->capacidad_min));
         }
 
         return response()->json($query->orderBy('nombre')->get());
@@ -26,8 +42,10 @@ class AmbienteController extends Controller
             'nombre'    => 'required|string|max:100',
             'ubicacion' => 'nullable|string|max:150',
             'capacidad' => 'required|integer|min:1',
-            'estado'    => 'required|in:disponible,ocupado,mantenimiento',
+            'estado'    => 'required|in:DISPONIBLE,NO_DISPONIBLE,disponible,no_disponible',
         ]);
+
+        $data['estado'] = strtoupper($data['estado']);
 
         return response()->json(Ambiente::create($data), 201);
     }
@@ -46,8 +64,12 @@ class AmbienteController extends Controller
             'nombre'    => 'sometimes|required|string|max:100',
             'ubicacion' => 'nullable|string|max:150',
             'capacidad' => 'sometimes|required|integer|min:1',
-            'estado'    => 'sometimes|required|in:disponible,ocupado,mantenimiento',
+            'estado'    => 'sometimes|required|in:DISPONIBLE,NO_DISPONIBLE,disponible,no_disponible',
         ]);
+
+        if (isset($data['estado'])) {
+            $data['estado'] = strtoupper($data['estado']);
+        }
 
         $ambiente->update($data);
 
