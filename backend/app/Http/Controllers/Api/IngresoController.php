@@ -29,11 +29,11 @@ class IngresoController extends Controller
             'id_habilitacion'        => 'required|exists:habilitacion,id_habilitacion',
             'id_asignacion_ambiente' => 'required|exists:asignacion_ambiente,id_asignacion_ambiente',
         ]);
-
         $idExamen             = $data['id_examen'];
         $idHabilitacion       = $data['id_habilitacion'];
         $idAsignacionAmbiente = $data['id_asignacion_ambiente'];
         $idUsuarioControl     = $request->user()->id_usuario;
+
 
         // ── 1. Verificar discrepancia de ambiente ─────────────────────
         // La asignación enviada debe pertenecer al mismo examen.
