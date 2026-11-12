@@ -96,4 +96,15 @@ class Estudiante extends Model
         'id_usuario'
     );
 }
+/**
+ * Fotografía única registrada por el estudiante.
+ */
+public function foto()
+{
+    return $this->hasOne(
+        EstudianteFoto::class,
+        'id_estudiante',
+        'id_estudiante'
+    );
+}
 }

@@ -91,4 +91,18 @@ class EstudianteFotoService
             );
         }
     }
+    /**
+ * Genera una URL temporal para acceder a una fotografía autenticada.
+ */
+public function obtenerUrlTemporal(string $publicId): string
+{
+    return $this->cloudinary->uploadApi()->privateDownloadUrl(
+        $publicId,
+        'jpg',
+        [
+            'type' => 'authenticated',
+            'expires_at' => time() + 300,
+        ]
+    );
+}
 }

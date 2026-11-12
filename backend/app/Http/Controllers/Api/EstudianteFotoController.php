@@ -7,6 +7,7 @@ use App\Http\Requests\EstudianteFotoRequest;
 use App\Models\Estudiante;
 use App\Models\EstudianteFoto;
 use App\Services\EstudianteFotoService;
+use App\Services\ValidadorFotoEstudianteService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +18,10 @@ class EstudianteFotoController extends Controller
     /**
      * Consulta el estado de la fotografía del estudiante autenticado.
      */
-    public function mostrar(Request $request): JsonResponse
+    public function mostrar(
+    Request $request,
+    EstudianteFotoService $fotoService
+): JsonResponse
     {
         $usuario = $request->user();
 
@@ -38,12 +42,16 @@ class EstudianteFotoController extends Controller
         }
 
         $foto = $estudiante->foto;
+        $urlFoto = $foto
+    ? $fotoService->obtenerUrlTemporal($foto->cloudinary_public_id)
+    : null;
 
         return response()->json([
             'tiene_foto' => $foto !== null,
             'estado_validacion' => $foto?->estado_validacion,
             'motivo_rechazo' => $foto?->motivo_rechazo,
             'puede_subir_primera_foto' => $foto === null,
+            'url_foto' => $urlFoto,
         ]);
     }
 
@@ -51,9 +59,10 @@ class EstudianteFotoController extends Controller
      * Registra la primera fotografía del estudiante autenticado.
      */
     public function subir(
-        EstudianteFotoRequest $request,
-        EstudianteFotoService $fotoService
-    ): JsonResponse {
+    EstudianteFotoRequest $request,
+    EstudianteFotoService $fotoService,
+    ValidadorFotoEstudianteService $validadorFoto
+): JsonResponse {
         $usuario = $request->user();
 
         $estudiante = Estudiante::where(
@@ -62,12 +71,32 @@ class EstudianteFotoController extends Controller
         )->first();
 
         if (!$estudiante) {
-            return response()->json([
-                'message' => 'No se encontró tu perfil estudiantil.',
-            ], 404);
-        }
+    return response()->json([
+        'message' => 'No se encontró tu perfil estudiantil.',
+    ], 404);
+}
 
-        $publicId = null;
+// Impide volver a registrar una fotografía existente.
+if ($estudiante->foto()->exists()) {
+    return response()->json([
+        'message' => 'Ya tienes una fotografía registrada. No está permitido reemplazarla.',
+    ], 409);
+}
+
+// Validación facial obligatoria antes de Cloudinary.
+$validacion = $validadorFoto->validar($request->file('foto'));
+
+if (
+    ($validacion['aprobada'] ?? false) !== true ||
+    ($validacion['validacion_completa'] ?? false) !== true
+) {
+    return response()->json([
+        'message' => 'La fotografía no superó la validación facial.',
+        'motivos' => $validacion['motivos'] ?? [],
+    ], 422);
+}
+
+$publicId = null;
 
         try {
             $resultado = DB::transaction(function () use (
@@ -96,16 +125,16 @@ class EstudianteFotoController extends Controller
 
                 // Registra la referencia en PostgreSQL.
                 return EstudianteFoto::create([
-                    'id_estudiante' => $estudianteBloqueado->id_estudiante,
-                    'cloudinary_public_id' => $publicId,
-                    'cloudinary_type' => $subida['type'],
-                    'estado_validacion' => 'pendiente',
-                ]);
+    'id_estudiante' => $estudianteBloqueado->id_estudiante,
+    'cloudinary_public_id' => $publicId,
+    'cloudinary_type' => $subida['type'],
+    'estado_validacion' => 'aprobada',
+]);
             });
 
             if ($resultado === null) {
                 return response()->json([
-                    'message' => 'Ya tienes una fotografía registrada. Para reemplazarla necesitas autorización administrativa.',
+                    'message' => 'Ya tienes una fotografía registrada. No está permitido modificarla ni reemplazarla.',
                 ], 409);
             }
 

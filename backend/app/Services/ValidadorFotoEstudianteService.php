@@ -3,139 +3,97 @@
 namespace App\Services;
 
 use Illuminate\Http\UploadedFile;
-use RuntimeException;
+use Illuminate\Support\Facades\Log;
+use Symfony\Component\Process\Process;
 
 class ValidadorFotoEstudianteService
 {
-    /**
-     * Analiza la iluminación y la nitidez de una fotografía.
-     *
-     * Estas comprobaciones son aproximaciones técnicas.
-     * La detección facial se implementará por separado.
-     */
     public function validar(UploadedFile $archivo): array
     {
-        if (!extension_loaded('gd')) {
-            throw new RuntimeException(
-                'La extensión GD no está habilitada.'
+        $rechazo = static fn (string $motivo): array => [
+            'aprobada' => false,
+            'validacion_completa' => false,
+            'motivos' => [$motivo],
+        ];
+
+        $rutaPython = base_path(
+            'analizador_facial/.venv/Scripts/python.exe'
+        );
+
+        $rutaAnalizador = base_path(
+            'analizador_facial/detectar_rostro.py'
+        );
+
+        $rutaFoto = $archivo->getRealPath();
+
+        if (!is_file($rutaPython) || !is_file($rutaAnalizador)) {
+            return $rechazo(
+                'El servicio de validación facial no está disponible.'
             );
         }
 
-        $ruta = $archivo->getRealPath();
-
-        if (!$ruta) {
-            throw new RuntimeException(
+        if (!$rutaFoto || !is_file($rutaFoto)) {
+            return $rechazo(
                 'No se pudo acceder a la fotografía.'
             );
         }
 
-        $contenido = file_get_contents($ruta);
-
-        if ($contenido === false) {
-            throw new RuntimeException(
-                'No se pudo leer la fotografía.'
-            );
-        }
-
-        $imagen = @imagecreatefromstring($contenido);
-
-        if ($imagen === false) {
-            return [
-                'aprobada' => false,
-                'motivos' => [
-                    'No se pudo procesar la imagen.',
-                ],
-            ];
-        }
-
         try {
-            $ancho = imagesx($imagen);
-            $alto = imagesy($imagen);
+            $proceso = new Process([
+                $rutaPython,
+                $rutaAnalizador,
+                $rutaFoto,
+            ]);
 
-            // Muestreo para evitar procesar millones de píxeles.
-            $paso = max(1, (int) ceil(max($ancho, $alto) / 200));
+            $proceso->setTimeout(30);
+            $proceso->run();
 
-            $sumaLuz = 0.0;
-            $cantidad = 0;
-            $sumaDiferencias = 0.0;
-            $comparaciones = 0;
+            if (!$proceso->isSuccessful()) {
+    Log::error('Falló el analizador facial de Python', [
+        'codigo_salida' => $proceso->getExitCode(),
+        'salida_error' => $proceso->getErrorOutput(),
+        'salida_python' => $proceso->getOutput(),
+    ]);
 
-            for ($y = 0; $y < $alto; $y += $paso) {
-                for ($x = 0; $x < $ancho; $x += $paso) {
-                    $actual = $this->luminosidad(
-                        imagecolorat($imagen, $x, $y)
-                    );
+    return $rechazo(
+        'No fue posible analizar la fotografía.'
+    );
+}
 
-                    $sumaLuz += $actual;
-                    $cantidad++;
+            $resultado = json_decode(
+                $proceso->getOutput(),
+                true
+            );
 
-                    if ($x + $paso < $ancho) {
-                        $derecha = $this->luminosidad(
-                            imagecolorat($imagen, $x + $paso, $y)
-                        );
+            if (!is_array($resultado)) {
+                return $rechazo(
+                    'El analizador facial devolvió una respuesta inválida.'
+                );
+            }
 
-                        $sumaDiferencias += abs($actual - $derecha);
-                        $comparaciones++;
-                    }
+            $aprobada = ($resultado['aprobada'] ?? null) === true;
+            $completa = ($resultado['validacion_completa'] ?? null) === true;
 
-                    if ($y + $paso < $alto) {
-                        $abajo = $this->luminosidad(
-                            imagecolorat($imagen, $x, $y + $paso)
-                        );
+            if (!$aprobada || !$completa) {
+                $resultado['aprobada'] = false;
 
-                        $sumaDiferencias += abs($actual - $abajo);
-                        $comparaciones++;
-                    }
+                if (!isset($resultado['motivos']) ||
+                    !is_array($resultado['motivos'])) {
+                    $resultado['motivos'] = [];
+                }
+
+                if (!$completa) {
+                    $resultado['motivos'][] =
+                        'La validación facial todavía no está completa.';
                 }
             }
 
-            $iluminacion = $cantidad > 0
-                ? $sumaLuz / $cantidad
-                : 0;
+            return $resultado;
 
-            $detalle = $comparaciones > 0
-                ? $sumaDiferencias / $comparaciones
-                : 0;
-
-            $motivos = [];
-
-            // Umbrales iniciales sujetos a pruebas.
-            if ($iluminacion < 55) {
-                $motivos[] = 'La fotografía está demasiado oscura.';
-            }
-
-            if ($iluminacion > 220) {
-                $motivos[] = 'La fotografía tiene demasiada iluminación.';
-            }
-
-            if ($detalle < 8) {
-                $motivos[] = 'La fotografía podría estar borrosa o tener poco detalle.';
-            }
-
-            return [
-                'aprobada' => count($motivos) === 0,
-                'motivos' => $motivos,
-                'metricas' => [
-                    'iluminacion' => round($iluminacion, 2),
-                    'detalle' => round($detalle, 2),
-                ],
-            ];
-        } finally {
-            imagedestroy($imagen);
+        } catch (\Throwable $e) {
+            return $rechazo(
+                'Ocurrió un error durante la validación facial.'
+            );
         }
-    }
-
-    /**
-     * Calcula la luminosidad aproximada de un píxel.
-     */
-    private function luminosidad(int $color): float
-    {
-        $rojo = ($color >> 16) & 0xFF;
-        $verde = ($color >> 8) & 0xFF;
-        $azul = $color & 0xFF;
-
-        return (0.2126 * $rojo)
-            + (0.7152 * $verde)
-            + (0.0722 * $azul);
     }
 }

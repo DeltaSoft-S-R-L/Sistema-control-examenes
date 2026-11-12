@@ -26,23 +26,13 @@ class EstudianteFoto extends Model
         'fecha_validacion' => 'datetime',
     ];
 
-
-    public function usuario()
+    /**
+     * Estudiante al que pertenece la fotografía.
+     */
+    public function estudiante(): BelongsTo
     {
         return $this->belongsTo(
-            Usuario::class,
-            'id_usuario',
-            'id_usuario'
-        );
-    }
-
-    /**
-     * Fotografía vigente del estudiante.
-     */
-    public function foto()
-    {
-        return $this->hasOne(
-            EstudianteFoto::class,
+            Estudiante::class,
             'id_estudiante',
             'id_estudiante'
         );
