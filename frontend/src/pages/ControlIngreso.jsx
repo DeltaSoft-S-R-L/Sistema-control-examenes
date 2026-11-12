@@ -17,6 +17,8 @@ export default function ControlIngreso() {
   const [errorAlerta, setErrorAlerta] = useState(null);
   const [resultado, setResultado] = useState(null); // Objeto de respuesta
   const [mostrarModalMotivo, setMostrarModalMotivo] = useState(false);
+  const [confirmandoIngreso, setConfirmandoIngreso] = useState(false);
+  const [ingresoConfirmado, setIngresoConfirmado] = useState(false);
 
   // Cámara para QR en celular
   const [camaraActiva, setCamaraActiva] = useState(false);
@@ -24,6 +26,7 @@ export default function ControlIngreso() {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const inputIdentificadorRef = useRef(null);
+  const examenActivo = examenes.find((examen) => Number(examen.id_examen) === Number(examenSeleccionado));
 
   useEffect(() => {
     cargarExamenes();
@@ -150,6 +153,7 @@ export default function ControlIngreso() {
     setIdentificador('');
     setTokenQr('');
     setMostrarModalMotivo(false);
+    setIngresoConfirmado(false);
 
     // Retornar foco inmediatamente
     setTimeout(() => {
@@ -157,6 +161,37 @@ export default function ControlIngreso() {
         inputIdentificadorRef.current.focus();
       }
     }, 100);
+  };
+
+  const handleConfirmarIngreso = async () => {
+    if (confirmandoIngreso || ingresoConfirmado) return;
+
+    const idExamen = resultado?.examen?.id_examen || examenSeleccionado;
+    const idHabilitacion = resultado?.habilitacion?.id_habilitacion;
+    const idAsignacionAmbiente = examenActivo?.asignaciones_ambiente?.[0]?.id_asignacion_ambiente;
+
+    if (!idExamen || !idHabilitacion || !idAsignacionAmbiente) {
+      setErrorAlerta('No se encontraron los datos necesarios para registrar el ingreso.');
+      return;
+    }
+
+    setConfirmandoIngreso(true);
+    setErrorAlerta(null);
+
+    try {
+      // El backend obtiene el controlador desde la sesión autenticada.
+      await api.post('/ingresos/confirmar', {
+        id_examen: idExamen,
+        id_habilitacion: idHabilitacion,
+        id_asignacion_ambiente: idAsignacionAmbiente,
+      });
+      setIngresoConfirmado(true);
+    } catch (err) {
+      const msg = err.response?.data?.message || 'No se pudo registrar el ingreso. Intente nuevamente.';
+      setErrorAlerta(msg);
+    } finally {
+      setConfirmandoIngreso(false);
+    }
   };
 
   return (
@@ -181,6 +216,7 @@ export default function ControlIngreso() {
             onChange={(e) => {
               setExamenSeleccionado(e.target.value);
               setResultado(null);
+              setIngresoConfirmado(false);
             }}
             disabled={loading}
           >
@@ -199,6 +235,13 @@ export default function ControlIngreso() {
           <i className="bi bi-exclamation-triangle-fill fs-5 me-2"></i>
           <div className="small fw-semibold flex-fill">{errorAlerta}</div>
           <button type="button" className="btn-close btn-sm" onClick={() => setErrorAlerta(null)}></button>
+        </div>
+      )}
+
+      {ingresoConfirmado && (
+        <div className="alert alert-success shadow-sm rounded-3 py-2 px-3 mb-3" role="status" aria-live="polite">
+          <i className="bi bi-check-circle-fill me-2" aria-hidden="true"></i>
+          Ingreso Registrado Exitosamente
         </div>
       )}
 
@@ -349,6 +392,9 @@ export default function ControlIngreso() {
           <StudentCard
             estudiante={resultado.estudiante}
             habilitacion={resultado.habilitacion}
+            onConfirmarIngreso={handleConfirmarIngreso}
+            confirmandoIngreso={confirmandoIngreso}
+            ingresoConfirmado={ingresoConfirmado}
             onSiguiente={handleSiguienteEstudiante}
             onVerMotivo={() => setMostrarModalMotivo(true)}
           />

@@ -220,6 +220,7 @@ Route::get('/docente/mis-materias', [
     Route::get('/ingresos/{ingreso}', [IngresoController::class, 'show']);
 
     Route::middleware('permission:REGISTRAR_INGRESOS')->group(function () {
+        Route::post('/ingresos/confirmar', [IngresoController::class, 'store']);
         Route::post('/ingresos', [IngresoController::class, 'store']);
         Route::put('/ingresos/{ingreso}', [IngresoController::class, 'update']);
         Route::patch('/ingresos/{ingreso}', [IngresoController::class, 'update']);
