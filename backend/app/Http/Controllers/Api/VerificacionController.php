@@ -12,6 +12,7 @@ use App\Models\Examen;
 use App\Services\AuditoriaService;
 use App\Services\AuditService;
 use App\Services\HabilitacionService;
+use App\Services\EstudianteFotoService;
 use App\Services\QrTokenService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -302,7 +303,7 @@ class VerificacionController extends Controller
         }
 
         $idEstudiante = $resultadoToken['datos']['id_estudiante'] ?? null;
-        $estudiante = $idEstudiante ? Estudiante::with('carrera')->find($idEstudiante) : null;
+        $estudiante = $idEstudiante ? Estudiante::with(['carrera', 'foto'])->find($idEstudiante) : null;
 
         return $this->procesarResultadoVerificacion($estudiante, $examen, 'QR', $request);
     }
@@ -336,7 +337,7 @@ class VerificacionController extends Controller
             ], 422);
         }
 
-        $estudiante = Estudiante::with('carrera')
+        $estudiante = Estudiante::with(['carrera', 'foto'])
             ->where(function ($query) use ($identificador) {
                 $query->where('ci', $identificador)
                       ->orWhere('codigo_universitario', $identificador);
@@ -384,6 +385,20 @@ class VerificacionController extends Controller
             $detalleAuditoria
         );
 
+        $urlFoto = null;
+        if ($estudiante->foto) {
+            try {
+                $urlFoto = app(EstudianteFotoService::class)->obtenerUrlTemporal(
+                    $estudiante->foto->cloudinary_public_id
+                );
+            } catch (\Throwable $e) {
+                Log::warning('No se pudo generar la URL de fotografía para verificación.', [
+                    'id_estudiante' => $estudiante->id_estudiante,
+                    'exception' => $e,
+                ]);
+            }
+        }
+
         return response()->json([
             'identificado' => true,
             'metodo'       => $metodo,
@@ -396,6 +411,7 @@ class VerificacionController extends Controller
                 'correo'               => $estudiante->correo,
                 'carrera'              => $estudiante->carrera?->nombre ?? null,
                 'estado'               => $estudiante->estado,
+                'url_foto'             => $urlFoto,
             ],
             'examen' => [
                 'id_examen' => $examen->id_examen,
