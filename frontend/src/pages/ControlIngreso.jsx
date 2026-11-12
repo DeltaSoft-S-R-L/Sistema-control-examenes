@@ -25,8 +25,20 @@ export default function ControlIngreso() {
   const streamRef = useRef(null);
   const inputIdentificadorRef = useRef(null);
 
+  // Optimización HU-160: Referencias para audio y timeout
+  const audioErrorRef = useRef(new Audio('/error.mp3'));
+  const timeoutRef = useRef(null);
+
   useEffect(() => {
     cargarExamenes();
+    
+    // Limpieza al desmontar el componente (evitar fugas de memoria)
+    return () => {
+      detenerCamara();
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
   }, []);
 
   const cargarExamenes = async () => {
@@ -77,11 +89,21 @@ export default function ControlIngreso() {
     setCamaraActiva(false);
   };
 
-  useEffect(() => {
-    return () => {
-      detenerCamara();
-    };
-  }, []);
+  // --- HU-160: Función reutilizable para el Feedback Sensorial ---
+  const dispararAlertaRechazo = () => {
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    
+    if (audioErrorRef.current) {
+      audioErrorRef.current.currentTime = 0; // Reiniciar audio si ya estaba sonando
+      audioErrorRef.current.play().catch(e => console.warn('Reproducción de audio bloqueada por el navegador', e));
+    }
+
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    
+    timeoutRef.current = setTimeout(() => {
+      setLoading(false);
+    }, 2000);
+  };
 
   const handleVerificarDocumento = async (e) => {
     if (e) e.preventDefault();
@@ -104,21 +126,19 @@ export default function ControlIngreso() {
         id_examen: examenSeleccionado,
       });
       setResultado(res.data);
-      setLoading(false); // Éxito: quitamos el loading
+      
+      // Validación en caso de éxito HTTP pero rechazo por negocio
+      const estado = res.data?.habilitacion?.estado || res.data?.estado_verificacion || res.data?.estado;
+      if (String(estado).toUpperCase() !== 'HABILITADO') {
+        dispararAlertaRechazo();
+      } else {
+        setLoading(false); 
+      }
     } catch (err) {
       console.error('Error al verificar documento:', err);
       const msg = err.response?.data?.message || 'Estudiante no encontrado en el sistema.';
       setErrorAlerta(msg);
-
-      // --- HU-160: Feedback Sensorial y Bloqueo ---
-      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-      
-      const audioError = new Audio('/error.mp3');
-      audioError.play().catch(e => console.warn('Reproducción de audio bloqueada por el navegador', e));
-
-      setTimeout(() => {
-        setLoading(false);
-      }, 2000);
+      dispararAlertaRechazo();
     }
   };
   
@@ -145,24 +165,19 @@ export default function ControlIngreso() {
       });
       setResultado(res.data);
       detenerCamara();
-      setLoading(false); // Éxito: quitamos el loading inmediatamente
+      
+      // Validación en caso de éxito HTTP pero rechazo por negocio
+      const estado = res.data?.habilitacion?.estado || res.data?.estado_verificacion || res.data?.estado;
+      if (String(estado).toUpperCase() !== 'HABILITADO') {
+        dispararAlertaRechazo();
+      } else {
+        setLoading(false);
+      }
     } catch (err) {
       console.error('Error al verificar QR:', err);
       const msg = err.response?.data?.message || 'Código QR no reconocido o estudiante no encontrado.';
       setErrorAlerta(msg);
-
-      //  Feedback Sensorial y Bloqueo ---
-      // 1. Vibración [200ms on, 100ms off, 200ms on]
-      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-      
-      // 2. Sonido de error
-      const audioError = new Audio('/error.mp3');
-      audioError.play().catch(e => console.warn('Reproducción de audio bloqueada por el navegador', e));
-
-      // 3. Bloqueo temporal de la cámara/interfaz por 2 segundos
-      setTimeout(() => {
-        setLoading(false);
-      }, 2000);
+      dispararAlertaRechazo();
     }
   };
     
@@ -209,7 +224,7 @@ export default function ControlIngreso() {
           >
             {examenes.map((ex) => (
               <option key={ex.id_examen} value={ex.id_examen}>
-                {ex.nombre} ({ex.fecha ? String(ex.fecha).substring(0, 10) : ''} - {ex.hora_inicio})
+                {ex.nombre} ({ex.fecha ? String(ex.fecha).substring(0, 10) : ''} {ex.hora_inicio})
               </option>
             ))}
           </select>
