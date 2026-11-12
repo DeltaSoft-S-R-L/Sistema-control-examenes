@@ -24,6 +24,7 @@ export default function ControlIngreso() {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const inputIdentificadorRef = useRef(null);
+  const examenActivo = examenes.find((examen) => Number(examen.id_examen) === Number(examenSeleccionado));
 
   useEffect(() => {
     cargarExamenes();
@@ -349,6 +350,7 @@ export default function ControlIngreso() {
           <StudentCard
             estudiante={resultado.estudiante}
             habilitacion={resultado.habilitacion}
+            examenSeleccionado={examenActivo}
             onSiguiente={handleSiguienteEstudiante}
             onVerMotivo={() => setMostrarModalMotivo(true)}
           />
