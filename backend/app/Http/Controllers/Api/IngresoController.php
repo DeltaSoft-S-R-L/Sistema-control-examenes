@@ -117,9 +117,38 @@ class IngresoController extends Controller
             ], 403);
         }
 
-        // 5. Validar que la asignación de ambiente pertenezca al examen
-        $asignacionAmbiente = AsignacionAmbiente::find($validated['id_asignacion_ambiente']);
+        // 5. Validar que la asignación de ambiente pertenezca al examen y auditar discrepancia (origin/dev + ING-04)
+        $asignacionAmbiente = AsignacionAmbiente::with('ambiente')->find($validated['id_asignacion_ambiente']);
         if (!$asignacionAmbiente || (int) $asignacionAmbiente->id_examen !== (int) $validated['id_examen']) {
+            $asignacionReal = $habilitacion->id_asignacion_ambiente
+                ? AsignacionAmbiente::with('ambiente')->find($habilitacion->id_asignacion_ambiente)
+                : AsignacionAmbiente::with('ambiente')->where('id_examen', (int) $validated['id_examen'])->first();
+
+            AuditService::registrar(
+                accion: AccionAuditoria::DISCREPANCIA_AMBIENTE_INGRESO->value,
+                entidad: 'ingreso',
+                idRegistro: (string) $habilitacion->id_estudiante,
+                informacion: [
+                    'id_estudiante'      => $habilitacion->id_estudiante,
+                    'id_examen'          => (int) $validated['id_examen'],
+                    'id_habilitacion'    => (int) $validated['id_habilitacion'],
+                    'ambiente_intentado' => [
+                        'id_asignacion_ambiente' => (int) $validated['id_asignacion_ambiente'],
+                        'id_ambiente'            => $asignacionAmbiente?->id_ambiente,
+                        'nombre'                 => $asignacionAmbiente?->ambiente?->nombre,
+                        'codigo'                 => $asignacionAmbiente?->ambiente?->codigo,
+                    ],
+                    'ambiente_asignado'  => [
+                        'id_asignacion_ambiente' => $asignacionReal?->id_asignacion_ambiente,
+                        'id_ambiente'            => $asignacionReal?->id_ambiente,
+                        'nombre'                 => $asignacionReal?->ambiente?->nombre,
+                        'codigo'                 => $asignacionReal?->ambiente?->codigo,
+                    ],
+                    'id_usuario_control' => (int) $idUsuario,
+                ],
+                idUsuario: $idUsuario
+            );
+
             return response()->json([
                 'message' => 'El ambiente seleccionado no corresponde a este examen.',
                 'code'    => CodigoErrorVerificacion::AMBIENTE_NO_CORRESPONDE->value,
