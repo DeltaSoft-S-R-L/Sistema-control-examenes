@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
-import StudentCard from '../components/estudiantes/StudentCard';
+// Ahora importa el archivo correcto de la subcarpeta 'estudiantes'
+import StudentCard from '../components/estudiantes/StudentCard'; 
 import MotivoInhabilitacionModal from '../components/habilitaciones/MotivoInhabilitacionModal';
 import { getUsuario } from '../utils/auth';
 
@@ -196,7 +197,7 @@ export default function ControlIngreso() {
           >
             {examenes.map((ex) => (
               <option key={ex.id_examen} value={ex.id_examen}>
-                {ex.nombre} ({ex.fecha ? String(ex.fecha).substring(0, 10) : ''} - {ex.hora_inicio})
+                {ex.nombre} ({ex.fecha ? String(ex.fecha).substring(0, 10) : ''} {ex.hora_inicio})
               </option>
             ))}
           </select>
@@ -356,12 +357,18 @@ export default function ControlIngreso() {
         /* TARJETA DE RESULTADO (StudentCard) Y MODAL DE MOTIVO */
         /* ========================================================================= */
         <div>
+          {/* CORREGIDO, Pasando las props correctas a StudentCard */}
           <StudentCard
-            estado={resultado.habilitacion?.estado}
+            habilitacion={resultado.habilitacion}
             estudiante={resultado.estudiante}
-            examen={examenes.find(e => e.id_examen === examenSeleccionado)}
-            fechaHora={resultado.timestamp || resultado.habilitacion?.updated_at || new Date().toISOString()}
-            onSiguienteEstudiante={handleSiguienteEstudiante}
+            /* CORREGIDO, Fecha/Hora proviene estrictamente de la DB (Issue 169) sin new Date() de respaldo */
+            fechaHora={
+              resultado.ingreso?.fecha_hora || 
+              resultado.fecha_hora || 
+              resultado.fecha_consulta || 
+              resultado.timestamp
+            }
+            onSiguiente={handleSiguienteEstudiante}
             onVerMotivo={() => setMostrarModalMotivo(true)}
           />
 
