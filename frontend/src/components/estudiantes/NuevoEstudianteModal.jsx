@@ -209,7 +209,9 @@ export default function NuevoEstudianteModal({
       nuevosErrores.apellido = "Ingrese un apellido válido.";
     }
 
-    if (formulario.correo.trim() && !formatoCorreo.test(formulario.correo)) {
+    if (!formulario.correo.trim()) {
+      nuevosErrores.correo = "El correo electrónico es obligatorio.";
+    } else if (!formatoCorreo.test(formulario.correo.trim())) {
       nuevosErrores.correo = "Ingrese un correo electrónico válido.";
     }
 
@@ -232,9 +234,6 @@ export default function NuevoEstudianteModal({
       nuevosErrores.idCarrera = "Seleccione una carrera.";
     }
 
-    if (formulario.asignaturas.length === 0) {
-      nuevosErrores.asignaturas = "Seleccione al menos una materia.";
-    }
     setErrores(nuevosErrores);
 
     return Object.keys(nuevosErrores).length === 0;
@@ -256,7 +255,7 @@ export default function NuevoEstudianteModal({
         codigo_universitario: formulario.codigoUniversitario.trim(),
         nombre: formulario.nombre.trim(),
         apellido: formulario.apellido.trim(),
-        correo: formulario.correo.trim() || null,
+        correo: formulario.correo.trim(),
         estado: formulario.estado,
         id_carrera: Number(formulario.idCarrera),
         asignaturas: formulario.asignaturas,
@@ -504,7 +503,7 @@ export default function NuevoEstudianteModal({
                     {/* CORREO */}
                     <div className="col-12">
                       <label className="form-label fw-semibold">
-                        Correo electrónico
+                        Correo electrónico *
                       </label>
 
                       <input
@@ -614,7 +613,8 @@ export default function NuevoEstudianteModal({
                     {/* MATERIAS */}
                     <div className="col-12">
                       <label className="form-label fw-semibold">
-                        Materias <span className="text-danger">*</span>
+                        Materias{" "}
+                        <span className="text-muted small">(opcional)</span>
                       </label>
 
                       <div

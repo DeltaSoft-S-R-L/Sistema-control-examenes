@@ -7,6 +7,9 @@ use App\Models\Asignatura;
 use App\Models\Carrera;
 use App\Models\Estudiante;
 use App\Services\QrTokenService;
+use App\Services\CuentaEstudianteService;
+use App\Mail\BienvenidaEstudianteMail;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -150,9 +153,9 @@ if (!$this->esAdministrador($request)) {
             'apellido'             => 'required|string|max:100',
             'codigo_universitario' => 'required|string|max:50|unique:estudiante,codigo_universitario',
             'id_carrera'           => 'required|integer|exists:carrera,id_carrera',
-            'asignaturas'          => 'required|array|min:1',
+            'asignaturas'          => 'nullable|array',
             'asignaturas.*'        => 'integer|distinct|exists:asignatura,id_asignatura',
-            'correo'               => 'nullable|email|max:150',
+            'correo'               => 'required|email|max:150',
             'estado'               => [
                 'required',
                 \Illuminate\Validation\Rule::in([
@@ -162,7 +165,7 @@ if (!$this->esAdministrador($request)) {
             ],
         ]);
 
-$asignaturas = $data['asignaturas'];
+$asignaturas = $data['asignaturas'] ?? [];
 unset($data['asignaturas']);
 
 $cantidadAsignaturasValidas = Asignatura::whereIn(
@@ -185,16 +188,55 @@ if ($cantidadAsignaturasValidas !== count($asignaturas)) {
     ], 422);
 }
 
-$estudiante = Estudiante::create($data);
+
+$usuarioNuevo = null;
+
+try {
+    DB::transaction(function () use (
+        $data,
+        $asignaturas,
+        &$estudiante,
+        &$usuarioNuevo
+    ) {
+        $estudiante = Estudiante::create($data);
 
         $estudiante->asignaturas()->sync($asignaturas);
 
-        $estudiante->load([
-        'carrera',
-        'asignaturas',
-        ]);
+        $usuarioNuevo = app(CuentaEstudianteService::class)
+            ->crearCuenta($estudiante);
+    });
+} catch (\Throwable $e) {
+    report($e);
 
-        return response()->json($estudiante, 201);
+    return response()->json([
+        'message' => 'No se pudo completar el registro del estudiante.',
+    ], 422);
+}
+
+$correoEnviado = false;
+
+if ($usuarioNuevo !== null) {
+    try {
+        Mail::to($usuarioNuevo->correo)
+            ->send(new BienvenidaEstudianteMail($usuarioNuevo));
+
+        $correoEnviado = true;
+    } catch (\Throwable $e) {
+        report($e);
+    }
+}
+
+$estudiante->load([
+    'carrera',
+    'asignaturas',
+]);
+
+return response()->json([
+    'estudiante' => $estudiante,
+    'cuenta_creada' => $usuarioNuevo !== null,
+    'correo_enviado' => $correoEnviado,
+], 201);
+
     }
 
     public function importar(Request $request)
@@ -360,7 +402,7 @@ if (!in_array($rol, ['ADMINISTRADOR', 'DOCENTE'], true)) {
             'codigo_universitario' => 'required|string|max:50',
             'nombre' => 'required|string|max:100',
             'apellido' => 'required|string|max:100',
-            'correo' => 'nullable|email|max:150',
+            'correo' => 'required|email|max:150',
             'estado' => 'required|in:ACTIVO,INACTIVO',
             'carrera' => 'required|string|max:30',
             'asignaturas' => 'required|string',
@@ -518,24 +560,23 @@ if (
 
 
 try {
-    DB::transaction(function () use (
+    $usuarioParaActivar = DB::transaction(function () use (
         $estudianteExistente,
         $estudiante,
         $carrera,
         $asignaturas
     ) {
         if ($estudianteExistente) {
-            // Conservar los datos del estudiante existente.
+            // Conservar los datos académicos existentes.
             $estudianteGuardado = $estudianteExistente;
         } else {
-            // Crear un estudiante únicamente si no existe.
             $estudianteGuardado = Estudiante::create([
                 'ci' => $estudiante['ci'],
                 'codigo_universitario' => $estudiante['codigo_universitario'],
                 'nombre' => $estudiante['nombre'],
                 'apellido' => $estudiante['apellido'],
                 'id_carrera' => $carrera->id_carrera,
-                'correo' => $estudiante['correo'] ?: null,
+                'correo' => trim($estudiante['correo']),
                 'estado' => $estudiante['estado'],
             ]);
         }
@@ -544,9 +585,26 @@ try {
         $estudianteGuardado->asignaturas()->syncWithoutDetaching(
             $asignaturas->pluck('id_asignatura')->all()
         );
+
+        // El servicio evita crear cuentas duplicadas.
+        return app(CuentaEstudianteService::class)
+            ->crearCuenta($estudianteGuardado);
     });
 
+    // El registro académico ya está confirmado.
     $importados++;
+
+    // Enviar el correo estudiantil fuera de la transacción.
+if ($usuarioParaActivar !== null) {
+    try {
+        Mail::to($usuarioParaActivar->correo)
+            ->send(new BienvenidaEstudianteMail($usuarioParaActivar));
+    } catch (\Throwable $e) {
+        report($e);
+
+        // El estudiante y su cuenta permanecen registrados.
+    }
+}
 } catch (\Throwable $e) {
     report($e);
 
@@ -555,6 +613,7 @@ try {
         'mensaje' => 'No se pudo guardar el estudiante y sus materias.',
     ];
 }
+
 
 
     }
@@ -695,13 +754,15 @@ if (!$this->esAdministrador($request)) {
             'apellido'             => 'sometimes|required|string|max:100',
             'codigo_universitario' => "sometimes|required|string|max:50|unique:estudiante,codigo_universitario,{$id},id_estudiante",
             'id_carrera'           => 'sometimes|required|integer|exists:carrera,id_carrera',
-            'asignaturas'          => 'sometimes|required|array|min:1',
+            'asignaturas'          => 'sometimes|nullable|array',
             'asignaturas.*'        => 'integer|distinct|exists:asignatura,id_asignatura',
-            'correo'               => 'nullable|email|max:150',
+            'correo'               => 'sometimes|required|email|max:150',
             'estado'               => 'sometimes|required|in:ACTIVO,INACTIVO',
         ]);
 
-        $asignaturas = $data['asignaturas'] ?? null;
+$asignaturas = array_key_exists('asignaturas', $data)
+    ? ($data['asignaturas'] ?? [])
+    : null;
 unset($data['asignaturas']);
 
 $idCarrera = $data['id_carrera'] ?? $estudiante->id_carrera;

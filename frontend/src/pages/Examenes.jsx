@@ -3,6 +3,7 @@ import api from '../services/api';
 import NuevoExamenModal from '../components/examenes/NuevoExamenModal';
 import EditarExamenModal from '../components/examenes/EditarExamenModal';
 import AuditoriaExamenModal from '../components/examenes/AuditoriaExamenModal';
+import FichaExamenModal from '../components/examenes/FichaExamenModal';
 import NormasExamenModal from '../components/examenes/NormasExamenModal';
 
 export default function Examenes() {
@@ -11,9 +12,11 @@ export default function Examenes() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+  const [isFichaModalOpen, setIsFichaModalOpen] = useState(false);
+  const [isNormasModalOpen, setIsNormasModalOpen] = useState(false);
   const [examenAEditar, setExamenAEditar] = useState(null);
   const [examenAuditando, setExamenAuditando] = useState(null);
-  const [isNormasModalOpen, setIsNormasModalOpen] = useState(false);
+  const [examenFicha, setExamenFicha] = useState(null);
   const [examenNormas, setExamenNormas] = useState(null);
   const [mensaje, setMensaje] = useState(null);
   const [error, setError] = useState(null);
@@ -65,6 +68,11 @@ export default function Examenes() {
   const handleAbrirAuditoria = (examen) => {
     setExamenAuditando(examen);
     setIsAuditModalOpen(true);
+  };
+
+  const handleAbrirFicha = (examen) => {
+    setExamenFicha(examen);
+    setIsFichaModalOpen(true);
   };
 
   const handleAbrirNormas = (examen) => {
@@ -330,6 +338,15 @@ export default function Examenes() {
                             <button
                               type="button"
                               className="btn btn-outline-primary"
+                              title="Ver ficha del examen y sus normas"
+                              aria-label={`Ver ficha del examen ${ex.nombre}`}
+                              onClick={() => handleAbrirFicha(ex)}
+                            >
+                              <i className="bi bi-eye"></i>
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-outline-primary"
                               title="Gestionar normas del examen"
                               onClick={() => handleAbrirNormas(ex)}
                             >
@@ -406,6 +423,15 @@ export default function Examenes() {
           setExamenAuditando(null);
         }}
       />
+      <FichaExamenModal
+        isOpen={isFichaModalOpen}
+        examen={examenFicha}
+        onClose={() => {
+          setIsFichaModalOpen(false);
+          setExamenFicha(null);
+        }}
+      />
+
       {/* Modal Normas del Examen */}
       <NormasExamenModal
         isOpen={isNormasModalOpen}

@@ -2,6 +2,7 @@ export const ROLES = {
   ADMINISTRADOR: 'ADMINISTRADOR',
   DOCENTE: 'DOCENTE',
   CONTROL_INGRESO: 'CONTROL_INGRESO',
+  ESTUDIANTE: 'ESTUDIANTE',
 };
 
 export function getUsuario() {

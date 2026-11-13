@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\AccionAuditoria;
+use App\Enums\CodigoErrorVerificacion;
+use App\Enums\MotivoIntentoIngreso;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\IngresoResource;
 use App\Models\AsignacionAmbiente;
@@ -51,7 +54,6 @@ class IngresoController extends Controller
             'id_asignacion_ambiente.required' => 'El campo id_asignacion_ambiente es obligatorio.',
             'id_asignacion_ambiente.exists'   => 'La asignación de ambiente especificada no existe.',
         ]);
-
         // 2. Extracción segura del operador de puerta autenticado
         $idUsuario = Auth::guard('sanctum')->id()
             ?? $request->user()?->id_usuario
@@ -68,8 +70,8 @@ class IngresoController extends Controller
         if (!$habilitacion || (int) $habilitacion->id_examen !== (int) $validated['id_examen']) {
             return response()->json([
                 'message' => 'La habilitación no corresponde a este examen.',
-                'code'    => 'NO_ASOCIADO',
-                'error'   => 'NO_ASOCIADO',
+                'code'    => CodigoErrorVerificacion::NO_ASOCIADO->value,
+                'error'   => CodigoErrorVerificacion::NO_ASOCIADO->value,
             ], 422);
         }
 
@@ -82,7 +84,7 @@ class IngresoController extends Controller
                     'id_asignacion_ambiente' => (int) $validated['id_asignacion_ambiente'],
                     'id_usuario'             => (int) $idUsuario,
                     'fecha_hora'             => now(),
-                    'motivo'                 => 'ESTUDIANTE_NO_HABILITADO',
+                    'motivo'                 => MotivoIntentoIngreso::ESTUDIANTE_NO_HABILITADO->value,
                 ]);
             } catch (\Throwable $e) {
                 Log::error('Error al persistir intento de estudiante no habilitado: ' . $e->getMessage(), [
@@ -93,14 +95,14 @@ class IngresoController extends Controller
 
             try {
                 AuditService::registrar(
-                    accion: 'INTENTO_INGRESO_NO_HABILITADO',
+                    accion: AccionAuditoria::INTENTO_INGRESO_NO_HABILITADO->value,
                     entidad: 'ingreso',
                     idRegistro: (string) $habilitacion->id_habilitacion,
                     informacion: [
                         'id_estudiante'          => $habilitacion->id_estudiante,
                         'id_examen'              => (int) $validated['id_examen'],
                         'id_asignacion_ambiente' => (int) $validated['id_asignacion_ambiente'],
-                        'motivo'                 => 'ESTUDIANTE_NO_HABILITADO',
+                        'motivo'                 => MotivoIntentoIngreso::ESTUDIANTE_NO_HABILITADO->value,
                     ],
                     idUsuario: $idUsuario
                 );
@@ -110,18 +112,47 @@ class IngresoController extends Controller
 
             return response()->json([
                 'message' => 'El estudiante no se encuentra habilitado para este examen.',
-                'code'    => 'NO_HABILITADO',
-                'error'   => 'NO_HABILITADO',
+                'code'    => CodigoErrorVerificacion::NO_HABILITADO->value,
+                'error'   => CodigoErrorVerificacion::NO_HABILITADO->value,
             ], 403);
         }
 
-        // 5. Validar que la asignación de ambiente pertenezca al examen
-        $asignacionAmbiente = AsignacionAmbiente::find($validated['id_asignacion_ambiente']);
+        // 5. Validar que la asignación de ambiente pertenezca al examen y auditar discrepancia (origin/dev + ING-04)
+        $asignacionAmbiente = AsignacionAmbiente::with('ambiente')->find($validated['id_asignacion_ambiente']);
         if (!$asignacionAmbiente || (int) $asignacionAmbiente->id_examen !== (int) $validated['id_examen']) {
+            $asignacionReal = $habilitacion->id_asignacion_ambiente
+                ? AsignacionAmbiente::with('ambiente')->find($habilitacion->id_asignacion_ambiente)
+                : AsignacionAmbiente::with('ambiente')->where('id_examen', (int) $validated['id_examen'])->first();
+
+            AuditService::registrar(
+                accion: AccionAuditoria::DISCREPANCIA_AMBIENTE_INGRESO->value,
+                entidad: 'ingreso',
+                idRegistro: (string) $habilitacion->id_estudiante,
+                informacion: [
+                    'id_estudiante'      => $habilitacion->id_estudiante,
+                    'id_examen'          => (int) $validated['id_examen'],
+                    'id_habilitacion'    => (int) $validated['id_habilitacion'],
+                    'ambiente_intentado' => [
+                        'id_asignacion_ambiente' => (int) $validated['id_asignacion_ambiente'],
+                        'id_ambiente'            => $asignacionAmbiente?->id_ambiente,
+                        'nombre'                 => $asignacionAmbiente?->ambiente?->nombre,
+                        'codigo'                 => $asignacionAmbiente?->ambiente?->codigo,
+                    ],
+                    'ambiente_asignado'  => [
+                        'id_asignacion_ambiente' => $asignacionReal?->id_asignacion_ambiente,
+                        'id_ambiente'            => $asignacionReal?->id_ambiente,
+                        'nombre'                 => $asignacionReal?->ambiente?->nombre,
+                        'codigo'                 => $asignacionReal?->ambiente?->codigo,
+                    ],
+                    'id_usuario_control' => (int) $idUsuario,
+                ],
+                idUsuario: $idUsuario
+            );
+
             return response()->json([
                 'message' => 'El ambiente seleccionado no corresponde a este examen.',
-                'code'    => 'AMBIENTE_NO_CORRESPONDE',
-                'error'   => 'AMBIENTE_NO_CORRESPONDE',
+                'code'    => CodigoErrorVerificacion::AMBIENTE_NO_CORRESPONDE->value,
+                'error'   => CodigoErrorVerificacion::AMBIENTE_NO_CORRESPONDE->value,
             ], 422);
         }
 
@@ -135,8 +166,8 @@ class IngresoController extends Controller
         if (!$validacionAmbiente['valido']) {
             return response()->json([
                 'message'           => 'El estudiante está habilitado, pero le corresponde ingresar en otro ambiente.',
-                'code'              => 'AULA_INCORRECTA',
-                'error'             => 'AULA_INCORRECTA',
+                'code'              => CodigoErrorVerificacion::AULA_INCORRECTA->value,
+                'error'             => CodigoErrorVerificacion::AULA_INCORRECTA->value,
                 'ambiente_asignado' => $validacionAmbiente['ambiente_asignado'],
             ], 422);
         }
@@ -156,16 +187,33 @@ class IngresoController extends Controller
             );
         }
 
-        // 7. Persistencia transaccional forzando reloj del servidor now() (ING-02 / ING-03 con manejo de condición de carrera)
+        // 7. Persistencia transaccional atómica de ingreso + auditoría forzando reloj del servidor now() (ING-02 / ING-03)
         try {
-            $ingreso = DB::transaction(function () use ($validated, $idUsuario) {
-                return Ingreso::create([
+            $ingreso = DB::transaction(function () use ($validated, $habilitacion, $idUsuario) {
+                $nuevoIngreso = Ingreso::create([
                     'id_examen'              => (int) $validated['id_examen'],
                     'id_habilitacion'        => (int) $validated['id_habilitacion'],
                     'id_asignacion_ambiente' => (int) $validated['id_asignacion_ambiente'],
                     'id_usuario'             => (int) $idUsuario,
                     'fecha_hora'             => now(),
                 ]);
+
+                // 8. Registro atómico de auditoría dentro de la misma transacción
+                AuditService::registrarAtomico(
+                    accion: AccionAuditoria::REGISTRO_INGRESO_EXAMEN->value,
+                    entidad: 'ingreso',
+                    idRegistro: (string) $nuevoIngreso->id_ingreso,
+                    informacion: [
+                        'id_estudiante'          => $habilitacion->id_estudiante,
+                        'id_examen'              => (int) $validated['id_examen'],
+                        'id_asignacion_ambiente' => (int) $validated['id_asignacion_ambiente'],
+                        'id_habilitacion'        => (int) $validated['id_habilitacion'],
+                        'fecha_hora'             => $nuevoIngreso->fecha_hora?->toIso8601String() ?? (string) $nuevoIngreso->fecha_hora,
+                    ],
+                    idUsuario: $idUsuario
+                );
+
+                return $nuevoIngreso;
             });
         } catch (QueryException $e) {
             // Manejo de condición de carrera ante colisión en UNIQUE(id_habilitacion)
@@ -184,28 +232,6 @@ class IngresoController extends Controller
             }
 
             throw $e;
-        }
-
-        // 8. Registro de auditoría
-        try {
-            AuditService::registrar(
-                accion: 'REGISTRO_INGRESO_EXAMEN',
-                entidad: 'ingreso',
-                idRegistro: (string) $ingreso->id_ingreso,
-                informacion: [
-                    'id_estudiante'          => $habilitacion->id_estudiante,
-                    'id_examen'              => (int) $validated['id_examen'],
-                    'id_asignacion_ambiente' => (int) $validated['id_asignacion_ambiente'],
-                    'id_habilitacion'        => (int) $validated['id_habilitacion'],
-                    'fecha_hora'             => $ingreso->fecha_hora?->toIso8601String() ?? (string) $ingreso->fecha_hora,
-                ],
-                idUsuario: $idUsuario
-            );
-        } catch (\Throwable $e) {
-            Log::error('Error al registrar auditoría de ingreso: ' . $e->getMessage(), [
-                'id_ingreso' => $ingreso->id_ingreso,
-                'exception'  => $e,
-            ]);
         }
 
         $ingreso->loadMissing(['habilitacion.estudiante', 'asignacionAmbiente.ambiente', 'usuario']);
@@ -237,7 +263,7 @@ class IngresoController extends Controller
                 'id_asignacion_ambiente' => $idAsignacionAmbiente,
                 'id_usuario'             => $idUsuario,
                 'fecha_hora'             => now(),
-                'motivo'                 => 'REINGRESO_DUPLICADO',
+                'motivo'                 => MotivoIntentoIngreso::REINGRESO_DUPLICADO->value,
             ]);
         } catch (\Throwable $e) {
             Log::error('Error al registrar intento de reingreso duplicado: ' . $e->getMessage(), [
@@ -249,7 +275,7 @@ class IngresoController extends Controller
         // 2. Registrar en auditoría
         try {
             AuditService::registrar(
-                accion: 'INTENTO_REINGRESO_DUPLICADO',
+                accion: AccionAuditoria::INTENTO_REINGRESO_DUPLICADO->value,
                 entidad: 'ingreso',
                 idRegistro: (string) $ingresoPrevio->id_ingreso,
                 informacion: [
@@ -260,7 +286,7 @@ class IngresoController extends Controller
                     'primer_ingreso'            => $horaFormateada,
                     'fecha_hora_primer_ingreso' => $isoTimestamp,
                     'ambiente'                  => $nombreAmbiente,
-                    'motivo'                    => 'REINGRESO_DUPLICADO',
+                    'motivo'                    => MotivoIntentoIngreso::REINGRESO_DUPLICADO->value,
                 ],
                 idUsuario: $idUsuario
             );
@@ -273,8 +299,8 @@ class IngresoController extends Controller
 
         return response()->json([
             'message'                   => 'El estudiante ya registró su ingreso a este examen.',
-            'code'                      => 'REINGRESO_NO_PERMITIDO',
-            'error'                     => 'REINGRESO_NO_PERMITIDO',
+            'code'                      => CodigoErrorVerificacion::REINGRESO_NO_PERMITIDO->value,
+            'error'                     => CodigoErrorVerificacion::REINGRESO_NO_PERMITIDO->value,
             'primer_ingreso'            => $horaFormateada,
             'fecha_hora_primer_ingreso' => $isoTimestamp,
             'ambiente'                  => $nombreAmbiente,

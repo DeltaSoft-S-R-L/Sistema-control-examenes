@@ -189,11 +189,6 @@ export default function EditarEstudianteModal({
       return;
     }
 
-    if (formulario.asignaturas.length === 0) {
-      setError("Seleccione al menos una materia.");
-      return;
-    }
-
     try {
       setGuardando(true);
       setError("");
@@ -203,7 +198,7 @@ export default function EditarEstudianteModal({
         codigo_universitario: formulario.codigo_universitario.trim(),
         nombre: formulario.nombre.trim(),
         apellido: formulario.apellido.trim(),
-        correo: formulario.correo.trim() || null,
+        correo: formulario.correo.trim(),
 
         // El backend valida estados en mayúsculas (ACTIVO/INACTIVO).
         estado: formulario.estado.toUpperCase(),
@@ -398,7 +393,10 @@ export default function EditarEstudianteModal({
 
                   {/* MATERIAS */}
                   <div className="col-12">
-                    <label className="form-label fw-semibold">Materias *</label>
+                    <label className="form-label fw-semibold">
+                      Materias{" "}
+                      <span className="text-muted small">(opcional)</span>
+                    </label>
 
                     <div className="border rounded p-3">
                       {cargandoCatalogos ? (
@@ -443,7 +441,9 @@ export default function EditarEstudianteModal({
                   </div>
 
                   <div className="col-md-8">
-                    <label className="form-label fw-semibold">Correo</label>
+                    <label className="form-label fw-semibold">
+                      Correo electrónico *
+                    </label>
 
                     <input
                       type="email"
@@ -451,6 +451,7 @@ export default function EditarEstudianteModal({
                       name="correo"
                       value={formulario.correo}
                       onChange={handleChange}
+                      required
                       maxLength={150}
                     />
                   </div>
