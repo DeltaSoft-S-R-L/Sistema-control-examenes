@@ -7,6 +7,7 @@ use App\Models\Carrera;
 use App\Models\Estudiante;
 use App\Models\Examen;
 use App\Models\Facultad;
+use App\Models\Habilitacion;
 use App\Models\Rol;
 use App\Models\Usuario;
 use App\Services\QrTokenService;
@@ -138,6 +139,13 @@ class VerificacionRbacMatrixTest extends TestCase
             'duracion_minutos' => 120,
             'descripcion'      => 'Examen final presencial',
             'estado'           => 'PROGRAMADO',
+        ]);
+
+        // Habilitación válida del estudiante para el examen
+        Habilitacion::create([
+            'id_estudiante' => $this->estudiante->id_estudiante,
+            'id_examen'     => $this->examen->id_examen,
+            'estado'        => 'HABILITADO',
         ]);
 
         // 6. Token QR firmado

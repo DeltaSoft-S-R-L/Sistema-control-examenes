@@ -86,4 +86,13 @@ class Usuario extends Authenticatable
     {
         return $this->hasMany(Ingreso::class, 'id_usuario', 'id_usuario');
     }
+
+    public function estudiante()
+{
+    return $this->hasOne(
+        Estudiante::class,
+        'id_usuario',
+        'id_usuario'
+    );
+}
 }

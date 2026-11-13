@@ -27,6 +27,7 @@ export default function ControlIngreso() {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const inputIdentificadorRef = useRef(null);
+  const examenActivo = examenes.find((examen) => Number(examen.id_examen) === Number(examenSeleccionado));
 
   useEffect(() => {
     setOperador(getUsuario());
@@ -360,16 +361,18 @@ export default function ControlIngreso() {
           {/* CORREGIDO, Pasando las props correctas a StudentCard */}
           <StudentCard
             habilitacion={resultado.habilitacion}
-            estudiante={resultado.estudiante}
-            /* CORREGIDO, Fecha/Hora proviene estrictamente de la DB (Issue 169) sin new Date() de respaldo */
-            fechaHora={
-              resultado.ingreso?.fecha_hora || 
-              resultado.fecha_hora || 
-              resultado.fecha_consulta || 
-              resultado.timestamp
-            }
-            onSiguiente={handleSiguienteEstudiante}
-            onVerMotivo={() => setMostrarModalMotivo(true)}
+        estudiante={resultado.estudiante}
+        /* CORREGIDO, Fecha/Hora proviene estrictamente de la DB (Issue 169) sin new Date() de respaldo */
+        fechaHora={
+          resultado.ingreso?.fecha_hora ||
+          resultado.fecha_hora ||
+          resultado.fecha_consulta ||
+          resultado.timestamp
+        }
+        examenSeleccionado={examenActivo}
+        examen={resultado.examen}
+        onSiguiente={handleSiguienteEstudiante}
+        onVerMotivo={() => setMostrarModalMotivo(true)}
           />
 
           <MotivoInhabilitacionModal

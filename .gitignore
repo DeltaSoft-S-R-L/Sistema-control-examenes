@@ -5,3 +5,12 @@ dist/
 .env.local
 *.log
 coverage/
+
+# Analizador facial - archivos locales
+/backend/analizador_facial/.venv/
+/backend/analizador_facial/__pycache__/
+/backend/analizador_facial/pruebas/
+/backend/analizador_facial/**/*.pyc
+
+# Respaldos locales de PostgreSQL
+/control_examenes_antes_fotos.backup
