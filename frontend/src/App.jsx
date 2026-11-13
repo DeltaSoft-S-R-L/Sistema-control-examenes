@@ -1,4 +1,3 @@
-
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
@@ -9,6 +8,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import ConfigurarContrasena from "./pages/ConfigurarContrasena";
 import Dashboard from "./pages/Dashboard";
+import DashboardEstudiante from "./pages/DashboardEstudiante";
 import Examenes from "./pages/Examenes";
 import Estudiantes from "./pages/Estudiantes";
 import Ambientes from "./pages/Ambientes";
@@ -33,17 +33,35 @@ export default function App() {
 
         {/* Cualquier usuario autenticado */}
         <Route element={<ProtectedRoute />}>
+          {/* Dashboard exclusivo para estudiantes */}
+          <Route
+            element={<ProtectedRoute rolesPermitidos={[ROLES.ESTUDIANTE]} />}
+          >
+            <Route
+              path="/estudiante/dashboard"
+              element={<DashboardEstudiante />}
+            />
+          </Route>
           <Route element={<Layout />}>
-            <Route path="/" element={<Dashboard />} />
-
-            {/* Administrador y docente */}
             <Route
               element={
                 <ProtectedRoute
                   rolesPermitidos={[
                     ROLES.ADMINISTRADOR,
                     ROLES.DOCENTE,
+                    ROLES.CONTROL_INGRESO,
                   ]}
+                />
+              }
+            >
+              <Route path="/" element={<Dashboard />} />
+            </Route>
+
+            {/* Administrador y docente */}
+            <Route
+              element={
+                <ProtectedRoute
+                  rolesPermitidos={[ROLES.ADMINISTRADOR, ROLES.DOCENTE]}
                 />
               }
             >
@@ -55,9 +73,7 @@ export default function App() {
             {/* Solo administrador */}
             <Route
               element={
-                <ProtectedRoute
-                  rolesPermitidos={[ROLES.ADMINISTRADOR]}
-                />
+                <ProtectedRoute rolesPermitidos={[ROLES.ADMINISTRADOR]} />
               }
             >
               <Route path="/usuarios" element={<Usuarios />} />
@@ -68,17 +84,11 @@ export default function App() {
             <Route
               element={
                 <ProtectedRoute
-                  rolesPermitidos={[
-                    ROLES.ADMINISTRADOR,
-                    ROLES.CONTROL_INGRESO,
-                  ]}
+                  rolesPermitidos={[ROLES.ADMINISTRADOR, ROLES.CONTROL_INGRESO]}
                 />
               }
             >
-              <Route
-                path="/control-ingreso"
-                element={<ControlIngreso />}
-              />
+              <Route path="/control-ingreso" element={<ControlIngreso />} />
 
               <Route
                 path="/verificacion-movil"
@@ -96,6 +106,19 @@ export default function App() {
               />
             </Route>
 
+            {/* Reportes: usuarios administrativos y operativos */}
+            <Route
+              element={
+                <ProtectedRoute
+                  rolesPermitidos={[
+                    ROLES.ADMINISTRADOR,
+                    ROLES.DOCENTE,
+                    ROLES.CONTROL_INGRESO,
+                  ]}
+                />
+              }
+            >
+            </Route>
             {/* Reportes */}
             <Route
               path="/reportes"
