@@ -20,6 +20,11 @@ class Ingreso extends Model
 
     protected $casts = ['fecha_hora' => 'datetime'];
 
+    public function examen()
+    {
+        return $this->belongsTo(Examen::class, 'id_examen', 'id_examen');
+    }
+
     public function habilitacion()
     {
         return $this->belongsTo(Habilitacion::class, 'id_habilitacion', 'id_habilitacion');
