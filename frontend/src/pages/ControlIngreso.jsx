@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
-// Ahora importa el archivo correcto de la subcarpeta 'estudiantes'
-import StudentCard from '../components/estudiantes/StudentCard'; 
+import StudentCard from '../components/estudiantes/StudentCard';
 import MotivoInhabilitacionModal from '../components/habilitaciones/MotivoInhabilitacionModal';
+import ModalAmbienteIncorrecto from '../components/habilitaciones/ModalAmbienteIncorrecto';
 import { getUsuario } from '../utils/auth';
 
 export default function ControlIngreso() {
@@ -20,9 +19,15 @@ export default function ControlIngreso() {
   const [errorAlerta, setErrorAlerta] = useState(null);
   const [resultado, setResultado] = useState(null);
   const [mostrarModalMotivo, setMostrarModalMotivo] = useState(false);
+  
+  // HU-180: Estados del Modal Ámbar
+  const [mostrarModalAmbiente, setMostrarModalAmbiente] = useState(false);
+  const [ambienteAsignado, setAmbienteAsignado] = useState(null);
+
+  // HU-166: Operador logueado
   const [operador, setOperador] = useState(null);
 
-  // Estados de registro de ingreso
+  // Estados de registro de ingreso y doble ingreso
   const [asignacionSeleccionada, setAsignacionSeleccionada] = useState('');
   const [registrando, setRegistrando] = useState(false);
   const [ingresoRegistrado, setIngresoRegistrado] = useState(false);
@@ -53,7 +58,6 @@ export default function ControlIngreso() {
     setOperador(getUsuario());
     cargarExamenes();
     
-    // Limpieza al desmontar el componente (evitar fugas de memoria)
     return () => {
       detenerCamara();
       if (timeoutRef.current) {
@@ -144,36 +148,43 @@ export default function ControlIngreso() {
     setCamaraActiva(false);
   };
 
-
-  // Liberar cámara al desmontar el componente
-  useEffect(() => {
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-      }
-    };
-  }, []);
   // --- HU-160: Función reutilizable para el Feedback Sensorial ---
   const dispararAlertaRechazo = () => {
     if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-    
     if (audioErrorRef.current) {
-      audioErrorRef.current.currentTime = 0; // Reiniciar audio si ya estaba sonando
-      audioErrorRef.current.play().catch(e => console.warn('Reproducción de audio bloqueada por el navegador', e));
+      audioErrorRef.current.currentTime = 0; 
+      audioErrorRef.current.play().catch(e => console.warn('Reproducción bloqueada', e));
     }
-
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    
     timeoutRef.current = setTimeout(() => {
       setLoading(false);
     }, 2000);
+  };
+
+  const procesarErrorVerificacion = (err) => {
+    console.error('Error en verificación:', err);
+    const responseData = err.response?.data;
+
+    // HU-180: Interceptar error de ambiente incorrecto (Modal Ámbar)
+    if (responseData && (responseData.code === 'AULA_INCORRECTA' || responseData.code === 'AMBIENTE_INCORRECTO')) {
+      setAmbienteAsignado(responseData.ambiente_asignado);
+      setResultado({ estudiante: responseData.estudiante || null }); 
+      setMostrarModalAmbiente(true);
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100]); 
+      setLoading(false);
+      return;
+    }
+
+    const msg = responseData?.message || 'Estudiante no encontrado en el sistema.';
+    setErrorAlerta(msg);
+    dispararAlertaRechazo();
   };
 
   // Verificar estudiante por CI/SIS
   const handleVerificarDocumento = async (e) => {
     if (e) e.preventDefault();
 
+    // Restableciendo alertas de validación requeridas
     if (!identificador.trim()) {
       setErrorAlerta('Por favor ingrese el número de CI o Código SIS.');
       return;
@@ -198,7 +209,6 @@ export default function ControlIngreso() {
 
       setResultado(res.data);
       
-      // Validación en caso de éxito HTTP pero rechazo por negocio
       const estado = res.data?.habilitacion?.estado || res.data?.estado_verificacion || res.data?.estado;
       if (String(estado).toUpperCase() !== 'HABILITADO') {
         dispararAlertaRechazo();
@@ -206,22 +216,15 @@ export default function ControlIngreso() {
         setLoading(false); 
       }
     } catch (err) {
-      console.error('Error al verificar documento:', err);
-
-      const msg =
-        err.response?.data?.message ||
-        'Estudiante no encontrado en el sistema.';
-
-      setErrorAlerta(msg);
-      dispararAlertaRechazo();
+      procesarErrorVerificacion(err);
     }
   };
-  
 
   // Verificar estudiante por QR
   const handleVerificarQr = async (tokenParaEnviar) => {
     const token = tokenParaEnviar || tokenQr;
 
+    // Restableciendo alertas de validación requeridas
     if (!token.trim()) {
       setErrorAlerta('Ingrese o escanee un código QR válido.');
       return;
@@ -247,7 +250,6 @@ export default function ControlIngreso() {
       setResultado(res.data);
       detenerCamara();
       
-      // Validación en caso de éxito HTTP pero rechazo por negocio
       const estado = res.data?.habilitacion?.estado || res.data?.estado_verificacion || res.data?.estado;
       if (String(estado).toUpperCase() !== 'HABILITADO') {
         dispararAlertaRechazo();
@@ -255,23 +257,14 @@ export default function ControlIngreso() {
         setLoading(false);
       }
     } catch (err) {
-      console.error('Error al verificar QR:', err);
-
-      const msg =
-        err.response?.data?.message ||
-        'Código QR no reconocido o estudiante no encontrado.';
-
-      setErrorAlerta(msg);
-      dispararAlertaRechazo();
+      procesarErrorVerificacion(err);
     }
   };
-    
 
   // Registrar ingreso del estudiante habilitado
   const handleRegistrarIngreso = async () => {
     const habilitacion = resultado?.habilitacion;
 
-    // Solo se permite registrar estudiantes habilitados
     if (habilitacion?.estado !== 'HABILITADO') {
       return;
     }
@@ -286,7 +279,6 @@ export default function ControlIngreso() {
       return;
     }
 
-    // Evitar solicitudes duplicadas desde el botón
     if (registrando || ingresoRegistrado || dobleIngreso) {
       return;
     }
@@ -308,8 +300,6 @@ export default function ControlIngreso() {
       const status = err.response?.status;
       const data = err.response?.data || {};
 
-      // El backend actual utiliza 422 + INGRESO_DUPLICADO.
-      // También se contempla el 409 solicitado en la tarea.
       const esDobleIngreso =
         status === 409 ||
         (status === 422 && data.code === 'INGRESO_DUPLICADO');
@@ -321,7 +311,6 @@ export default function ControlIngreso() {
           data.primer_ingreso?.fecha_hora ||
           null;
 
-        // Consultar el primer ingreso si el backend devuelve su identificador
         if (!fechaHora && data.id_ingreso) {
           try {
             const respuesta = await api.get(
@@ -367,6 +356,10 @@ export default function ControlIngreso() {
     setMostrarModalMotivo(false);
     setDobleIngreso(null);
     setIngresoRegistrado(false);
+    
+    // HU-180: Limpiar estados del modal ámbar
+    setMostrarModalAmbiente(false);
+    setAmbienteAsignado(null);
 
     if (metodo === 'ci_sis') {
       setTimeout(() => {
@@ -385,7 +378,6 @@ export default function ControlIngreso() {
     setTokenQr('');
 
     if (metodo === 'qr') {
-      // Esperar a que vuelva a mostrarse el vídeo antes de activar cámara
       setTimeout(() => {
         iniciarCamara();
       }, 200);
@@ -401,13 +393,11 @@ export default function ControlIngreso() {
       className="container-fluid px-2 py-3 px-md-4"
       style={{ maxWidth: '650px', margin: '0 auto' }}
     >
-      {/* Título de control móvil */}
       <div className="text-center mb-3">
         <h3 className="fw-bold text-primary mb-1">
           <i className="bi bi-shield-check me-2"></i>
           Control de Ingreso
         </h3>
-
 
         <p className="text-muted small mb-0">
           Verificación de credenciales en tiempo real
@@ -419,10 +409,8 @@ export default function ControlIngreso() {
             Controlador: {operador.nombres || operador.nombre} {operador.apellidos || operador.apellido}
           </div>
         )}
-
       </div>
 
-      {/* Selector de examen y ambiente */}
       <div className="card border-0 shadow-sm rounded-4 mb-3">
         <div className="card-body p-3">
           <label className="form-label small fw-bold text-uppercase text-muted mb-1">
@@ -442,7 +430,6 @@ export default function ControlIngreso() {
             }}
             disabled={loading || registrando}
           >
-
             {examenes.length === 0 ? (
               <option value="">No hay exámenes disponibles</option>
             ) : (
@@ -454,7 +441,6 @@ export default function ControlIngreso() {
                 </option>
               ))
             )}
-
           </select>
 
           <div className="mt-3">
@@ -490,7 +476,6 @@ export default function ControlIngreso() {
         </div>
       </div>
 
-      {/* Alerta de error general */}
       {errorAlerta && (
         <div
           className="alert alert-danger shadow-sm rounded-3 py-2 px-3 d-flex align-items-center mb-3"
@@ -511,10 +496,8 @@ export default function ControlIngreso() {
         </div>
       )}
 
-      {/* Formulario de verificación */}
       {!resultado ? (
         <div className="card border-0 shadow-sm rounded-4 overflow-hidden mb-3">
-          {/* Pestañas de selección de método */}
           <div
             className="btn-group w-100 p-2 bg-light border-bottom"
             role="group"
@@ -553,7 +536,6 @@ export default function ControlIngreso() {
 
           <div className="card-body p-4">
             {metodo === 'ci_sis' ? (
-              /* Modo CI / SIS */
               <form onSubmit={handleVerificarDocumento}>
                 <div className="mb-4 text-center">
                   <label className="form-label fw-bold text-dark fs-5 mb-2">
@@ -577,7 +559,6 @@ export default function ControlIngreso() {
                     universitario SIS.
                   </small>
                 </div>
-
                 <button
                   type="submit"
                   className="btn btn-primary btn-lg w-100 py-3 fw-bold shadow-sm"
@@ -600,7 +581,6 @@ export default function ControlIngreso() {
                 </button>
               </form>
             ) : (
-              /* Modo QR */
               <div>
                 {errorCamara && (
                   <div className="alert alert-warning py-2 small mb-3">
@@ -608,7 +588,6 @@ export default function ControlIngreso() {
                     {errorCamara}
                   </div>
                 )}
-
                 {!camaraActiva ? (
                   <div className="text-center py-4">
                     <div className="mb-3">
@@ -661,7 +640,6 @@ export default function ControlIngreso() {
                   </div>
                 )}
 
-                {/* Entrada manual de token QR */}
                 <div className="mt-3 pt-3 border-top">
                   <label className="form-label small fw-semibold text-muted">
                     Token / Código QR:
@@ -692,24 +670,24 @@ export default function ControlIngreso() {
           </div>
         </div>
       ) : (
-        /* Resultado de verificación */
         <div>
-          {/* CORREGIDO, Pasando las props correctas a StudentCard */}
-          <StudentCard
-            habilitacion={resultado.habilitacion}
-        estudiante={resultado.estudiante}
-        /* CORREGIDO, Fecha/Hora proviene estrictamente de la DB (Issue 169) sin new Date() de respaldo */
-        fechaHora={
-          resultado.ingreso?.fecha_hora ||
-          resultado.fecha_hora ||
-          resultado.fecha_consulta ||
-          resultado.timestamp
-        }
-        examenSeleccionado={examenActivo}
-        examen={resultado.examen}
-        onSiguiente={handleSiguienteEstudiante}
-        onVerMotivo={() => setMostrarModalMotivo(true)}
-          />
+          {/* Mostramos la tarjeta principal solo si no está activo el modal ámbar */}
+          {!mostrarModalAmbiente && (
+            <StudentCard
+              habilitacion={resultado.habilitacion}
+              estudiante={resultado.estudiante}
+              fechaHora={
+                resultado.ingreso?.fecha_hora ||
+                resultado.fecha_hora ||
+                resultado.fecha_consulta ||
+                resultado.timestamp
+              }
+              examenSeleccionado={examenActivo}
+              examen={resultado.examen}
+              onSiguiente={handleSiguienteEstudiante}
+              onVerMotivo={() => setMostrarModalMotivo(true)}
+            />
+          )}
 
           {/* Registro y control de doble ingreso */}
           {resultado.habilitacion?.estado === 'HABILITADO' && (
@@ -779,12 +757,19 @@ export default function ControlIngreso() {
             </div>
           )}
 
-          {/* Modal de motivo de inhabilitación */}
           <MotivoInhabilitacionModal
             isOpen={mostrarModalMotivo}
             onClose={() => setMostrarModalMotivo(false)}
             motivo={resultado.habilitacion?.motivo}
             estado={resultado.habilitacion?.estado}
+            estudiante={resultado.estudiante}
+          />
+          
+          {/* HU-180: Nuevo Modal Ámbar */}
+          <ModalAmbienteIncorrecto
+            isOpen={mostrarModalAmbiente}
+            onClose={handleSiguienteEstudiante}
+            ambienteAsignado={ambienteAsignado}
             estudiante={resultado.estudiante}
           />
         </div>
