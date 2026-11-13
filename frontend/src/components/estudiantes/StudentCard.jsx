@@ -1,4 +1,43 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+
+function StudentPhoto({ estudiante }) {
+  const [mostrarFoto, setMostrarFoto] = useState(false);
+  const [fotoFallida, setFotoFallida] = useState(false);
+  const urlFoto = estudiante?.url_foto || estudiante?.foto_url || estudiante?.fotografia_url;
+  const nombre = estudiante?.nombre || estudiante?.nombres || '';
+  const apellido = estudiante?.apellido || estudiante?.apellidos || '';
+  const tieneFoto = Boolean(urlFoto) && !fotoFallida;
+
+  useEffect(() => {
+    if (!mostrarFoto) return undefined;
+    const cerrarConEscape = (evento) => evento.key === 'Escape' && setMostrarFoto(false);
+    window.addEventListener('keydown', cerrarConEscape);
+    return () => window.removeEventListener('keydown', cerrarConEscape);
+  }, [mostrarFoto]);
+
+  return (
+    <>
+      {tieneFoto ? (
+        <button type="button" className="btn p-0 border-0 d-block mx-auto" aria-label={`Ampliar foto de ${nombre} ${apellido}`} onClick={() => setMostrarFoto(true)}>
+          <img src={urlFoto} alt={`Fotografía de ${nombre} ${apellido}`} className="rounded-3 border shadow-sm" style={{ width: 112, height: 136, objectFit: 'cover' }} onError={() => setFotoFallida(true)} />
+        </button>
+      ) : (
+        <div className="rounded-3 border bg-light text-secondary d-flex align-items-center justify-content-center mx-auto" role="img" aria-label="Sin fotografía registrada" style={{ width: 112, height: 136 }}>
+          <i className="bi bi-person-bounding-box" style={{ fontSize: '3.5rem' }} aria-hidden="true" />
+        </div>
+      )}
+      <small className="text-muted d-block text-center mt-1">{tieneFoto ? 'Ampliar foto' : 'Sin fotografía'}</small>
+      {mostrarFoto && tieneFoto && (
+        <div className="modal d-block" role="dialog" aria-modal="true" aria-labelledby="student-photo-title" onMouseDown={(evento) => evento.target === evento.currentTarget && setMostrarFoto(false)} style={{ backgroundColor: 'rgba(0, 0, 0, .7)', zIndex: 1080 }}>
+          <div className="modal-dialog modal-dialog-centered modal-lg"><div className="modal-content">
+            <div className="modal-header"><h2 id="student-photo-title" className="modal-title fs-5">Fotografía del estudiante</h2><button type="button" className="btn-close" aria-label="Cerrar fotografía" onClick={() => setMostrarFoto(false)} /></div>
+            <div className="modal-body text-center"><img src={urlFoto} alt={`Fotografía ampliada de ${nombre} ${apellido}`} className="img-fluid rounded-3" style={{ maxHeight: '75vh', objectFit: 'contain' }} onError={() => { setFotoFallida(true); setMostrarFoto(false); }} /></div>
+          </div></div>
+        </div>
+      )}
+    </>
+  );
+}
 
 /**
  * Componente StudentCard para el resultado de verificación de ingreso.
@@ -17,6 +56,8 @@ export default function StudentCard({
 
   const esHabilitado = habilitacion?.estado === 'HABILITADO';
   const esNoAsociado = habilitacion?.estado === 'NO_ASOCIADO';
+  const nombreCompleto = `${estudiante.nombre || estudiante.nombres || ''} ${estudiante.apellido || estudiante.apellidos || ''}`.trim();
+  const codigoSis = estudiante.codigo_universitario || estudiante.codigo_sis || '—';
   const estado = String(habilitacion?.estado || '').toUpperCase();
   const esReingreso = ['YA_INGRESO', 'YA_INGRESÓ', 'REINGRESO', 'INGRESO_PREVIO', 'DUPLICADO'].includes(estado);
   const ingresoPrevio = habilitacion?.ingreso_previo || habilitacion?.ingreso || {};
@@ -40,8 +81,9 @@ export default function StudentCard({
           <p className="mb-0"><i className="bi bi-geo-alt-fill text-danger me-2" aria-hidden="true"></i><strong>Recinto:</strong> {recinto}</p>
         </div>
         <div className="text-start mb-3">
+          <StudentPhoto estudiante={estudiante} />
           <small className="text-muted text-uppercase fw-bold d-block">Estudiante</small>
-          <span className="fs-5 fw-bold text-dark">{estudiante.nombre} {estudiante.apellido}</span>
+          <span className="fs-5 fw-bold text-dark">{nombreCompleto}</span>
           <div><small className="text-muted">C.I.: </small><span className="fw-bold">{estudiante.ci}</span></div>
         </div>
         {onSiguiente && (
@@ -71,9 +113,10 @@ export default function StudentCard({
           <div><dt>Examen seleccionado</dt><dd>{nombreExamen}</dd></div>
         </dl>
         <div className="bg-white rounded-3 p-3 border border-danger-subtle">
+          <StudentPhoto estudiante={estudiante} />
           <small className="text-muted text-uppercase fw-bold d-block">Estudiante escaneado</small>
-          <strong className="fs-5 text-dark">{estudiante.nombre} {estudiante.apellido}</strong>
-          <div className="small mt-1">C.I.: {estudiante.ci || '—'} <span className="mx-1">·</span> Código SIS: {estudiante.codigo_universitario || estudiante.codigo_sis || '—'}</div>
+          <strong className="fs-5 text-dark">{nombreCompleto}</strong>
+          <div className="small mt-1">C.I.: {estudiante.ci || '—'} <span className="mx-1">·</span> Código SIS: {codigoSis}</div>
         </div>
         <button type="button" className="btn btn-light border border-danger-subtle w-100 mt-3 py-2 fw-bold text-danger" onClick={onVerMotivo}>
           <i className="bi bi-info-circle me-2" aria-hidden="true"></i>Ver motivo
@@ -102,11 +145,13 @@ export default function StudentCard({
 
         {/* Datos del estudiante */}
         <div className="bg-white rounded-3 p-3 text-start shadow-sm mb-4 border border-success-subtle">
-          <div className="row g-2">
+          <div className="row g-3 align-items-center">
+            <div className="col-12 col-sm-auto"><StudentPhoto estudiante={estudiante} /></div>
+            <div className="col"><div className="row g-2">
             <div className="col-12">
               <small className="text-muted text-uppercase fw-bold d-block">Estudiante:</small>
               <span className="fs-5 fw-bold text-dark">
-                {estudiante.nombre} {estudiante.apellido}
+                {nombreCompleto}
               </span>
             </div>
             <div className="col-6">
@@ -116,7 +161,7 @@ export default function StudentCard({
             <div className="col-6">
               <small className="text-muted text-uppercase fw-bold d-block">Código SIS:</small>
               <span className="fw-bold text-primary fs-6">
-                {estudiante.codigo_universitario || estudiante.codigo_sis}
+                {codigoSis}
               </span>
             </div>
             {estudiante.carrera && (
@@ -125,7 +170,7 @@ export default function StudentCard({
                 <span className="fw-semibold text-secondary small">{estudiante.carrera}</span>
               </div>
             )}
-          </div>
+          </div></div>
         </div>
 
         {/* Botón Siguiente Estudiante */}
@@ -157,11 +202,13 @@ export default function StudentCard({
 
       {/* Datos del estudiante */}
       <div className="bg-white rounded-3 p-3 text-start shadow-sm mb-3 border border-danger-subtle">
-        <div className="row g-2">
+        <div className="row g-3 align-items-center">
+          <div className="col-12 col-sm-auto"><StudentPhoto estudiante={estudiante} /></div>
+          <div className="col"><div className="row g-2">
           <div className="col-12">
             <small className="text-muted text-uppercase fw-bold d-block">Estudiante:</small>
             <span className="fs-5 fw-bold text-dark">
-              {estudiante.nombre} {estudiante.apellido}
+              {nombreCompleto}
             </span>
           </div>
           <div className="col-6">
@@ -171,7 +218,7 @@ export default function StudentCard({
           <div className="col-6">
             <small className="text-muted text-uppercase fw-bold d-block">Código SIS:</small>
             <span className="fw-bold text-primary">
-              {estudiante.codigo_universitario || estudiante.codigo_sis}
+              {codigoSis}
             </span>
           </div>
           {estudiante.carrera && (
@@ -180,7 +227,7 @@ export default function StudentCard({
               <span className="fw-semibold text-secondary small">{estudiante.carrera}</span>
             </div>
           )}
-        </div>
+        </div></div>
       </div>
 
       {/* Botón Ver Motivo */}

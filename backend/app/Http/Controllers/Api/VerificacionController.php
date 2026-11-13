@@ -18,6 +18,7 @@ use App\Models\Habilitacion;
 use App\Models\IntentoIngreso;
 use App\Services\AmbienteValidacionService;
 use App\Services\AuditService;
+use App\Services\EstudianteFotoService;
 use App\Services\PertenenciaExamenService;
 use App\Services\QrTokenService;
 use Illuminate\Http\JsonResponse;
@@ -112,7 +113,7 @@ class VerificacionController extends Controller
         }
 
         // 4. Buscar estudiante en la base de datos (EST-02)
-        $estudiante = Estudiante::find($idEstudiante);
+        $estudiante = Estudiante::with('foto')->find($idEstudiante);
         if (!$estudiante) {
             $this->auditar($auditService, [
                 'metodo'            => 'QR',
@@ -230,7 +231,7 @@ class VerificacionController extends Controller
         }
 
         // 3. Reutilización de búsqueda indexada (EST-02)
-        $estudiante = Estudiante::buscarPorDocumento($tipo, $valor)->first();
+        $estudiante = Estudiante::with('foto')->buscarPorDocumento($tipo, $valor)->first();
 
         if (!$estudiante) {
             $this->auditar($auditService, [
