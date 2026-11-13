@@ -1,8 +1,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
-import StudentCard from '../components/estudiantes/StudentCard';
+// Ahora importa el archivo correcto de la subcarpeta 'estudiantes'
+import StudentCard from '../components/estudiantes/StudentCard'; 
 import MotivoInhabilitacionModal from '../components/habilitaciones/MotivoInhabilitacionModal';
+import { getUsuario } from '../utils/auth';
 
 export default function ControlIngreso() {
   const [examenes, setExamenes] = useState([]);
@@ -18,6 +20,7 @@ export default function ControlIngreso() {
   const [errorAlerta, setErrorAlerta] = useState(null);
   const [resultado, setResultado] = useState(null);
   const [mostrarModalMotivo, setMostrarModalMotivo] = useState(false);
+  const [operador, setOperador] = useState(null);
 
   // Estados de registro de ingreso
   const [asignacionSeleccionada, setAsignacionSeleccionada] = useState('');
@@ -32,6 +35,11 @@ export default function ControlIngreso() {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const inputIdentificadorRef = useRef(null);
+  const examenActivo = examenes.find((examen) => Number(examen.id_examen) === Number(examenSeleccionado));
+
+  // Optimización HU-160: Referencias para audio y timeout
+  const audioErrorRef = useRef(new Audio('/error.mp3'));
+  const timeoutRef = useRef(null);
 
   // Examen y ambientes seleccionados
   const examenActual = examenes.find(
@@ -42,7 +50,16 @@ export default function ControlIngreso() {
 
   // Cargar exámenes
   useEffect(() => {
+    setOperador(getUsuario());
     cargarExamenes();
+    
+    // Limpieza al desmontar el componente (evitar fugas de memoria)
+    return () => {
+      detenerCamara();
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
   }, []);
 
   const cargarExamenes = async () => {
@@ -127,6 +144,7 @@ export default function ControlIngreso() {
     setCamaraActiva(false);
   };
 
+
   // Liberar cámara al desmontar el componente
   useEffect(() => {
     return () => {
@@ -136,6 +154,21 @@ export default function ControlIngreso() {
       }
     };
   }, []);
+  // --- HU-160: Función reutilizable para el Feedback Sensorial ---
+  const dispararAlertaRechazo = () => {
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    
+    if (audioErrorRef.current) {
+      audioErrorRef.current.currentTime = 0; // Reiniciar audio si ya estaba sonando
+      audioErrorRef.current.play().catch(e => console.warn('Reproducción de audio bloqueada por el navegador', e));
+    }
+
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    
+    timeoutRef.current = setTimeout(() => {
+      setLoading(false);
+    }, 2000);
+  };
 
   // Verificar estudiante por CI/SIS
   const handleVerificarDocumento = async (e) => {
@@ -164,6 +197,14 @@ export default function ControlIngreso() {
       });
 
       setResultado(res.data);
+      
+      // Validación en caso de éxito HTTP pero rechazo por negocio
+      const estado = res.data?.habilitacion?.estado || res.data?.estado_verificacion || res.data?.estado;
+      if (String(estado).toUpperCase() !== 'HABILITADO') {
+        dispararAlertaRechazo();
+      } else {
+        setLoading(false); 
+      }
     } catch (err) {
       console.error('Error al verificar documento:', err);
 
@@ -172,10 +213,10 @@ export default function ControlIngreso() {
         'Estudiante no encontrado en el sistema.';
 
       setErrorAlerta(msg);
-    } finally {
-      setLoading(false);
+      dispararAlertaRechazo();
     }
   };
+  
 
   // Verificar estudiante por QR
   const handleVerificarQr = async (tokenParaEnviar) => {
@@ -205,6 +246,14 @@ export default function ControlIngreso() {
 
       setResultado(res.data);
       detenerCamara();
+      
+      // Validación en caso de éxito HTTP pero rechazo por negocio
+      const estado = res.data?.habilitacion?.estado || res.data?.estado_verificacion || res.data?.estado;
+      if (String(estado).toUpperCase() !== 'HABILITADO') {
+        dispararAlertaRechazo();
+      } else {
+        setLoading(false);
+      }
     } catch (err) {
       console.error('Error al verificar QR:', err);
 
@@ -213,10 +262,10 @@ export default function ControlIngreso() {
         'Código QR no reconocido o estudiante no encontrado.';
 
       setErrorAlerta(msg);
-    } finally {
-      setLoading(false);
+      dispararAlertaRechazo();
     }
   };
+    
 
   // Registrar ingreso del estudiante habilitado
   const handleRegistrarIngreso = async () => {
@@ -359,9 +408,18 @@ export default function ControlIngreso() {
           Control de Ingreso
         </h3>
 
+
         <p className="text-muted small mb-0">
           Verificación de credenciales en tiempo real
         </p>
+
+        {operador && (
+          <div className="mt-2 d-inline-block bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-pill px-3 py-1 fw-semibold small">
+            <i className="bi bi-person-badge me-2"></i>
+            Controlador: {operador.nombres || operador.nombre} {operador.apellidos || operador.apellido}
+          </div>
+        )}
+
       </div>
 
       {/* Selector de examen y ambiente */}
@@ -384,6 +442,7 @@ export default function ControlIngreso() {
             }}
             disabled={loading || registrando}
           >
+
             {examenes.length === 0 ? (
               <option value="">No hay exámenes disponibles</option>
             ) : (
@@ -395,6 +454,7 @@ export default function ControlIngreso() {
                 </option>
               ))
             )}
+
           </select>
 
           <div className="mt-3">
@@ -634,11 +694,21 @@ export default function ControlIngreso() {
       ) : (
         /* Resultado de verificación */
         <div>
+          {/* CORREGIDO, Pasando las props correctas a StudentCard */}
           <StudentCard
-            estudiante={resultado.estudiante}
             habilitacion={resultado.habilitacion}
-            onSiguiente={handleSiguienteEstudiante}
-            onVerMotivo={() => setMostrarModalMotivo(true)}
+        estudiante={resultado.estudiante}
+        /* CORREGIDO, Fecha/Hora proviene estrictamente de la DB (Issue 169) sin new Date() de respaldo */
+        fechaHora={
+          resultado.ingreso?.fecha_hora ||
+          resultado.fecha_hora ||
+          resultado.fecha_consulta ||
+          resultado.timestamp
+        }
+        examenSeleccionado={examenActivo}
+        examen={resultado.examen}
+        onSiguiente={handleSiguienteEstudiante}
+        onVerMotivo={() => setMostrarModalMotivo(true)}
           />
 
           {/* Registro y control de doble ingreso */}
