@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\AccionAuditoria;
 use App\Models\AuditLog;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -90,7 +91,7 @@ class AuditService
 
             return AuditLog::create([
                 'id_usuario'  => $idUsuario ? (int) $idUsuario : null,
-                'accion'      => 'VERIFICACION_IDENTIDAD',
+                'accion'      => AccionAuditoria::VERIFICACION_IDENTIDAD->value,
                 'entidad'     => 'estudiante',
                 'id_registro' => $estudianteId ? (string) $estudianteId : null,
                 'fecha_hora'  => now(),
@@ -108,14 +109,19 @@ class AuditService
 
     /**
      * Registro genérico en audit_logs (TEC-02).
+     *
+     * Cuando $throwOnError es true, propaga la excepción ante fallos para permitir rollback transaccional.
      */
     public static function registrar(
-        string $accion,
+        AccionAuditoria|string $accion,
         string $entidad = 'sistema',
         string|int|null $idRegistro = null,
         array $informacion = [],
-        int|string|null $idUsuario = null
+        int|string|null $idUsuario = null,
+        bool $throwOnError = false
     ): ?AuditLog {
+        $accionValor = $accion instanceof AccionAuditoria ? $accion->value : $accion;
+
         try {
             $idUsuarioFinal = $idUsuario
                 ?? Auth::guard('sanctum')->id()
@@ -125,7 +131,7 @@ class AuditService
 
             return AuditLog::create([
                 'id_usuario'  => $idUsuarioFinal ? (int) $idUsuarioFinal : null,
-                'accion'      => $accion,
+                'accion'      => $accionValor,
                 'entidad'     => $entidad,
                 'id_registro' => $idRegistro ? (string) $idRegistro : null,
                 'fecha_hora'  => now(),
@@ -133,12 +139,39 @@ class AuditService
             ]);
         } catch (\Throwable $e) {
             Log::error('Error al registrar auditoría: ' . $e->getMessage(), [
-                'accion'    => $accion,
+                'accion'    => $accionValor,
                 'entidad'   => $entidad,
                 'exception' => $e,
             ]);
 
+            if ($throwOnError) {
+                throw $e;
+            }
+
             return null;
         }
+    }
+
+    /**
+     * Registro atómico en audit_logs: propaga cualquier fallo para abortar la transacción activa.
+     */
+    public static function registrarAtomico(
+        AccionAuditoria|string $accion,
+        string $entidad = 'sistema',
+        string|int|null $idRegistro = null,
+        array $informacion = [],
+        int|string|null $idUsuario = null
+    ): AuditLog {
+        /** @var AuditLog $auditLog */
+        $auditLog = self::registrar(
+            accion: $accion,
+            entidad: $entidad,
+            idRegistro: $idRegistro,
+            informacion: $informacion,
+            idUsuario: $idUsuario,
+            throwOnError: true
+        );
+
+        return $auditLog;
     }
 }

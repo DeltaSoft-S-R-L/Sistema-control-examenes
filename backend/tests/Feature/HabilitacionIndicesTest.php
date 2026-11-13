@@ -8,6 +8,8 @@ use Tests\TestCase;
 
 class HabilitacionIndicesTest extends TestCase
 {
+    use \Illuminate\Foundation\Testing\RefreshDatabase;
+
     public function test_indices_creados_correctamente()
     {
         // Verifica que la tabla tiene el índice compuesto normal

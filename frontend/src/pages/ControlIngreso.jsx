@@ -7,6 +7,7 @@ export default function ControlIngreso() {
   const [examenes, setExamenes] = useState([]);
   const [examenSeleccionado, setExamenSeleccionado] = useState('');
   const [metodo, setMetodo] = useState('ci_sis'); // 'ci_sis' o 'qr'
+  const [tipoDocumento, setTipoDocumento] = useState('CI');
 
   // Entradas
   const [identificador, setIdentificador] = useState('');
@@ -102,11 +103,12 @@ export default function ControlIngreso() {
     setResultado(null);
 
     try {
-      const res = await api.post('/verificar/documento', {
-        identificador: identificador.trim(),
-        id_examen: examenSeleccionado,
+      const res = await api.post('/verificaciones/documento', {
+        tipo: tipoDocumento,
+        valor: identificador.trim(),
+        examen_id: examenSeleccionado,
       });
-      setResultado(res.data);
+      await guardarResultadoVerificacion(res.data);
     } catch (err) {
       console.error('Error al verificar documento:', err);
       const msg = err.response?.data?.message || 'Estudiante no encontrado en el sistema.';
@@ -132,11 +134,11 @@ export default function ControlIngreso() {
     setResultado(null);
 
     try {
-      const res = await api.post('/verificar/qr', {
+      const res = await api.post('/verificaciones/qr', {
         token: token.trim(),
-        id_examen: examenSeleccionado,
+        examen_id: examenSeleccionado,
       });
-      setResultado(res.data);
+      await guardarResultadoVerificacion(res.data);
       detenerCamara();
     } catch (err) {
       console.error('Error al verificar QR:', err);
@@ -168,7 +170,8 @@ export default function ControlIngreso() {
 
     const idExamen = resultado?.examen?.id_examen || examenSeleccionado;
     const idHabilitacion = resultado?.habilitacion?.id_habilitacion;
-    const idAsignacionAmbiente = examenActivo?.asignaciones_ambiente?.[0]?.id_asignacion_ambiente;
+    const idAsignacionAmbiente = examenActivo?.asignaciones_ambiente?.[0]?.id_asignacion_ambiente
+      || resultado?.habilitacion?.id_asignacion_ambiente;
 
     if (!idExamen || !idHabilitacion || !idAsignacionAmbiente) {
       setErrorAlerta('No se encontraron los datos necesarios para registrar el ingreso.');
@@ -192,6 +195,40 @@ export default function ControlIngreso() {
     } finally {
       setConfirmandoIngreso(false);
     }
+  };
+
+  const guardarResultadoVerificacion = async (verificacion) => {
+    const estudianteVerificado = verificacion.estudiante;
+    const examenVerificado = verificacion.examen;
+    const idEstudiante = estudianteVerificado?.id;
+    const idExamen = examenVerificado?.id || Number(examenSeleccionado);
+
+    if (!idEstudiante || !idExamen) {
+      throw new Error('La respuesta de verificación no contiene los datos del estudiante y del examen.');
+    }
+
+    const { data: habilitacion } = await api.get(
+      `/examenes/${idExamen}/estudiantes/${idEstudiante}/inhabilitacion`,
+    );
+
+    setResultado({
+      metodo: verificacion.metodo,
+      estudiante: {
+        id_estudiante: idEstudiante,
+        nombre: estudianteVerificado.nombres,
+        apellido: estudianteVerificado.apellidos,
+        ci: estudianteVerificado.ci,
+        codigo_universitario: estudianteVerificado.codigo_sis,
+      },
+      examen: {
+        id_examen: idExamen,
+        nombre: examenActivo?.nombre,
+        asignatura: examenVerificado.asignatura,
+        fecha: examenVerificado.fecha,
+        hora_inicio: examenVerificado.hora,
+      },
+      habilitacion,
+    });
   };
 
   return (
@@ -277,13 +314,23 @@ export default function ControlIngreso() {
               <form onSubmit={handleVerificarDocumento}>
                 <div className="mb-4 text-center">
                   <label className="form-label fw-bold text-dark fs-5 mb-2">
-                    Ingrese C.I. o Código SIS
+                    Ingrese {tipoDocumento === 'CI' ? 'C.I.' : 'Código SIS'}
                   </label>
+                  <select
+                    className="form-select form-select-lg mb-2"
+                    aria-label="Tipo de documento"
+                    value={tipoDocumento}
+                    onChange={(e) => setTipoDocumento(e.target.value)}
+                    disabled={loading}
+                  >
+                    <option value="CI">Cédula de identidad</option>
+                    <option value="SIS">Código SIS</option>
+                  </select>
                   <input
                     ref={inputIdentificadorRef}
                     type="text"
                     className="form-control form-control-lg text-center fs-4 fw-bold border-2"
-                    placeholder="Ej. 1234567 o 202000001"
+                    placeholder={tipoDocumento === 'CI' ? 'Ej. 1234567' : 'Ej. 202000001'}
                     value={identificador}
                     onChange={(e) => setIdentificador(e.target.value)}
                     autoFocus
@@ -291,7 +338,7 @@ export default function ControlIngreso() {
                     disabled={loading}
                   />
                   <small className="text-muted d-block mt-2">
-                    Admite búsqueda por carnet de identidad o código universitario SIS.
+                    Seleccione el tipo de documento para validar la identificación.
                   </small>
                 </div>
 
@@ -395,6 +442,7 @@ export default function ControlIngreso() {
             onConfirmarIngreso={handleConfirmarIngreso}
             confirmandoIngreso={confirmandoIngreso}
             ingresoConfirmado={ingresoConfirmado}
+            examen={resultado.examen}
             onSiguiente={handleSiguienteEstudiante}
             onVerMotivo={() => setMostrarModalMotivo(true)}
           />
