@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
 import StudentCard from '../components/estudiantes/StudentCard';
 import MotivoInhabilitacionModal from '../components/habilitaciones/MotivoInhabilitacionModal';
+import QrScanner from '../components/qr/QrScanner';
 import ModalAmbienteIncorrecto from '../components/habilitaciones/ModalAmbienteIncorrecto';
 import { getUsuario } from '../utils/auth';
 
@@ -40,10 +41,10 @@ export default function ControlIngreso() {
   const [camaraActiva, setCamaraActiva] = useState(false);
   const [errorCamara, setErrorCamara] = useState(null);
 
-  const videoRef = useRef(null);
-  const streamRef = useRef(null);
   const inputIdentificadorRef = useRef(null);
-  const examenActivo = examenes.find((examen) => Number(examen.id_examen) === Number(examenSeleccionado));
+  const examenActivo = examenes.find(
+    (examen) => Number(examen.id_examen) === Number(examenSeleccionado)
+  );
 
   // Optimización HU-160: Referencias para audio y timeout
   const audioErrorRef = useRef(new Audio('/error.mp3'));
@@ -100,65 +101,30 @@ export default function ControlIngreso() {
     );
   }, [examenSeleccionado, examenes]);
 
-  // Iniciar cámara
-  const iniciarCamara = async () => {
+  // Activar y detener el lector QR integrado.
+  // QrScanner administra internamente el acceso y liberación de la cámara.
+  const iniciarCamara = () => {
     setErrorCamara(null);
-
-    try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Navegador no soporta acceso a la cámara.');
-      }
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
-      });
-
-      streamRef.current = stream;
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-
-      setCamaraActiva(true);
-    } catch (err) {
-      console.error('Error al acceder a la cámara:', err);
-
-      if (
-        err.name === 'NotAllowedError' ||
-        err.name === 'PermissionDeniedError'
-      ) {
-        setErrorCamara(
-          'Acceso a la cámara denegado. Permita el uso de la cámara en su navegador o utilice verificación por CI/SIS.'
-        );
-      } else {
-        setErrorCamara(
-          'No se pudo inicializar la cámara. Verifique que no esté en uso por otra app.'
-        );
-      }
-
-      setCamaraActiva(false);
-    }
+    setCamaraActiva(true);
   };
 
-  // Detener cámara
   const detenerCamara = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-
     setCamaraActiva(false);
   };
 
-  // --- HU-160: Función reutilizable para el Feedback Sensorial ---
+  // HU-160: Función reutilizable para el Feedback Sensorial
   const dispararAlertaRechazo = () => {
     if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+
     if (audioErrorRef.current) {
       audioErrorRef.current.currentTime = 0;
-      audioErrorRef.current.play().catch(e => console.warn('Reproducción bloqueada', e));
+      audioErrorRef.current.play().catch(
+        (e) => console.warn('Reproducción bloqueada', e)
+      );
     }
+
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
     timeoutRef.current = setTimeout(() => {
       setLoading(false);
     }, 2000);
@@ -169,7 +135,11 @@ export default function ControlIngreso() {
     const responseData = err.response?.data;
 
     // HU-180: Interceptar error de ambiente incorrecto (Modal Ámbar)
-    if (responseData && (responseData.code === 'AULA_INCORRECTA' || responseData.code === 'AMBIENTE_INCORRECTO')) {
+    if (
+      responseData &&
+      (responseData.code === 'AULA_INCORRECTA' ||
+        responseData.code === 'AMBIENTE_INCORRECTO')
+    ) {
       setAmbienteAsignado(responseData.ambiente_asignado);
       setResultado({ estudiante: responseData.estudiante || null });
       setMostrarModalAmbiente(true);
@@ -178,16 +148,16 @@ export default function ControlIngreso() {
       return;
     }
 
-    const msg = responseData?.message || 'Estudiante no encontrado en el sistema.';
+    const msg =
+      responseData?.message || 'Estudiante no encontrado en el sistema.';
+
     setErrorAlerta(msg);
     dispararAlertaRechazo();
   };
-
-  // Verificar estudiante por CI/SIS
+    // Verificar estudiante por CI/SIS
   const handleVerificarDocumento = async (e) => {
     if (e) e.preventDefault();
 
-    // Restableciendo alertas de validación requeridas
     if (!identificador.trim()) {
       setErrorAlerta('Por favor ingrese el número de CI o Código SIS.');
       return;
@@ -210,8 +180,14 @@ export default function ControlIngreso() {
         valor: identificador.trim(),
         examen_id: examenSeleccionado,
       });
+
       await guardarResultadoVerificacion(res.data);
-      const estado = res.data?.habilitacion?.estado || res.data?.estado_verificacion || res.data?.estado;
+
+      const estado =
+        res.data?.habilitacion?.estado ||
+        res.data?.estado_verificacion ||
+        res.data?.estado;
+
       if (String(estado).toUpperCase() !== 'HABILITADO') {
         dispararAlertaRechazo();
       } else {
@@ -226,7 +202,6 @@ export default function ControlIngreso() {
   const handleVerificarQr = async (tokenParaEnviar) => {
     const token = tokenParaEnviar || tokenQr;
 
-    // Restableciendo alertas de validación requeridas
     if (!token.trim()) {
       setErrorAlerta('Ingrese o escanee un código QR válido.');
       return;
@@ -248,10 +223,15 @@ export default function ControlIngreso() {
         token: token.trim(),
         examen_id: examenSeleccionado,
       });
+
       await guardarResultadoVerificacion(res.data);
       detenerCamara();
 
-      const estado = res.data?.habilitacion?.estado || res.data?.estado_verificacion || res.data?.estado;
+      const estado =
+        res.data?.habilitacion?.estado ||
+        res.data?.estado_verificacion ||
+        res.data?.estado;
+
       if (String(estado).toUpperCase() !== 'HABILITADO') {
         dispararAlertaRechazo();
       } else {
@@ -393,13 +373,20 @@ export default function ControlIngreso() {
   const handleConfirmarIngreso = async () => {
     if (confirmandoIngreso || ingresoConfirmado) return;
 
-    const idExamen = resultado?.examen?.id_examen || examenSeleccionado;
-    const idHabilitacion = resultado?.habilitacion?.id_habilitacion;
-    const idAsignacionAmbiente = asignacionSeleccionada
-      || resultado?.habilitacion?.id_asignacion_ambiente;
+    const idExamen =
+      resultado?.examen?.id_examen || examenSeleccionado;
+
+    const idHabilitacion =
+      resultado?.habilitacion?.id_habilitacion;
+
+    const idAsignacionAmbiente =
+      asignacionSeleccionada ||
+      resultado?.habilitacion?.id_asignacion_ambiente;
 
     if (!idExamen || !idHabilitacion || !idAsignacionAmbiente) {
-      setErrorAlerta('No se encontraron los datos necesarios para registrar el ingreso.');
+      setErrorAlerta(
+        'No se encontraron los datos necesarios para registrar el ingreso.'
+      );
       return;
     }
 
@@ -413,43 +400,62 @@ export default function ControlIngreso() {
         id_habilitacion: idHabilitacion,
         id_asignacion_ambiente: idAsignacionAmbiente,
       });
+
       setIngresoConfirmado(true);
       setIngresoRegistrado(true);
     } catch (err) {
       const data = err.response?.data || {};
-      if (data.code === 'AULA_INCORRECTA' || data.code === 'AMBIENTE_INCORRECTO') {
+
+      if (
+        data.code === 'AULA_INCORRECTA' ||
+        data.code === 'AMBIENTE_INCORRECTO'
+      ) {
         setAmbienteAsignado(data.ambiente_asignado);
         setMostrarModalAmbiente(true);
         return;
       }
 
-      if (err.response?.status === 409 || data.code === 'REINGRESO_NO_PERMITIDO') {
+      if (
+        err.response?.status === 409 ||
+        data.code === 'REINGRESO_NO_PERMITIDO'
+      ) {
         setDobleIngreso({
-          mensaje: data.message || 'El estudiante ya tiene un ingreso registrado.',
-          fechaHora: data.fecha_hora_primer_ingreso || data.primer_ingreso || null,
+          mensaje:
+            data.message ||
+            'El estudiante ya tiene un ingreso registrado.',
+          fechaHora:
+            data.fecha_hora_primer_ingreso ||
+            data.primer_ingreso ||
+            null,
         });
         return;
       }
 
-      const msg = data.message || 'No se pudo registrar el ingreso. Intente nuevamente.';
+      const msg =
+        data.message ||
+        'No se pudo registrar el ingreso. Intente nuevamente.';
+
       setErrorAlerta(msg);
     } finally {
       setConfirmandoIngreso(false);
     }
   };
-
-  const guardarResultadoVerificacion = async (verificacion) => {
+    const guardarResultadoVerificacion = async (verificacion) => {
     const estudianteVerificado = verificacion.estudiante;
     const examenVerificado = verificacion.examen;
+
     const idEstudiante = estudianteVerificado?.id;
-    const idExamen = examenVerificado?.id || Number(examenSeleccionado);
+    const idExamen =
+      examenVerificado?.id || Number(examenSeleccionado);
 
     if (!idEstudiante || !idExamen) {
-      throw new Error('La respuesta de verificación no contiene los datos del estudiante y del examen.');
+      throw new Error(
+        'La respuesta de verificación no contiene los datos del estudiante y del examen.'
+      );
     }
 
     const { data: habilitacion } = await api.get(
-      `/examenes/${idExamen}/estudiantes/${idEstudiante}/inhabilitacion`,
+      `/examenes/${idExamen}/estudiantes/${idEstudiante}/inhabilitacion`
     );
 
     setResultado({
@@ -490,7 +496,8 @@ export default function ControlIngreso() {
         {operador && (
           <div className="mt-2 d-inline-block bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-pill px-3 py-1 fw-semibold small">
             <i className="bi bi-person-badge me-2"></i>
-            Controlador: {operador.nombres || operador.nombre} {operador.apellidos || operador.apellido}
+            Controlador: {operador.nombres || operador.nombre}{' '}
+            {operador.apellidos || operador.apellido}
           </div>
         )}
       </div>
@@ -536,7 +543,9 @@ export default function ControlIngreso() {
             <select
               className="form-select"
               value={asignacionSeleccionada}
-              onChange={(e) => setAsignacionSeleccionada(e.target.value)}
+              onChange={(e) =>
+                setAsignacionSeleccionada(e.target.value)
+              }
               disabled={
                 loading ||
                 registrando ||
@@ -552,7 +561,8 @@ export default function ControlIngreso() {
                     key={asignacion.id_asignacion_ambiente}
                     value={asignacion.id_asignacion_ambiente}
                   >
-                    {asignacion.ambiente?.nombre || 'Ambiente sin nombre'}
+                    {asignacion.ambiente?.nombre ||
+                      'Ambiente sin nombre'}
                   </option>
                 ))
               )}
@@ -582,13 +592,20 @@ export default function ControlIngreso() {
       )}
 
       {ingresoConfirmado && (
-        <div className="alert alert-success shadow-sm rounded-3 py-2 px-3 mb-3" role="status" aria-live="polite">
-          <i className="bi bi-check-circle-fill me-2" aria-hidden="true"></i>
+        <div
+          className="alert alert-success shadow-sm rounded-3 py-2 px-3 mb-3"
+          role="status"
+          aria-live="polite"
+        >
+          <i
+            className="bi bi-check-circle-fill me-2"
+            aria-hidden="true"
+          ></i>
           Ingreso Registrado Exitosamente
         </div>
       )}
 
-      {/* SI NO HAY RESULTADO: Muestra Selector de Modo y Formulario de Ingreso */}
+      {/* Selector de modo y formulario de ingreso */}
       {!resultado ? (
         <div className="card border-0 shadow-sm rounded-4 overflow-hidden mb-3">
           <div
@@ -626,14 +643,14 @@ export default function ControlIngreso() {
               Escanear QR
             </button>
           </div>
-
-          <div className="card-body p-4">
+                    <div className="card-body p-4">
             {metodo === 'ci_sis' ? (
               <form onSubmit={handleVerificarDocumento}>
                 <div className="mb-4 text-center">
                   <label className="form-label fw-bold text-dark fs-5 mb-2">
                     Ingrese {tipoDocumento === 'CI' ? 'C.I.' : 'Código SIS'}
                   </label>
+
                   <select
                     className="form-select form-select-lg mb-2"
                     aria-label="Tipo de documento"
@@ -644,11 +661,16 @@ export default function ControlIngreso() {
                     <option value="CI">Cédula de identidad</option>
                     <option value="SIS">Código SIS</option>
                   </select>
+
                   <input
                     ref={inputIdentificadorRef}
                     type="text"
                     className="form-control form-control-lg text-center fs-4 fw-bold border-2"
-                    placeholder={tipoDocumento === 'CI' ? 'Ej. 1234567' : 'Ej. 202000001'}
+                    placeholder={
+                      tipoDocumento === 'CI'
+                        ? 'Ej. 1234567'
+                        : 'Ej. 202000001'
+                    }
                     value={identificador}
                     onChange={(e) => setIdentificador(e.target.value)}
                     autoFocus
@@ -661,6 +683,7 @@ export default function ControlIngreso() {
                     Admite búsqueda por carnet de identidad o código universitario SIS.
                   </small>
                 </div>
+
                 <button
                   type="submit"
                   className="btn btn-primary btn-lg w-100 py-3 fw-bold shadow-sm"
@@ -690,6 +713,7 @@ export default function ControlIngreso() {
                     {errorCamara}
                   </div>
                 )}
+
                 {!camaraActiva ? (
                   <div className="text-center py-4">
                     <div className="mb-3">
@@ -712,29 +736,22 @@ export default function ControlIngreso() {
                   </div>
                 ) : (
                   <div className="text-center mb-3">
-                    <div className="ratio ratio-4x3 bg-dark rounded-3 overflow-hidden position-relative mb-2">
-                      <video
-                        ref={videoRef}
-                        className="w-100 h-100 object-fit-cover"
-                        playsInline
-                        muted
-                      ></video>
-
-                      <div
-                        className="position-absolute top-50 start-50 translate-middle border border-2 border-success rounded-3"
-                        style={{
-                          width: '220px',
-                          height: '220px',
-                          boxShadow:
-                            '0 0 0 9999px rgba(0, 0, 0, 0.4)',
-                        }}
-                      ></div>
-                    </div>
+                    <QrScanner
+                      onResult={(codigo) => handleVerificarQr(codigo)}
+                      onError={(error) => {
+                        console.error('Error del escáner QR:', error);
+                        setErrorCamara(
+                          error?.message ||
+                            'No se pudo utilizar la cámara.'
+                        );
+                      }}
+                    />
 
                     <button
                       type="button"
-                      className="btn btn-outline-danger btn-sm w-100 fw-semibold"
+                      className="btn btn-outline-danger btn-sm w-100 fw-semibold mt-3"
                       onClick={detenerCamara}
+                      disabled={loading}
                     >
                       <i className="bi bi-stop-circle me-1"></i>
                       Detener Cámara
@@ -742,6 +759,7 @@ export default function ControlIngreso() {
                   </div>
                 )}
 
+                {/* Input manual de token QR */}
                 <div className="mt-3 pt-3 border-top">
                   <label className="form-label small fw-semibold text-muted">
                     Token / Código QR:
@@ -773,7 +791,7 @@ export default function ControlIngreso() {
         </div>
       ) : (
         <div>
-          {/* Mostramos la tarjeta principal solo si no está activo el modal ámbar */}
+          {/* Tarjeta principal, excepto cuando se muestra el modal ámbar */}
           {!mostrarModalAmbiente && (
             <StudentCard
               habilitacion={resultado.habilitacion}
@@ -795,18 +813,34 @@ export default function ControlIngreso() {
           )}
 
           {dobleIngreso && (
-            <div className="alert alert-danger rounded-4 shadow-sm" role="alert">
-              <h5 className="fw-bold"><i className="bi bi-exclamation-octagon-fill me-2"></i>DOBLE INGRESO DETECTADO</h5>
+            <div
+              className="alert alert-danger rounded-4 shadow-sm"
+              role="alert"
+            >
+              <h5 className="fw-bold">
+                <i className="bi bi-exclamation-octagon-fill me-2"></i>
+                DOBLE INGRESO DETECTADO
+              </h5>
+
               <p className="mb-2">{dobleIngreso.mensaje}</p>
+
               {dobleIngreso.fechaHora && (
-                <p className="fw-bold mb-3">Primer ingreso registrado: {new Date(dobleIngreso.fechaHora).toLocaleString('es-BO')}</p>
+                <p className="fw-bold mb-3">
+                  Primer ingreso registrado:{' '}
+                  {new Date(dobleIngreso.fechaHora).toLocaleString('es-BO')}
+                </p>
               )}
-              <button type="button" className="btn btn-danger w-100 fw-bold" onClick={handleContinuarEscaneando}>
-                <i className="bi bi-arrow-repeat me-2"></i>Aceptar / Continuar escaneando
+
+              <button
+                type="button"
+                className="btn btn-danger w-100 fw-bold"
+                onClick={handleContinuarEscaneando}
+              >
+                <i className="bi bi-arrow-repeat me-2"></i>
+                Aceptar / Continuar escaneando
               </button>
             </div>
           )}
-
 
           <MotivoInhabilitacionModal
             isOpen={mostrarModalMotivo}
@@ -816,7 +850,7 @@ export default function ControlIngreso() {
             estudiante={resultado.estudiante}
           />
 
-          {/* HU-180: Nuevo Modal Ámbar */}
+          {/* HU-180: Modal Ámbar */}
           <ModalAmbienteIncorrecto
             isOpen={mostrarModalAmbiente}
             onClose={handleSiguienteEstudiante}

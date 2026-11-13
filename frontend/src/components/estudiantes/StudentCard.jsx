@@ -209,6 +209,7 @@ export default function StudentCard({
           <i className="bi bi-arrow-right-circle me-2"></i>Siguiente estudiante
         </button>
       </div>
+      </div>
     );
   }
 
@@ -274,6 +275,7 @@ export default function StudentCard({
       >
         <i className="bi bi-arrow-right-circle me-2"></i>Siguiente estudiante
       </button>
+    </div>
     </div>
   );
 }

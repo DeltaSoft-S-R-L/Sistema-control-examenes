@@ -6,6 +6,9 @@ export default function DashboardEstudiante() {
   const [perfil, setPerfil] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
+  const [qr, setQr] = useState(null);
+  const [errorQr, setErrorQr] = useState("");
+  const [cargandoQr, setCargandoQr] = useState(true);
 
   useEffect(() => {
     let activo = true;
@@ -29,7 +32,28 @@ export default function DashboardEstudiante() {
       }
     }
 
+    async function cargarQr() {
+      try {
+        const respuesta = await api.get("/estudiante/qr");
+
+        if (activo) {
+          setQr(respuesta.data);
+        }
+      } catch (err) {
+        if (activo) {
+          setErrorQr(
+            err.response?.data?.message || "No se pudo cargar tu código QR.",
+          );
+        }
+      } finally {
+        if (activo) {
+          setCargandoQr(false);
+        }
+      }
+    }
+
     cargarPerfil();
+    cargarQr();
 
     return () => {
       activo = false;
@@ -103,15 +127,47 @@ export default function DashboardEstudiante() {
   }
 
   const asignaturas = perfil.asignaturas || [];
-
+  const handleCerrarSesion = async () => {
+    try {
+      await api.post("/logout");
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error);
+    } finally {
+      localStorage.removeItem("token");
+      localStorage.removeItem("usuario");
+      window.location.replace("/login");
+    }
+  };
   return (
     <main style={estilos.pagina}>
       <div style={estilos.contenedor}>
-        <div style={{ marginBottom: "24px" }}>
-          <h1 style={{ fontSize: "28px", margin: 0 }}>Panel del Estudiante</h1>
-          <p style={{ color: "#64748b", marginTop: "6px" }}>
-            Sistema de Control de Exámenes
-          </p>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: "12px",
+            marginBottom: "24px",
+          }}
+        >
+          <div>
+            <h1 style={{ fontSize: "28px", margin: 0 }}>
+              Panel del Estudiante
+            </h1>
+            <p style={{ color: "#64748b", marginTop: "6px" }}>
+              Sistema de Control de Exámenes
+            </p>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-outline-danger fw-semibold"
+            onClick={handleCerrarSesion}
+          >
+            <i className="bi bi-box-arrow-right me-2"></i>
+            Cerrar sesión
+          </button>
         </div>
 
         <section style={estilos.encabezado}>
@@ -219,6 +275,79 @@ export default function DashboardEstudiante() {
 
         {/* Sección de fotografía de identificación */}
         <FotoEstudiante />
+
+        {/* Sección del código QR personal */}
+        <section
+          style={{
+            ...estilos.tarjeta,
+            marginBottom: "24px",
+            textAlign: "center",
+          }}
+        >
+          <h2 style={{ fontSize: "21px", marginTop: 0 }}>
+            Mi código QR de identificación
+          </h2>
+
+          <p style={{ color: "#64748b" }}>
+            Presenta este código al encargado para verificar tu identidad y
+            habilitación en el examen.
+          </p>
+
+          {cargandoQr ? (
+            <p>Cargando código QR...</p>
+          ) : errorQr ? (
+            <p role="alert" style={{ color: "#b91c1c" }}>
+              {errorQr}
+            </p>
+          ) : qr?.qr_svg ? (
+            <>
+              <div
+                style={{
+                  display: "inline-flex",
+                  padding: "16px",
+                  background: "#ffffff",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "12px",
+                  margin: "12px 0",
+                }}
+              >
+                <div
+                  className="qr-svg-contenedor"
+                  dangerouslySetInnerHTML={{
+                    __html: qr.qr_svg,
+                  }}
+                />
+              </div>
+
+              <p style={{ color: "#64748b", fontSize: "13px" }}>
+                Código personal firmado por el sistema.
+              </p>
+
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  const svg = new Blob([qr.qr_svg], {
+                    type: "image/svg+xml;charset=utf-8",
+                  });
+
+                  const url = URL.createObjectURL(svg);
+                  const enlace = document.createElement("a");
+
+                  enlace.href = url;
+                  enlace.download = "mi-codigo-qr.svg";
+                  enlace.click();
+
+                  URL.revokeObjectURL(url);
+                }}
+              >
+                Descargar mi QR
+              </button>
+            </>
+          ) : (
+            <p>No se recibió un código QR válido.</p>
+          )}
+        </section>
 
         <section style={estilos.tarjeta}>
           <div
