@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Models\Estudiante;
 use App\Models\Examen;
 use App\Services\EstudianteFotoService;
+use App\Services\HabilitacionService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -66,7 +67,10 @@ class VerificacionResource extends JsonResource
                 report($e);
             }
         }
-
+        $habilitacion = HabilitacionService::verificarHabilitacion(
+            $this->estudiante,
+            $this->examen
+        );
         return [
             'metodo' => $this->metodo,
             'estudiante' => [
@@ -76,6 +80,7 @@ class VerificacionResource extends JsonResource
                 'ci'         => (string) $this->estudiante->ci,
                 'codigo_sis' => (string) $this->estudiante->codigo_universitario,
                 'url_foto'   => $urlFoto,
+                'foto_url'   => $urlFoto,
             ],
             'examen' => [
                 'id'         => (int) $this->examen->id_examen,
@@ -83,6 +88,7 @@ class VerificacionResource extends JsonResource
                 'fecha'      => $fechaFormatted,
                 'hora'       => (string) $this->examen->hora_inicio,
             ],
+            'habilitacion' => $habilitacion,
         ];
     }
 }

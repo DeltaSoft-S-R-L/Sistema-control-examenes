@@ -47,6 +47,11 @@ describe('Pruebas de interfaz de usuario - Respuesta de Examen No Correspondient
           codigo_sis: '202099999',
         },
         examen: { id: 101, asignatura: 'Ingeniería de Software' },
+        habilitacion: {
+  estado: 'NO_ASOCIADO',
+  habilitado: false,
+  motivo: 'El estudiante no está asociado a este examen.',
+},
       },
     });
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Estudiante;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use App\Services\QrTokenService;
 
 class PerfilEstudianteController extends Controller
 {
@@ -52,4 +53,37 @@ class PerfilEstudianteController extends Controller
             ])->values(),
         ]);
     }
+
+
+public function generarQr(Request $request, QrTokenService $qrTokenService): JsonResponse
+{
+    $usuario = $request->user();
+
+    $usuario?->loadMissing('rol');
+
+    if (!$usuario || strtoupper((string) $usuario->rol?->nombre) !== 'ESTUDIANTE') {
+        return response()->json([
+            'message' => 'No tienes permiso para generar este código QR.',
+        ], 403);
+    }
+
+    $estudiante = Estudiante::where(
+        'id_usuario',
+        $usuario->id_usuario
+    )->first();
+
+    if (!$estudiante) {
+        return response()->json([
+            'message' => 'No se encontró un perfil estudiantil asociado a tu cuenta.',
+        ], 404);
+    }
+
+    // Generar el token versionado compatible con el validador oficial.
+    $token = $qrTokenService->generar($estudiante);
+
+    return response()->json([
+        'token' => $token,
+        'qr_svg' => $qrTokenService->generarSvgPorToken($token),
+    ]);
+}
 }

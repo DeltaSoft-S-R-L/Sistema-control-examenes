@@ -31,10 +31,28 @@ describe('HU-179: tarjeta ámbar por discrepancia de aula', () => {
   it('muestra la tarjeta ámbar cuando el servidor rechaza el aula al confirmar el ingreso', async () => {
     const user = userEvent.setup();
     api.post
-      .mockResolvedValueOnce({ data: {
-        estudiante: { id: 7, nombres: 'María', apellidos: 'Gómez', ci: '1234567', codigo_sis: '2020123' },
-        examen: { id: 1, asignatura: 'Cálculo', fecha: '2026-11-15' },
-      } })
+      .mockResolvedValueOnce({
+        data: {
+          estudiante: {
+            id: 7,
+            nombres: 'María',
+            apellidos: 'Gómez',
+            ci: '1234567',
+            codigo_sis: '2020123',
+          },
+          examen: {
+            id: 1,
+            asignatura: 'Cálculo',
+            fecha: '2026-11-15',
+          },
+          habilitacion: {
+            estado: 'HABILITADO',
+            habilitado: true,
+            id_habilitacion: 50,
+            id_asignacion_ambiente: 10,
+          },
+        },
+      })
       .mockRejectedValueOnce({ response: { status: 422, data: {
         code: 'AULA_INCORRECTA',
         ambiente_asignado: { nombre: 'Laboratorio 3', bloque: 'B', piso: '2' },

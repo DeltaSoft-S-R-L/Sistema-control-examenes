@@ -60,6 +60,10 @@ Route::get('/estudiante/perfil', [
     PerfilEstudianteController::class,
     'mostrar'
 ])->middleware('role:ESTUDIANTE');
+Route::get('/estudiante/qr', [
+    PerfilEstudianteController::class,
+    'generarQr'
+])->middleware('role:ESTUDIANTE');
 // Estado de la fotografía del estudiante autenticado
 Route::get('/estudiante/foto', [
     EstudianteFotoController::class,
