@@ -8,6 +8,7 @@ use App\Enums\AccionAuditoria;
 use App\Enums\CodigoErrorVerificacion;
 use App\Enums\MotivoIntentoIngreso;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\IngresoResource;
 use App\Models\AsignacionAmbiente;
 use App\Models\Habilitacion;
 use App\Models\Ingreso;
@@ -233,10 +234,11 @@ class IngresoController extends Controller
             throw $e;
         }
 
-        return response()->json(
-            $ingreso->load(['habilitacion.estudiante', 'asignacionAmbiente.ambiente', 'usuario']),
-            201
-        );
+        $ingreso->loadMissing(['habilitacion.estudiante', 'asignacionAmbiente.ambiente', 'usuario']);
+
+        return (new IngresoResource($ingreso))
+            ->response()
+            ->setStatusCode(201);
     }
 
     /**
