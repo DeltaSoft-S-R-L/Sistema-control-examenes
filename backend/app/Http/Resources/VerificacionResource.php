@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Models\Estudiante;
 use App\Models\Examen;
+use App\Services\EstudianteFotoService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -55,6 +56,17 @@ class VerificacionResource extends JsonResource
             $fechaFormatted = null;
         }
 
+        $urlFoto = null;
+        if ($this->estudiante->foto) {
+            try {
+                $urlFoto = app(EstudianteFotoService::class)->obtenerUrlTemporal(
+                    $this->estudiante->foto->cloudinary_public_id
+                );
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
         return [
             'metodo' => $this->metodo,
             'estudiante' => [
@@ -63,6 +75,7 @@ class VerificacionResource extends JsonResource
                 'apellidos'  => (string) $this->estudiante->apellido,
                 'ci'         => (string) $this->estudiante->ci,
                 'codigo_sis' => (string) $this->estudiante->codigo_universitario,
+                'url_foto'   => $urlFoto,
             ],
             'examen' => [
                 'id'         => (int) $this->examen->id_examen,

@@ -230,7 +230,9 @@ export default function ImportarEstudiantesModal({
 
                       <p className="text-muted small mt-3 mb-2">
                         El estado debe ser ACTIVO o INACTIVO. El correo
-                        electrónico puede quedar vacío.
+                        electrónico es obligatorio para todos los estudiantes y
+                        debe tener un formato válido, por ejemplo:
+                        estudiante@universidad.edu.
                       </p>
 
                       <p className="text-muted small mb-0">

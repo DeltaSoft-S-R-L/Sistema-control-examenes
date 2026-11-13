@@ -2,19 +2,27 @@
 
 namespace Tests\Feature;
 
+use App\Enums\AccionAuditoria;
+use App\Enums\CodigoErrorVerificacion;
+use App\Enums\MotivoIntentoIngreso;
+use App\Models\Ambiente;
+use App\Models\AsignacionAmbiente;
 use App\Models\Asignatura;
-use App\Models\Auditoria;
+use App\Models\AuditLog;
 use App\Models\Carrera;
 use App\Models\Estudiante;
 use App\Models\Examen;
 use App\Models\Facultad;
 use App\Models\Habilitacion;
 use App\Models\Ingreso;
+use App\Models\IntentoIngreso;
 use App\Models\Rol;
 use App\Models\Usuario;
+use App\Services\HabilitacionService;
 use App\Services\QrTokenService;
 use App\Utilities\PasswordHasher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class VerificacionEstudianteTest extends TestCase
@@ -29,13 +37,19 @@ class VerificacionEstudianteTest extends TestCase
     private string $tokenDocente;
 
     private Examen $examen;
+    private AsignacionAmbiente $asignacionAmbiente;
+    private Habilitacion $habilitacionHabilitado;
+    private Habilitacion $habilitacionInhabilitado;
     private Estudiante $estudianteHabilitado;
     private Estudiante $estudianteInhabilitado;
     private Estudiante $estudianteNoAsociado;
+    private QrTokenService $qrService;
 
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->qrService = app(QrTokenService::class);
 
         // 1. Roles
         $this->rolControl = Rol::create([
@@ -89,7 +103,7 @@ class VerificacionEstudianteTest extends TestCase
             'descripcion' => 'Materia de prueba',
         ]);
 
-        // 4. Examen
+        // 4. Examen y Ambiente
         $this->examen = Examen::create([
             'id_asignatura'    => $asignatura->id_asignatura,
             'nombre'           => 'Examen Parcial de Prueba',
@@ -97,6 +111,19 @@ class VerificacionEstudianteTest extends TestCase
             'hora_inicio'      => '08:00',
             'duracion_minutos' => 90,
             'estado'           => 'PROGRAMADO',
+        ]);
+
+        $ambiente = Ambiente::create([
+            'codigo'    => '691A',
+            'nombre'    => 'Aula 691A',
+            'capacidad' => 50,
+            'ubicacion' => 'Edificio Nuevo',
+            'estado'    => 'DISPONIBLE',
+        ]);
+
+        $this->asignacionAmbiente = AsignacionAmbiente::create([
+            'id_examen'   => $this->examen->id_examen,
+            'id_ambiente' => $ambiente->id_ambiente,
         ]);
 
         // 5. Estudiantes
@@ -131,18 +158,20 @@ class VerificacionEstudianteTest extends TestCase
         ]);
 
         // 6. Habilitaciones
-        Habilitacion::create([
-            'id_estudiante' => $this->estudianteHabilitado->id_estudiante,
-            'id_examen'     => $this->examen->id_examen,
-            'estado'        => 'HABILITADO',
-            'motivo'        => null,
+        $this->habilitacionHabilitado = Habilitacion::create([
+            'id_estudiante'          => $this->estudianteHabilitado->id_estudiante,
+            'id_examen'              => $this->examen->id_examen,
+            'id_asignacion_ambiente' => $this->asignacionAmbiente->id_asignacion_ambiente,
+            'estado'                 => 'HABILITADO',
+            'motivo'                 => null,
         ]);
 
-        Habilitacion::create([
-            'id_estudiante' => $this->estudianteInhabilitado->id_estudiante,
-            'id_examen'     => $this->examen->id_examen,
-            'estado'        => 'NO_HABILITADO',
-            'motivo'        => 'No cumple requisito de asistencia mínima (65%)',
+        $this->habilitacionInhabilitado = Habilitacion::create([
+            'id_estudiante'          => $this->estudianteInhabilitado->id_estudiante,
+            'id_examen'              => $this->examen->id_examen,
+            'id_asignacion_ambiente' => $this->asignacionAmbiente->id_asignacion_ambiente,
+            'estado'                 => 'NO_HABILITADO',
+            'motivo'                 => 'No cumple requisito de asistencia mínima (65%)',
         ]);
         // $this->estudianteNoAsociado no tiene registro en Habilitacion
     }
@@ -150,49 +179,170 @@ class VerificacionEstudianteTest extends TestCase
     // ─────────────────────────────────────────────────────────────────
     // 1. Estudiante Habilitado
     // ─────────────────────────────────────────────────────────────────
-    public function test_estudiante_habilitado_retorna_estado_habilitado(): void
+    public function test_estudiante_habilitado_retorna_identificacion_exitosa(): void
     {
         $response = $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
-            ->postJson('/api/verificar/documento', [
-                'identificador' => $this->estudianteHabilitado->ci,
-                'id_examen'     => $this->examen->id_examen,
+            ->postJson('/api/verificaciones/documento', [
+                'tipo'      => 'CI',
+                'valor'     => $this->estudianteHabilitado->ci,
+                'examen_id' => $this->examen->id_examen,
             ]);
 
         $response->assertStatus(200)
             ->assertJson([
-                'identificado' => true,
-                'estudiante'   => [
+                'metodo'     => 'CI',
+                'estudiante' => [
                     'ci' => '1111111',
                 ],
-                'habilitacion' => [
-                    'estado'     => 'HABILITADO',
-                    'habilitado' => true,
-                    'motivo'     => null,
+                'examen'     => [
+                    'id' => $this->examen->id_examen,
                 ],
             ]);
+    }
+
+    public function test_ingreso_previo_retorna_reingreso_con_fecha_y_ambiente(): void
+    {
+        $fechaHora = Carbon::parse('2026-10-27 08:15:00');
+        $ambiente = $this->registrarIngresoPrevio($this->estudianteHabilitado, $fechaHora);
+
+        // 1. Verificación de identidad con contrato unificado VER-01
+        $response = $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
+            ->postJson('/api/verificaciones/documento', [
+                'tipo'      => 'CI',
+                'valor'     => $this->estudianteHabilitado->ci,
+                'examen_id' => $this->examen->id_examen,
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'metodo'     => 'CI',
+                'estudiante' => [
+                    'ci' => $this->estudianteHabilitado->ci,
+                ],
+                'examen'     => [
+                    'id' => $this->examen->id_examen,
+                ],
+            ]);
+
+        // 2. Consulta de habilitación reporta REINGRESO con fecha y ambiente
+        $resultado = HabilitacionService::verificarHabilitacion($this->estudianteHabilitado, $this->examen);
+
+        $this->assertEquals('REINGRESO', $resultado['estado']);
+        $this->assertFalse($resultado['habilitado']);
+        $this->assertEquals($ambiente->nombre, $resultado['ingreso_previo']['ambiente']);
+
+        $fechaHoraRespuesta = Carbon::parse($resultado['ingreso_previo']['fecha_hora']);
+        $this->assertTrue($fechaHoraRespuesta->equalTo($fechaHora));
+    }
+
+    public function test_ingreso_previo_tiene_prioridad_sobre_habilitacion_no_habilitado(): void
+    {
+        $fechaHora = Carbon::parse('2026-10-27 08:15:00');
+        $ambiente = $this->registrarIngresoPrevio($this->estudianteInhabilitado, $fechaHora);
+
+        // 1. Identificación exitosa por documento
+        $response = $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
+            ->postJson('/api/verificaciones/documento', [
+                'tipo'      => 'CI',
+                'valor'     => $this->estudianteInhabilitado->ci,
+                'examen_id' => $this->examen->id_examen,
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'metodo'     => 'CI',
+                'estudiante' => [
+                    'ci' => $this->estudianteInhabilitado->ci,
+                ],
+            ]);
+
+        // 2. Prioridad de REINGRESO sobre NO_HABILITADO
+        $resultado = HabilitacionService::verificarHabilitacion($this->estudianteInhabilitado, $this->examen);
+
+        $this->assertEquals('REINGRESO', $resultado['estado']);
+        $this->assertFalse($resultado['habilitado']);
+        $this->assertEquals($ambiente->nombre, $resultado['ingreso_previo']['ambiente']);
+
+        $fechaHoraRespuesta = Carbon::parse($resultado['ingreso_previo']['fecha_hora']);
+        $this->assertTrue($fechaHoraRespuesta->equalTo($fechaHora));
+    }
+
+    private function registrarIngresoPrevio(Estudiante $estudiante, Carbon $fechaHora): Ambiente
+    {
+        $ambiente = Ambiente::create([
+            'codigo'    => 'SALA-REINGRESO',
+            'nombre'    => 'Sala para prueba de reingreso',
+            'ubicacion' => 'Bloque A - Piso 1',
+            'capacidad' => 30,
+            'estado'    => 'DISPONIBLE',
+        ]);
+
+        $asignacion = AsignacionAmbiente::create([
+            'id_examen'   => $this->examen->id_examen,
+            'id_ambiente' => $ambiente->id_ambiente,
+        ]);
+
+        $habilitacion = Habilitacion::where('id_estudiante', $estudiante->id_estudiante)
+            ->where('id_examen', $this->examen->id_examen)
+            ->firstOrFail();
+
+        Ingreso::create([
+            'id_examen'                => $this->examen->id_examen,
+            'id_habilitacion'          => $habilitacion->id_habilitacion,
+            'id_asignacion_ambiente'   => $asignacion->id_asignacion_ambiente,
+            'id_usuario'               => $this->userControl->id_usuario,
+            'fecha_hora'               => $fechaHora,
+        ]);
+
+        return $ambiente;
     }
 
     // ─────────────────────────────────────────────────────────────────
     // 2. Estudiante Inhabilitado con Motivo
     // ─────────────────────────────────────────────────────────────────
-    public function test_estudiante_inhabilitado_retorna_no_habilitado_con_motivo(): void
+    public function test_estudiante_inhabilitado_bloqueado_en_ambiente_y_expone_motivo(): void
     {
-        $response = $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
-            ->postJson('/api/verificar/documento', [
-                'identificador' => $this->estudianteInhabilitado->codigo_universitario,
-                'id_examen'     => $this->examen->id_examen,
+        // Identidad por SIS exitosa
+        $resIdentidad = $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
+            ->postJson('/api/verificaciones/documento', [
+                'tipo'      => 'SIS',
+                'valor'     => $this->estudianteInhabilitado->codigo_universitario,
+                'examen_id' => $this->examen->id_examen,
             ]);
 
-        $response->assertStatus(200)
+        $resIdentidad->assertStatus(200)
             ->assertJson([
-                'identificado' => true,
-                'estudiante'   => [
-                    'codigo_universitario' => '202000002',
+                'metodo'     => 'SIS',
+                'estudiante' => [
+                    'codigo_sis' => '202000002',
                 ],
-                'habilitacion' => [
-                    'estado'     => 'NO_HABILITADO',
-                    'habilitado' => false,
-                    'motivo'     => 'No cumple requisito de asistencia mínima (65%)',
+            ]);
+
+        // Al verificar ambiente o intentar ingreso, retorna 403 NO_HABILITADO
+        $resAmbiente = $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
+            ->postJson('/api/verificaciones/ambiente', [
+                'id_examen'              => $this->examen->id_examen,
+                'id_asignacion_ambiente' => $this->asignacionAmbiente->id_asignacion_ambiente,
+                'id_habilitacion'        => $this->habilitacionInhabilitado->id_habilitacion,
+            ]);
+
+        $resAmbiente->assertStatus(403)
+            ->assertJson([
+                'code'  => CodigoErrorVerificacion::NO_HABILITADO->value,
+                'error' => CodigoErrorVerificacion::NO_HABILITADO->value,
+            ]);
+
+        // Consulta del motivo de inhabilitación
+        $resMotivo = $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
+            ->getJson("/api/examenes/{$this->examen->id_examen}/estudiantes/{$this->estudianteInhabilitado->id_estudiante}/inhabilitacion");
+
+        $resMotivo->assertStatus(200)
+            ->assertJson([
+                'estado'         => 'NO_HABILITADO',
+                'habilitado'     => false,
+                'motivo_detalle' => 'No cumple requisito de asistencia mínima (65%)',
+                'motivo'         => [
+                    'detalle' => 'No cumple requisito de asistencia mínima (65%)',
                 ],
             ]);
     }
@@ -200,50 +350,53 @@ class VerificacionEstudianteTest extends TestCase
     // ─────────────────────────────────────────────────────────────────
     // 3. Estudiante No Asociado
     // ─────────────────────────────────────────────────────────────────
-    public function test_estudiante_no_asociado_retorna_estado_no_asociado(): void
+    public function test_estudiante_no_asociado_retorna_422_y_registra_intento_indebido(): void
     {
         $response = $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
-            ->postJson('/api/verificar/documento', [
-                'identificador' => $this->estudianteNoAsociado->ci,
-                'id_examen'     => $this->examen->id_examen,
+            ->postJson('/api/verificaciones/documento', [
+                'tipo'      => 'CI',
+                'valor'     => $this->estudianteNoAsociado->ci,
+                'examen_id' => $this->examen->id_examen,
             ]);
 
-        $response->assertStatus(200)
+        $response->assertStatus(422)
             ->assertJson([
-                'identificado' => true,
-                'habilitacion' => [
-                    'estado'     => 'NO_ASOCIADO',
-                    'habilitado' => false,
-                ],
+                'code'  => CodigoErrorVerificacion::NO_ASOCIADO->value,
+                'error' => CodigoErrorVerificacion::NO_ASOCIADO->value,
             ]);
+
+        $this->assertDatabaseHas('intento_ingreso', [
+            'id_estudiante' => $this->estudianteNoAsociado->id_estudiante,
+            'id_examen'     => $this->examen->id_examen,
+            'motivo'        => MotivoIntentoIngreso::EXAMEN_NO_CORRESPONDIENTE->value,
+        ]);
     }
 
     // ─────────────────────────────────────────────────────────────────
-    // 4. Comprobar que QR y CI/SIS dan exactamente el mismo resultado
+    // 4. Comprobar que QR y CI/SIS retornan datos consistentes del mismo estudiante y examen
     // ─────────────────────────────────────────────────────────────────
     public function test_qr_y_ci_sis_dan_el_mismo_resultado_para_el_mismo_estudiante(): void
     {
-        $qrToken = QrTokenService::generarToken($this->estudianteHabilitado);
+        $qrToken = $this->qrService->generar($this->estudianteHabilitado);
 
-        // Verificación vía QR
         $resQr = $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
-            ->postJson('/api/verificar/qr', [
+            ->postJson('/api/verificaciones/qr', [
                 'token'     => $qrToken,
-                'id_examen' => $this->examen->id_examen,
+                'examen_id' => $this->examen->id_examen,
             ]);
 
-        // Verificación vía CI
         $resCi = $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
-            ->postJson('/api/verificar/documento', [
-                'identificador' => $this->estudianteHabilitado->ci,
-                'id_examen'     => $this->examen->id_examen,
+            ->postJson('/api/verificaciones/documento', [
+                'tipo'      => 'CI',
+                'valor'     => $this->estudianteHabilitado->ci,
+                'examen_id' => $this->examen->id_examen,
             ]);
 
-        // Verificación vía Código SIS
         $resSis = $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
-            ->postJson('/api/verificar/ci-sis', [
-                'ci_sis'    => $this->estudianteHabilitado->codigo_universitario,
-                'id_examen' => $this->examen->id_examen,
+            ->postJson('/api/verificaciones/documento', [
+                'tipo'      => 'SIS',
+                'valor'     => $this->estudianteHabilitado->codigo_universitario,
+                'examen_id' => $this->examen->id_examen,
             ]);
 
         $resQr->assertStatus(200);
@@ -254,50 +407,50 @@ class VerificacionEstudianteTest extends TestCase
         $jsonCi = $resCi->json();
         $jsonSis = $resSis->json();
 
-        // Mismo resultado de habilitación y datos de estudiante
-        $this->assertEquals($jsonQr['habilitacion'], $jsonCi['habilitacion']);
-        $this->assertEquals($jsonCi['habilitacion'], $jsonSis['habilitacion']);
-        $this->assertEquals($jsonQr['estudiante']['id_estudiante'], $jsonCi['estudiante']['id_estudiante']);
-        $this->assertEquals($jsonCi['estudiante']['id_estudiante'], $jsonSis['estudiante']['id_estudiante']);
+        $this->assertEquals($jsonQr['estudiante'], $jsonCi['estudiante']);
+        $this->assertEquals($jsonCi['estudiante'], $jsonSis['estudiante']);
+        $this->assertEquals($jsonQr['examen'], $jsonCi['examen']);
+        $this->assertEquals($jsonCi['examen'], $jsonSis['examen']);
     }
 
     // ─────────────────────────────────────────────────────────────────
-    // 5. Inhabilitar a un estudiante habilitado, volver a verificar y confirmar que cambia el resultado
+    // 5. Inhabilitar a un estudiante habilitado cambia el resultado en control de puerta
     // ─────────────────────────────────────────────────────────────────
     public function test_inhabilitar_estudiante_habilitado_cambia_resultado_en_siguiente_verificacion(): void
     {
-        // 1ª verificación: Habilitado
+        // 1ª verificación de ambiente: Permitido (200)
         $res1 = $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
-            ->postJson('/api/verificar/documento', [
-                'identificador' => $this->estudianteHabilitado->ci,
-                'id_examen'     => $this->examen->id_examen,
+            ->postJson('/api/verificaciones/ambiente', [
+                'id_examen'              => $this->examen->id_examen,
+                'id_asignacion_ambiente' => $this->asignacionAmbiente->id_asignacion_ambiente,
+                'id_habilitacion'        => $this->habilitacionHabilitado->id_habilitacion,
             ]);
 
-        $this->assertTrue($res1->json('habilitacion.habilitado'));
-        $this->assertEquals('HABILITADO', $res1->json('habilitacion.estado'));
+        $res1->assertStatus(200)->assertJson(['valido' => true]);
 
         // Modificamos habilitación en BD a NO_HABILITADO con motivo
-        Habilitacion::where('id_estudiante', $this->estudianteHabilitado->id_estudiante)
-            ->where('id_examen', $this->examen->id_examen)
-            ->update([
-                'estado' => 'NO_HABILITADO',
-                'motivo' => 'Inhabilitado por sanción disciplinaria',
-            ]);
+        $this->habilitacionHabilitado->update([
+            'estado' => 'NO_HABILITADO',
+            'motivo' => 'Inhabilitado por sanción disciplinaria',
+        ]);
 
-        // 2ª verificación: Cambió el resultado a NO_HABILITADO con motivo
+        // 2ª verificación de ambiente: Cambia a 403 NO_HABILITADO
         $res2 = $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
-            ->postJson('/api/verificar/documento', [
-                'identificador' => $this->estudianteHabilitado->ci,
-                'id_examen'     => $this->examen->id_examen,
+            ->postJson('/api/verificaciones/ambiente', [
+                'id_examen'              => $this->examen->id_examen,
+                'id_asignacion_ambiente' => $this->asignacionAmbiente->id_asignacion_ambiente,
+                'id_habilitacion'        => $this->habilitacionHabilitado->id_habilitacion,
             ]);
 
-        $this->assertFalse($res2->json('habilitacion.habilitado'));
-        $this->assertEquals('NO_HABILITADO', $res2->json('habilitacion.estado'));
-        $this->assertEquals('Inhabilitado por sanción disciplinaria', $res2->json('habilitacion.motivo'));
+        $res2->assertStatus(403)
+            ->assertJson([
+                'code'  => CodigoErrorVerificacion::NO_HABILITADO->value,
+                'error' => CodigoErrorVerificacion::NO_HABILITADO->value,
+            ]);
     }
 
     // ─────────────────────────────────────────────────────────────────
-    // 6. Verificar que NO se escribe ninguna fila en tablas de dominio (solo auditoria)
+    // 6. Verificar que NO se escribe ninguna fila en tablas de dominio (solo audit_logs)
     // ─────────────────────────────────────────────────────────────────
     public function test_verificacion_no_escribe_en_tablas_de_dominio_solo_en_auditoria(): void
     {
@@ -305,26 +458,28 @@ class VerificacionEstudianteTest extends TestCase
         $totalHabilitacionesPrevio = Habilitacion::count();
         $totalEstudiantesPrevio = Estudiante::count();
         $totalExamenesPrevio = Examen::count();
-        $totalAuditoriasPrevio = Auditoria::count();
+        $totalAuditLogsPrevio = AuditLog::where('accion', AccionAuditoria::VERIFICACION_IDENTIDAD->value)->count();
 
-        $qrToken = QrTokenService::generarToken($this->estudianteHabilitado);
+        $qrToken = $this->qrService->generar($this->estudianteHabilitado);
 
         $response = $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
-            ->postJson('/api/verificar/qr', [
-                'qr_token'  => $qrToken,
-                'id_examen' => $this->examen->id_examen,
+            ->postJson('/api/verificaciones/qr', [
+                'token'     => $qrToken,
+                'examen_id' => $this->examen->id_examen,
             ]);
 
         $response->assertStatus(200);
 
-        // Tablas de dominio permanecen intactas
         $this->assertEquals($totalIngresosPrevio, Ingreso::count(), 'No debe registrarse fila en ingreso.');
         $this->assertEquals($totalHabilitacionesPrevio, Habilitacion::count(), 'No debe alterarse habilitacion.');
         $this->assertEquals($totalEstudiantesPrevio, Estudiante::count(), 'No debe alterarse estudiante.');
         $this->assertEquals($totalExamenesPrevio, Examen::count(), 'No debe alterarse examen.');
 
-        // Solo se escribe en auditoria
-        $this->assertEquals($totalAuditoriasPrevio + 1, Auditoria::count(), 'Debe crearse exactamente un registro en auditoria.');
+        $this->assertEquals(
+            $totalAuditLogsPrevio + 1,
+            AuditLog::where('accion', AccionAuditoria::VERIFICACION_IDENTIDAD->value)->count(),
+            'Debe crearse exactamente un registro en audit_logs.'
+        );
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -332,39 +487,39 @@ class VerificacionEstudianteTest extends TestCase
     // ─────────────────────────────────────────────────────────────────
     public function test_verificacion_qr_valido_alterado_y_otro_formato(): void
     {
-        $tokenValido = QrTokenService::generarToken($this->estudianteHabilitado);
+        $tokenValido = $this->qrService->generar($this->estudianteHabilitado);
 
         // QR Válido -> 200
         $resValido = $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
-            ->postJson('/api/verificar/qr', [
+            ->postJson('/api/verificaciones/qr', [
                 'token'     => $tokenValido,
-                'id_examen' => $this->examen->id_examen,
+                'examen_id' => $this->examen->id_examen,
             ]);
         $resValido->assertStatus(200);
 
-        // QR Alterado (modificamos firma) -> 422
+        // QR Alterado (modificamos firma) -> 422 QR_INVALIDO
         $tokenAlterado = substr($tokenValido, 0, -3) . 'xyz';
         $resAlterado = $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
-            ->postJson('/api/verificar/qr', [
+            ->postJson('/api/verificaciones/qr', [
                 'token'     => $tokenAlterado,
-                'id_examen' => $this->examen->id_examen,
+                'examen_id' => $this->examen->id_examen,
             ]);
         $resAlterado->assertStatus(422)
             ->assertJson([
-                'error'        => 'QR_ALTERADO',
-                'identificado' => false,
+                'code'  => CodigoErrorVerificacion::QR_INVALIDO->value,
+                'error' => CodigoErrorVerificacion::QR_INVALIDO->value,
             ]);
 
-        // Token con otro formato (sin punto o corrupto) -> 422
+        // Token con otro formato (sin punto o corrupto) -> 422 QR_INVALIDO
         $resOtroFormato = $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
-            ->postJson('/api/verificar/qr', [
+            ->postJson('/api/verificaciones/qr', [
                 'token'     => 'cadena-sin-formato-qr',
-                'id_examen' => $this->examen->id_examen,
+                'examen_id' => $this->examen->id_examen,
             ]);
         $resOtroFormato->assertStatus(422)
             ->assertJson([
-                'error'        => 'FORMATO_INVALIDO',
-                'identificado' => false,
+                'code'  => CodigoErrorVerificacion::QR_INVALIDO->value,
+                'error' => CodigoErrorVerificacion::QR_INVALIDO->value,
             ]);
     }
 
@@ -373,21 +528,25 @@ class VerificacionEstudianteTest extends TestCase
     // ─────────────────────────────────────────────────────────────────
     public function test_verificacion_ci_existente_e_inexistente(): void
     {
-        // Existente -> 200
         $resExistente = $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
-            ->postJson('/api/verificar/documento', [
-                'identificador' => $this->estudianteHabilitado->ci,
-                'id_examen'     => $this->examen->id_examen,
+            ->postJson('/api/verificaciones/documento', [
+                'tipo'      => 'CI',
+                'valor'     => $this->estudianteHabilitado->ci,
+                'examen_id' => $this->examen->id_examen,
             ]);
-        $resExistente->assertStatus(200)->assertJson(['identificado' => true]);
+        $resExistente->assertStatus(200)->assertJson(['metodo' => 'CI']);
 
-        // Inexistente -> 404
         $resInexistente = $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
-            ->postJson('/api/verificar/documento', [
-                'identificador' => '9999999999',
-                'id_examen'     => $this->examen->id_examen,
+            ->postJson('/api/verificaciones/documento', [
+                'tipo'      => 'CI',
+                'valor'     => '9999999999',
+                'examen_id' => $this->examen->id_examen,
             ]);
-        $resInexistente->assertStatus(404)->assertJson(['identificado' => false]);
+        $resInexistente->assertStatus(404)
+            ->assertJson([
+                'code'  => CodigoErrorVerificacion::ESTUDIANTE_NO_ENCONTRADO->value,
+                'error' => CodigoErrorVerificacion::ESTUDIANTE_NO_ENCONTRADO->value,
+            ]);
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -395,21 +554,25 @@ class VerificacionEstudianteTest extends TestCase
     // ─────────────────────────────────────────────────────────────────
     public function test_verificacion_sis_existente_e_inexistente(): void
     {
-        // Existente -> 200
         $resExistente = $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
-            ->postJson('/api/verificar/ci-sis', [
-                'ci_sis'    => $this->estudianteInhabilitado->codigo_universitario,
-                'id_examen' => $this->examen->id_examen,
+            ->postJson('/api/verificaciones/documento', [
+                'tipo'      => 'SIS',
+                'valor'     => $this->estudianteInhabilitado->codigo_universitario,
+                'examen_id' => $this->examen->id_examen,
             ]);
-        $resExistente->assertStatus(200)->assertJson(['identificado' => true]);
+        $resExistente->assertStatus(200)->assertJson(['metodo' => 'SIS']);
 
-        // Inexistente -> 404
         $resInexistente = $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
-            ->postJson('/api/verificar/ci-sis', [
-                'ci_sis'    => 'SIS_NO_EXISTE_000',
-                'id_examen' => $this->examen->id_examen,
+            ->postJson('/api/verificaciones/documento', [
+                'tipo'      => 'SIS',
+                'valor'     => 'SIS_NO_EXISTE_000',
+                'examen_id' => $this->examen->id_examen,
             ]);
-        $resInexistente->assertStatus(404)->assertJson(['identificado' => false]);
+        $resInexistente->assertStatus(404)
+            ->assertJson([
+                'code'  => CodigoErrorVerificacion::ESTUDIANTE_NO_ENCONTRADO->value,
+                'error' => CodigoErrorVerificacion::ESTUDIANTE_NO_ENCONTRADO->value,
+            ]);
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -418,15 +581,16 @@ class VerificacionEstudianteTest extends TestCase
     public function test_verificacion_con_espacios_en_blanco(): void
     {
         $response = $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
-            ->postJson('/api/verificar/documento', [
-                'identificador' => "   {$this->estudianteHabilitado->ci}   ",
-                'id_examen'     => $this->examen->id_examen,
+            ->postJson('/api/verificaciones/documento', [
+                'tipo'      => 'CI',
+                'valor'     => "   {$this->estudianteHabilitado->ci}   ",
+                'examen_id' => $this->examen->id_examen,
             ]);
 
         $response->assertStatus(200)
             ->assertJson([
-                'identificado' => true,
-                'estudiante'   => [
+                'metodo'     => 'CI',
+                'estudiante' => [
                     'ci' => $this->estudianteHabilitado->ci,
                 ],
             ]);
@@ -437,9 +601,10 @@ class VerificacionEstudianteTest extends TestCase
     // ─────────────────────────────────────────────────────────────────
     public function test_verificacion_sin_sesion_retorna_401(): void
     {
-        $response = $this->postJson('/api/verificar/documento', [
-            'identificador' => $this->estudianteHabilitado->ci,
-            'id_examen'     => $this->examen->id_examen,
+        $response = $this->postJson('/api/verificaciones/documento', [
+            'tipo'      => 'CI',
+            'valor'     => $this->estudianteHabilitado->ci,
+            'examen_id' => $this->examen->id_examen,
         ]);
 
         $response->assertStatus(401);
@@ -451,9 +616,10 @@ class VerificacionEstudianteTest extends TestCase
     public function test_verificacion_con_rol_docente_retorna_403(): void
     {
         $response = $this->withHeader('Authorization', "Bearer {$this->tokenDocente}")
-            ->postJson('/api/verificar/documento', [
-                'identificador' => $this->estudianteHabilitado->ci,
-                'id_examen'     => $this->examen->id_examen,
+            ->postJson('/api/verificaciones/documento', [
+                'tipo'      => 'CI',
+                'valor'     => $this->estudianteHabilitado->ci,
+                'examen_id' => $this->examen->id_examen,
             ]);
 
         $response->assertStatus(403);
@@ -464,47 +630,60 @@ class VerificacionEstudianteTest extends TestCase
     // ─────────────────────────────────────────────────────────────────
     public function test_cada_verificacion_genera_su_registro_de_auditoria(): void
     {
-        Auditoria::query()->delete();
+        AuditLog::query()->delete();
 
         // 1. Verificación exitosa por QR
-        $qrToken = QrTokenService::generarToken($this->estudianteHabilitado);
+        $qrToken = $this->qrService->generar($this->estudianteHabilitado);
         $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
-            ->postJson('/api/verificar/qr', [
+            ->postJson('/api/verificaciones/qr', [
                 'token'     => $qrToken,
-                'id_examen' => $this->examen->id_examen,
-            ]);
+                'examen_id' => $this->examen->id_examen,
+            ])->assertStatus(200);
 
-        $auditoriaQr = Auditoria::where('accion', 'VERIFICACION_QR')->latest('id_auditoria')->first();
+        $auditoriaQr = AuditLog::where('accion', AccionAuditoria::VERIFICACION_IDENTIDAD->value)
+            ->latest('id_audit_log')
+            ->first();
         $this->assertNotNull($auditoriaQr);
         $this->assertEquals($this->userControl->id_usuario, $auditoriaQr->id_usuario);
-        $this->assertEquals('EXITO', $auditoriaQr->resultado);
-        $this->assertEquals($this->estudianteHabilitado->id_estudiante, $auditoriaQr->id_registro);
+        $this->assertEquals((string) $this->estudianteHabilitado->id_estudiante, $auditoriaQr->id_registro);
+        $this->assertEquals('QR', $auditoriaQr->informacion['metodo'] ?? null);
+        $this->assertEquals('EXITOSO', $auditoriaQr->informacion['resultado'] ?? null);
 
-        // 2. Verificación inhabilitada por CI
+        // 2. Verificación de estudiante inexistente por CI
         $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
-            ->postJson('/api/verificar/documento', [
-                'identificador' => $this->estudianteInhabilitado->ci,
-                'id_examen'     => $this->examen->id_examen,
-            ]);
+            ->postJson('/api/verificaciones/documento', [
+                'tipo'      => 'CI',
+                'valor'     => 'CI_INEXISTENTE_999',
+                'examen_id' => $this->examen->id_examen,
+            ])->assertStatus(404);
 
-        $auditoriaCi = Auditoria::where('accion', 'VERIFICACION_CI_SIS')->latest('id_auditoria')->first();
-        $this->assertNotNull($auditoriaCi);
-        $this->assertEquals('FALLO', $auditoriaCi->resultado);
-        $this->assertStringContainsString('NO_HABILITADO', $auditoriaCi->descripcion);
-
-        // 3. Verificación de estudiante inexistente
-        $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
-            ->postJson('/api/verificar/documento', [
-                'identificador' => 'CI_INEXISTENTE_999',
-                'id_examen'     => $this->examen->id_examen,
-            ]);
-
-        $auditoriaInexistente = Auditoria::where('resultado', 'FALLO')
-            ->where('id_registro', null)
-            ->latest('id_auditoria')
+        $auditoriaInexistente = AuditLog::where('accion', AccionAuditoria::VERIFICACION_IDENTIDAD->value)
+            ->latest('id_audit_log')
             ->first();
 
         $this->assertNotNull($auditoriaInexistente);
-        $this->assertStringContainsString('Identificación fallida', $auditoriaInexistente->descripcion);
+        $this->assertNull($auditoriaInexistente->id_registro);
+        $this->assertEquals(
+            CodigoErrorVerificacion::ESTUDIANTE_NO_ENCONTRADO->value,
+            $auditoriaInexistente->informacion['resultado'] ?? null
+        );
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // 14. Verificar que las rutas legacy /api/verificar/* fueron eliminadas
+    // ─────────────────────────────────────────────────────────────────
+    public function test_rutas_legacy_verificar_retornan_404(): void
+    {
+        $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
+            ->postJson('/api/verificar/qr', ['token' => 'abc', 'id_examen' => $this->examen->id_examen])
+            ->assertStatus(404);
+
+        $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
+            ->postJson('/api/verificar/documento', ['identificador' => '1111111', 'id_examen' => $this->examen->id_examen])
+            ->assertStatus(404);
+
+        $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
+            ->postJson('/api/verificar/ci-sis', ['ci_sis' => '202000001', 'id_examen' => $this->examen->id_examen])
+            ->assertStatus(404);
     }
 }

@@ -12,11 +12,12 @@ class RoleMiddleware
      * Mapeo de alias a nombres canónicos de roles en base de datos.
      */
     private const ALIAS_MAP = [
-        'ADMIN'           => 'ADMINISTRADOR',
-        'ADMINISTRADOR'   => 'ADMINISTRADOR',
-        'CONTROL'         => 'CONTROL_INGRESO',
-        'CONTROL_INGRESO' => 'CONTROL_INGRESO',
-        'DOCENTE'         => 'DOCENTE',
+        'ADMIN'            => 'ADMINISTRADOR',
+        'ADMINISTRADOR'    => 'ADMINISTRADOR',
+        'CONTROL'          => 'CONTROL_INGRESO',
+        'PERSONAL_CONTROL' => 'CONTROL_INGRESO',
+        'CONTROL_INGRESO'  => 'CONTROL_INGRESO',
+        'DOCENTE'          => 'DOCENTE',
     ];
 
     /**

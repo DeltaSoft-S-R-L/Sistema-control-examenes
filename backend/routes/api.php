@@ -17,6 +17,8 @@ use App\Http\Controllers\Api\DocenteAsignaturaController;
 use App\Models\Rol;
 use App\Http\Controllers\Api\NormaController;
 use App\Http\Controllers\Api\PasswordSetupController;
+use App\Http\Controllers\Api\PerfilEstudianteController;
+use App\Http\Controllers\Api\EstudianteFotoController;
 
 /*
 |--------------------------------------------------------------------------
@@ -53,6 +55,18 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     // Sesión
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+    // Perfil académico del estudiante autenticado
+Route::get('/estudiante/perfil', [
+    PerfilEstudianteController::class,
+    'mostrar'
+])->middleware('role:ESTUDIANTE');
+// Estado de la fotografía del estudiante autenticado
+Route::get('/estudiante/foto', [
+    EstudianteFotoController::class,
+    'mostrar'
+])->middleware('role:ESTUDIANTE');
+Route::post('/estudiante/foto', [EstudianteFotoController::class, 'subir'])
+    ->middleware('role:ESTUDIANTE');
 
     // Materias del docente autenticado
 Route::get('/docente/mis-materias', [
@@ -188,7 +202,7 @@ Route::get('/docente/mis-materias', [
 
     // Consulta del motivo de inhabilitación por estudiante y examen 
     Route::get('/examenes/{examen}/estudiantes/{estudiante}/inhabilitacion', [HabilitacionController::class, 'consultarMotivo'])
-        ->middleware('role:ADMINISTRADOR,DOCENTE,CONTROL,PERSONAL_CONTROL,admin,docente,control,CONTROL_INGRESO,control_ingreso');
+        ->middleware('role:ADMINISTRADOR,DOCENTE,CONTROL_INGRESO');
         
 
     Route::middleware('permission:GESTIONAR_HABILITACIONES')->group(function () {
@@ -205,7 +219,8 @@ Route::get('/docente/mis-materias', [
     Route::get('/ingresos', [IngresoController::class, 'index']);
     Route::get('/ingresos/{ingreso}', [IngresoController::class, 'show']);
 
-    Route::middleware('permission:REGISTRAR_INGRESOS')->group(function () {
+    Route::middleware('role:CONTROL_INGRESO,ADMINISTRADOR')->group(function () {
+        Route::post('/ingresos/confirmar', [IngresoController::class, 'store']);
         Route::post('/ingresos', [IngresoController::class, 'store']);
         Route::put('/ingresos/{ingreso}', [IngresoController::class, 'update']);
         Route::patch('/ingresos/{ingreso}', [IngresoController::class, 'update']);
@@ -235,16 +250,6 @@ Route::get('/docente/mis-materias', [
         ->middleware(['role:CONTROL_INGRESO,ADMINISTRADOR', 'throttle:60,1']);
     Route::post('/verificaciones/documento', [VerificacionController::class, 'verificarPorDocumento'])
         ->middleware(['role:CONTROL_INGRESO,ADMINISTRADOR', 'throttle:60,1']);
-
-    /*
-    |--------------------------------------------------------------------------
-    | Verificación de Estudiantes (QR y CI/SIS - origin/dev)
-    |--------------------------------------------------------------------------
-    */
-    Route::middleware('role:ADMINISTRADOR,CONTROL_INGRESO')->group(function () {
-        Route::post('/verificar/qr', [VerificacionController::class, 'verificarQr']);
-        Route::post('/verificar/documento', [VerificacionController::class, 'verificarDocumento']);
-        Route::post('/verificar/ci-sis', [VerificacionController::class, 'verificarDocumento']);
-        Route::get('/verificar/generar-qr/{id_estudiante}', [VerificacionController::class, 'generarQrPrueba']);
-    });
+    Route::post('/verificaciones/ambiente', [VerificacionController::class, 'verificarAmbiente'])
+        ->middleware(['role:CONTROL_INGRESO,ADMINISTRADOR', 'throttle:60,1']);
 });
