@@ -3,6 +3,13 @@ import React from 'react';
 export default function ModalAmbienteIncorrecto({ isOpen, onClose, ambienteAsignado, estudiante }) {
   if (!isOpen) return null;
 
+  const nombreAmbiente =
+    typeof ambienteAsignado === 'object' && ambienteAsignado !== null
+      ? [ambienteAsignado.nombre || ambienteAsignado.codigo, ambienteAsignado.ubicacion]
+          .filter(Boolean)
+          .join(' — ')
+      : ambienteAsignado;
+
   return (
     <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1055 }}>
       <div className="modal-dialog modal-dialog-centered">
@@ -27,7 +34,7 @@ export default function ModalAmbienteIncorrecto({ isOpen, onClose, ambienteAsign
             <div className="alert alert-warning py-3 mb-4 shadow-sm border border-warning-subtle">
               <p className="mb-1 fw-semibold text-dark">El recinto correcto del estudiante es:</p>
               <h3 className="fw-bold text-danger mb-0 text-uppercase">
-                {ambienteAsignado || 'No especificado'}
+                {nombreAmbiente || 'No especificado'}
               </h3>
             </div>
             
