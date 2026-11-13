@@ -24,7 +24,7 @@ export default function ModalAmbienteIncorrecto({ isOpen, onClose, ambienteAsign
             <h4 className="fw-bold text-dark mb-3">
               Estudiante habilitado, pero en el recinto equivocado.
             </h4>
-            
+
             {estudiante && (
               <p className="fs-5 fw-semibold text-secondary mb-3">
                 {estudiante.nombre} {estudiante.apellido}
@@ -37,16 +37,16 @@ export default function ModalAmbienteIncorrecto({ isOpen, onClose, ambienteAsign
                 {nombreAmbiente || 'No especificado'}
               </h3>
             </div>
-            
+
             <p className="text-danger fw-bold small bg-danger bg-opacity-10 p-2 rounded border border-danger-subtle">
               <i className="bi bi-slash-circle me-1"></i>
               Advertencia: Este control NO habilita el ingreso físico en esta aula.
             </p>
           </div>
           <div className="modal-footer border-top-0 justify-content-center pb-4">
-            <button 
-              type="button" 
-              className="btn btn-warning btn-lg fw-bold w-100 shadow-sm" 
+            <button
+              type="button"
+              className="btn btn-warning btn-lg fw-bold w-100 shadow-sm"
               onClick={onClose}
             >
               <i className="bi bi-check-circle me-2"></i>Entendido / Siguiente estudiante

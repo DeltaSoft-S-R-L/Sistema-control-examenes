@@ -10,14 +10,14 @@ vi.mock('../services/api');
 describe('HU-181: Pruebas de renderizado de tarjeta ámbar', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     // Evitamos errores de Audio API o Vibrador en Node.js
     global.navigator.vibrate = vi.fn();
     window.HTMLMediaElement.prototype.play = vi.fn().mockImplementation(() => Promise.resolve());
   });
 
   it('debe renderizar el modal ámbar al recibir respuesta AMBIENTE_INCORRECTO (AULA_INCORRECTA)', async () => {
-    
+
     // Simulamos la carga inicial de exámenes en el useEffect
     api.get.mockResolvedValueOnce({
       data: { data: [{ id_examen: 1, nombre: 'Examen de Cálculo', fecha: '2026-11-15' }] }
@@ -42,7 +42,7 @@ describe('HU-181: Pruebas de renderizado de tarjeta ámbar', () => {
 
     // 3. Escribimos el CI y lanzamos el submit
     await waitFor(() => expect(api.get).toHaveBeenCalled());
-    
+
     const inputCi = screen.getByPlaceholderText(/Ej. 1234567/i);
     fireEvent.change(inputCi, { target: { value: '1234567' } });
 
@@ -55,11 +55,11 @@ describe('HU-181: Pruebas de renderizado de tarjeta ámbar', () => {
     // 5. Criterios de Aceptación (HU-181)
     // Validar título del modal ámbar
     expect(await screen.findByText(/Ambiente Incorrecto/i)).toBeInTheDocument();
-    
+
     // Validar nombre del estudiante y el ambiente correcto
     expect(screen.getByText(/María Gómez/i)).toBeInTheDocument();
     expect(screen.getByText(/Laboratorio de Cómputo 3/i)).toBeInTheDocument();
-    
+
     // Validar advertencia restrictiva (HU-180)
     expect(screen.getByText(/Este control NO habilita el ingreso físico en esta aula/i)).toBeInTheDocument();
 

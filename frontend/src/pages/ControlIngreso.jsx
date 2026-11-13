@@ -8,7 +8,8 @@ import { getUsuario } from '../utils/auth';
 export default function ControlIngreso() {
   const [examenes, setExamenes] = useState([]);
   const [examenSeleccionado, setExamenSeleccionado] = useState('');
-  const [metodo, setMetodo] = useState('ci_sis');
+  const [metodo, setMetodo] = useState('ci_sis'); // 'ci_sis' o 'qr'
+  const [tipoDocumento, setTipoDocumento] = useState('CI');
 
   // Entradas
   const [identificador, setIdentificador] = useState('');
@@ -19,7 +20,9 @@ export default function ControlIngreso() {
   const [errorAlerta, setErrorAlerta] = useState(null);
   const [resultado, setResultado] = useState(null);
   const [mostrarModalMotivo, setMostrarModalMotivo] = useState(false);
-  
+  const [confirmandoIngreso, setConfirmandoIngreso] = useState(false);
+  const [ingresoConfirmado, setIngresoConfirmado] = useState(false);
+
   // HU-180: Estados del Modal Ámbar
   const [mostrarModalAmbiente, setMostrarModalAmbiente] = useState(false);
   const [ambienteAsignado, setAmbienteAsignado] = useState(null);
@@ -57,7 +60,7 @@ export default function ControlIngreso() {
   useEffect(() => {
     setOperador(getUsuario());
     cargarExamenes();
-    
+
     return () => {
       detenerCamara();
       if (timeoutRef.current) {
@@ -152,7 +155,7 @@ export default function ControlIngreso() {
   const dispararAlertaRechazo = () => {
     if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
     if (audioErrorRef.current) {
-      audioErrorRef.current.currentTime = 0; 
+      audioErrorRef.current.currentTime = 0;
       audioErrorRef.current.play().catch(e => console.warn('Reproducción bloqueada', e));
     }
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -168,9 +171,9 @@ export default function ControlIngreso() {
     // HU-180: Interceptar error de ambiente incorrecto (Modal Ámbar)
     if (responseData && (responseData.code === 'AULA_INCORRECTA' || responseData.code === 'AMBIENTE_INCORRECTO')) {
       setAmbienteAsignado(responseData.ambiente_asignado);
-      setResultado({ estudiante: responseData.estudiante || null }); 
+      setResultado({ estudiante: responseData.estudiante || null });
       setMostrarModalAmbiente(true);
-      if (navigator.vibrate) navigator.vibrate([100, 50, 100]); 
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
       setLoading(false);
       return;
     }
@@ -202,18 +205,17 @@ export default function ControlIngreso() {
     setIngresoRegistrado(false);
 
     try {
-      const res = await api.post('/verificar/documento', {
-        identificador: identificador.trim(),
-        id_examen: examenSeleccionado,
+      const res = await api.post('/verificaciones/documento', {
+        tipo: tipoDocumento,
+        valor: identificador.trim(),
+        examen_id: examenSeleccionado,
       });
-
-      setResultado(res.data);
-      
+      await guardarResultadoVerificacion(res.data);
       const estado = res.data?.habilitacion?.estado || res.data?.estado_verificacion || res.data?.estado;
       if (String(estado).toUpperCase() !== 'HABILITADO') {
         dispararAlertaRechazo();
       } else {
-        setLoading(false); 
+        setLoading(false);
       }
     } catch (err) {
       procesarErrorVerificacion(err);
@@ -242,14 +244,13 @@ export default function ControlIngreso() {
     setIngresoRegistrado(false);
 
     try {
-      const res = await api.post('/verificar/qr', {
+      const res = await api.post('/verificaciones/qr', {
         token: token.trim(),
-        id_examen: examenSeleccionado,
+        examen_id: examenSeleccionado,
       });
-
-      setResultado(res.data);
+      await guardarResultadoVerificacion(res.data);
       detenerCamara();
-      
+
       const estado = res.data?.habilitacion?.estado || res.data?.estado_verificacion || res.data?.estado;
       if (String(estado).toUpperCase() !== 'HABILITADO') {
         dispararAlertaRechazo();
@@ -354,9 +355,10 @@ export default function ControlIngreso() {
     setIdentificador('');
     setTokenQr('');
     setMostrarModalMotivo(false);
+    setIngresoConfirmado(false);
     setDobleIngreso(null);
     setIngresoRegistrado(false);
-    
+
     // HU-180: Limpiar estados del modal ámbar
     setMostrarModalAmbiente(false);
     setAmbienteAsignado(null);
@@ -386,6 +388,88 @@ export default function ControlIngreso() {
         inputIdentificadorRef.current?.focus();
       }, 100);
     }
+  };
+
+  const handleConfirmarIngreso = async () => {
+    if (confirmandoIngreso || ingresoConfirmado) return;
+
+    const idExamen = resultado?.examen?.id_examen || examenSeleccionado;
+    const idHabilitacion = resultado?.habilitacion?.id_habilitacion;
+    const idAsignacionAmbiente = asignacionSeleccionada
+      || resultado?.habilitacion?.id_asignacion_ambiente;
+
+    if (!idExamen || !idHabilitacion || !idAsignacionAmbiente) {
+      setErrorAlerta('No se encontraron los datos necesarios para registrar el ingreso.');
+      return;
+    }
+
+    setConfirmandoIngreso(true);
+    setErrorAlerta(null);
+
+    try {
+      // El backend obtiene el controlador desde la sesión autenticada.
+      await api.post('/ingresos/confirmar', {
+        id_examen: idExamen,
+        id_habilitacion: idHabilitacion,
+        id_asignacion_ambiente: idAsignacionAmbiente,
+      });
+      setIngresoConfirmado(true);
+      setIngresoRegistrado(true);
+    } catch (err) {
+      const data = err.response?.data || {};
+      if (data.code === 'AULA_INCORRECTA' || data.code === 'AMBIENTE_INCORRECTO') {
+        setAmbienteAsignado(data.ambiente_asignado);
+        setMostrarModalAmbiente(true);
+        return;
+      }
+
+      if (err.response?.status === 409 || data.code === 'REINGRESO_NO_PERMITIDO') {
+        setDobleIngreso({
+          mensaje: data.message || 'El estudiante ya tiene un ingreso registrado.',
+          fechaHora: data.fecha_hora_primer_ingreso || data.primer_ingreso || null,
+        });
+        return;
+      }
+
+      const msg = data.message || 'No se pudo registrar el ingreso. Intente nuevamente.';
+      setErrorAlerta(msg);
+    } finally {
+      setConfirmandoIngreso(false);
+    }
+  };
+
+  const guardarResultadoVerificacion = async (verificacion) => {
+    const estudianteVerificado = verificacion.estudiante;
+    const examenVerificado = verificacion.examen;
+    const idEstudiante = estudianteVerificado?.id;
+    const idExamen = examenVerificado?.id || Number(examenSeleccionado);
+
+    if (!idEstudiante || !idExamen) {
+      throw new Error('La respuesta de verificación no contiene los datos del estudiante y del examen.');
+    }
+
+    const { data: habilitacion } = await api.get(
+      `/examenes/${idExamen}/estudiantes/${idEstudiante}/inhabilitacion`,
+    );
+
+    setResultado({
+      metodo: verificacion.metodo,
+      estudiante: {
+        id_estudiante: idEstudiante,
+        nombre: estudianteVerificado.nombres,
+        apellido: estudianteVerificado.apellidos,
+        ci: estudianteVerificado.ci,
+        codigo_universitario: estudianteVerificado.codigo_sis,
+      },
+      examen: {
+        id_examen: idExamen,
+        nombre: examenActivo?.nombre,
+        asignatura: examenVerificado.asignatura,
+        fecha: examenVerificado.fecha,
+        hora_inicio: examenVerificado.hora,
+      },
+      habilitacion,
+    });
   };
 
   return (
@@ -424,6 +508,7 @@ export default function ControlIngreso() {
             onChange={(e) => {
               setExamenSeleccionado(e.target.value);
               setResultado(null);
+              setIngresoConfirmado(false);
               setDobleIngreso(null);
               setIngresoRegistrado(false);
               setErrorAlerta(null);
@@ -496,6 +581,14 @@ export default function ControlIngreso() {
         </div>
       )}
 
+      {ingresoConfirmado && (
+        <div className="alert alert-success shadow-sm rounded-3 py-2 px-3 mb-3" role="status" aria-live="polite">
+          <i className="bi bi-check-circle-fill me-2" aria-hidden="true"></i>
+          Ingreso Registrado Exitosamente
+        </div>
+      )}
+
+      {/* SI NO HAY RESULTADO: Muestra Selector de Modo y Formulario de Ingreso */}
       {!resultado ? (
         <div className="card border-0 shadow-sm rounded-4 overflow-hidden mb-3">
           <div
@@ -539,14 +632,23 @@ export default function ControlIngreso() {
               <form onSubmit={handleVerificarDocumento}>
                 <div className="mb-4 text-center">
                   <label className="form-label fw-bold text-dark fs-5 mb-2">
-                    Ingrese C.I. o Código SIS
+                    Ingrese {tipoDocumento === 'CI' ? 'C.I.' : 'Código SIS'}
                   </label>
-
+                  <select
+                    className="form-select form-select-lg mb-2"
+                    aria-label="Tipo de documento"
+                    value={tipoDocumento}
+                    onChange={(e) => setTipoDocumento(e.target.value)}
+                    disabled={loading}
+                  >
+                    <option value="CI">Cédula de identidad</option>
+                    <option value="SIS">Código SIS</option>
+                  </select>
                   <input
                     ref={inputIdentificadorRef}
                     type="text"
                     className="form-control form-control-lg text-center fs-4 fw-bold border-2"
-                    placeholder="Ej. 1234567 o 202000001"
+                    placeholder={tipoDocumento === 'CI' ? 'Ej. 1234567' : 'Ej. 202000001'}
                     value={identificador}
                     onChange={(e) => setIdentificador(e.target.value)}
                     autoFocus
@@ -555,8 +657,8 @@ export default function ControlIngreso() {
                   />
 
                   <small className="text-muted d-block mt-2">
-                    Admite búsqueda por carnet de identidad o código
-                    universitario SIS.
+                    Seleccione el tipo de documento para validar la identificación.
+                    Admite búsqueda por carnet de identidad o código universitario SIS.
                   </small>
                 </div>
                 <button
@@ -682,6 +784,9 @@ export default function ControlIngreso() {
                 resultado.fecha_consulta ||
                 resultado.timestamp
               }
+              onConfirmarIngreso={handleConfirmarIngreso}
+              confirmandoIngreso={confirmandoIngreso}
+              ingresoConfirmado={ingresoConfirmado}
               examenSeleccionado={examenActivo}
               examen={resultado.examen}
               onSiguiente={handleSiguienteEstudiante}
@@ -689,73 +794,19 @@ export default function ControlIngreso() {
             />
           )}
 
-          {/* Registro y control de doble ingreso */}
-          {resultado.habilitacion?.estado === 'HABILITADO' && (
-            <div className="mt-3">
-              {dobleIngreso ? (
-                <div
-                  className="alert alert-danger rounded-4 shadow-sm"
-                  role="alert"
-                >
-                  <h5 className="fw-bold">
-                    <i className="bi bi-exclamation-octagon-fill me-2"></i>
-                    DOBLE INGRESO DETECTADO
-                  </h5>
-
-                  <p className="mb-2">{dobleIngreso.mensaje}</p>
-
-                  {dobleIngreso.fechaHora && (
-                    <p className="fw-bold mb-3">
-                      Primer ingreso registrado:{' '}
-                      {new Date(
-                        dobleIngreso.fechaHora
-                      ).toLocaleString()}
-                    </p>
-                  )}
-
-                  <button
-                    type="button"
-                    className="btn btn-danger w-100 fw-bold"
-                    onClick={handleContinuarEscaneando}
-                  >
-                    <i className="bi bi-arrow-repeat me-2"></i>
-                    Aceptar / Continuar escaneando
-                  </button>
-                </div>
-              ) : ingresoRegistrado ? (
-                <div
-                  className="alert alert-success rounded-4 fw-bold"
-                  role="alert"
-                >
-                  <i className="bi bi-check-circle-fill me-2"></i>
-                  Ingreso registrado correctamente.
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  className="btn btn-success btn-lg w-100 fw-bold shadow-sm"
-                  onClick={handleRegistrarIngreso}
-                  disabled={
-                    registrando ||
-                    !asignacionSeleccionada ||
-                    ingresoRegistrado
-                  }
-                >
-                  {registrando ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm me-2"></span>
-                      Registrando ingreso...
-                    </>
-                  ) : (
-                    <>
-                      <i className="bi bi-check-circle-fill me-2"></i>
-                      Confirmar ingreso
-                    </>
-                  )}
-                </button>
+          {dobleIngreso && (
+            <div className="alert alert-danger rounded-4 shadow-sm" role="alert">
+              <h5 className="fw-bold"><i className="bi bi-exclamation-octagon-fill me-2"></i>DOBLE INGRESO DETECTADO</h5>
+              <p className="mb-2">{dobleIngreso.mensaje}</p>
+              {dobleIngreso.fechaHora && (
+                <p className="fw-bold mb-3">Primer ingreso registrado: {new Date(dobleIngreso.fechaHora).toLocaleString('es-BO')}</p>
               )}
+              <button type="button" className="btn btn-danger w-100 fw-bold" onClick={handleContinuarEscaneando}>
+                <i className="bi bi-arrow-repeat me-2"></i>Aceptar / Continuar escaneando
+              </button>
             </div>
           )}
+
 
           <MotivoInhabilitacionModal
             isOpen={mostrarModalMotivo}
@@ -764,7 +815,7 @@ export default function ControlIngreso() {
             estado={resultado.habilitacion?.estado}
             estudiante={resultado.estudiante}
           />
-          
+
           {/* HU-180: Nuevo Modal Ámbar */}
           <ModalAmbienteIncorrecto
             isOpen={mostrarModalAmbiente}

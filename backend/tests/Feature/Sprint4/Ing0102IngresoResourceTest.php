@@ -256,4 +256,3 @@ class Ing0102IngresoResourceTest extends TestCase
         $this->assertSame(1, Ingreso::count());
     }
 }
-

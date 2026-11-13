@@ -47,6 +47,9 @@ function StudentPhoto({ estudiante }) {
 export default function StudentCard({
   estudiante,
   habilitacion,
+  onConfirmarIngreso,
+  confirmandoIngreso = false,
+  ingresoConfirmado = false,
   examenSeleccionado,
   examen,
   onSiguiente,
@@ -172,6 +175,30 @@ export default function StudentCard({
             )}
           </div></div>
         </div>
+
+        <button
+          type="button"
+          className="btn btn-primary btn-lg w-100 py-3 fw-bold fs-5 shadow mb-3"
+          onClick={onConfirmarIngreso}
+          disabled={confirmandoIngreso || ingresoConfirmado}
+        >
+          {confirmandoIngreso ? (
+            <>
+              <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+              Registrando ingreso...
+            </>
+          ) : ingresoConfirmado ? (
+            <>
+              <i className="bi bi-check-circle-fill me-2" aria-hidden="true"></i>
+              Ingreso Registrado Exitosamente
+            </>
+          ) : (
+            <>
+              <i className="bi bi-door-open-fill me-2" aria-hidden="true"></i>
+              Autorizar e Ingresar
+            </>
+          )}
+        </button>
 
         {/* Botón Siguiente Estudiante */}
         <button

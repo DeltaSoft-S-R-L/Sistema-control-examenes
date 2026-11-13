@@ -110,4 +110,3 @@ class IngresoExamenModelTest extends TestCase
         $this->assertEquals($asignacion->id_asignacion_ambiente, $ingresoExamen->asignacionAmbiente->id_asignacion_ambiente);
     }
 }
-
