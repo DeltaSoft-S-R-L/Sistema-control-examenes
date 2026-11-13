@@ -59,7 +59,9 @@ public function generarQr(Request $request, QrTokenService $qrTokenService): Jso
 {
     $usuario = $request->user();
 
-    if (!$usuario || $usuario->rol?->nombre !== 'ESTUDIANTE') {
+    $usuario?->loadMissing('rol');
+
+    if (!$usuario || strtoupper((string) $usuario->rol?->nombre) !== 'ESTUDIANTE') {
         return response()->json([
             'message' => 'No tienes permiso para generar este código QR.',
         ], 403);
@@ -76,13 +78,12 @@ public function generarQr(Request $request, QrTokenService $qrTokenService): Jso
         ], 404);
     }
 
-    // Generar un único token con el formato que espera validarToken().
-    $token = QrTokenService::generarToken($estudiante);
+    // Generar el token versionado compatible con el validador oficial.
+    $token = $qrTokenService->generar($estudiante);
 
     return response()->json([
         'token' => $token,
         'qr_svg' => $qrTokenService->generarSvgPorToken($token),
     ]);
 }
-
 }
