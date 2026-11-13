@@ -13,6 +13,7 @@ class Habilitacion extends Model
     protected $fillable = [
         'id_estudiante',
         'id_examen',
+        'id_asignacion_ambiente',
         'estado',
         'motivo',
         'motivo_tipo',
@@ -45,6 +46,11 @@ class Habilitacion extends Model
     public function examen()
     {
         return $this->belongsTo(Examen::class, 'id_examen', 'id_examen');
+    }
+
+    public function asignacionAmbiente()
+    {
+        return $this->belongsTo(AsignacionAmbiente::class, 'id_asignacion_ambiente', 'id_asignacion_ambiente');
     }
 
     public function inhabilitadoPor()
