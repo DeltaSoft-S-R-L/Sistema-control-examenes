@@ -11,6 +11,7 @@ export default function StudentCard({
   onConfirmarIngreso,
   confirmandoIngreso = false,
   ingresoConfirmado = false,
+  examenSeleccionado,
   examen,
   onSiguiente,
   onVerMotivo,
@@ -52,6 +53,38 @@ export default function StudentCard({
           </button>
         )}
       </div>
+    );
+  }
+
+  if (esNoAsociado) {
+    const asignatura = examenSeleccionado?.asignatura?.nombre || examenSeleccionado?.asignatura || 'No especificada';
+    const nombreExamen = examenSeleccionado?.nombre || 'No especificado';
+
+    return (
+      <section className="card student-card student-card--exam-warning shadow-lg rounded-4 p-3 p-md-4 mb-3" role="alert" aria-live="assertive">
+        <div className="student-card__exam-warning-heading">
+          <i className="bi bi-exclamation-octagon-fill" aria-hidden="true"></i>
+          <div>
+            <p className="student-card__exam-warning-kicker mb-1">Estudiante No Asociado · Acceso denegado</p>
+            <h2 className="student-card__exam-warning-title">El estudiante no pertenece a este examen</h2>
+          </div>
+        </div>
+        <dl className="student-card__exam-context mb-3">
+          <div><dt>Materia seleccionada</dt><dd>{asignatura}</dd></div>
+          <div><dt>Examen seleccionado</dt><dd>{nombreExamen}</dd></div>
+        </dl>
+        <div className="bg-white rounded-3 p-3 border border-danger-subtle">
+          <small className="text-muted text-uppercase fw-bold d-block">Estudiante escaneado</small>
+          <strong className="fs-5 text-dark">{estudiante.nombre} {estudiante.apellido}</strong>
+          <div className="small mt-1">C.I.: {estudiante.ci || '—'} <span className="mx-1">·</span> Código SIS: {estudiante.codigo_universitario || estudiante.codigo_sis || '—'}</div>
+        </div>
+        <button type="button" className="btn btn-light border border-danger-subtle w-100 mt-3 py-2 fw-bold text-danger" onClick={onVerMotivo}>
+          <i className="bi bi-info-circle me-2" aria-hidden="true"></i>Ver motivo
+        </button>
+        <button type="button" className="btn btn-outline-danger w-100 mt-3 py-2 fw-bold" onClick={onSiguiente}>
+          <i className="bi bi-arrow-right-circle me-2" aria-hidden="true"></i>Siguiente estudiante
+        </button>
+      </section>
     );
   }
 
