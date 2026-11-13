@@ -9,6 +9,7 @@ export default function StudentCard({
   estudiante,
   habilitacion,
   examenSeleccionado,
+  examen,
   onSiguiente,
   onVerMotivo,
 }) {
@@ -16,6 +17,41 @@ export default function StudentCard({
 
   const esHabilitado = habilitacion?.estado === 'HABILITADO';
   const esNoAsociado = habilitacion?.estado === 'NO_ASOCIADO';
+  const estado = String(habilitacion?.estado || '').toUpperCase();
+  const esReingreso = ['YA_INGRESO', 'YA_INGRESÓ', 'REINGRESO', 'INGRESO_PREVIO', 'DUPLICADO'].includes(estado);
+  const ingresoPrevio = habilitacion?.ingreso_previo || habilitacion?.ingreso || {};
+  const fechaHoraIngreso = ingresoPrevio.fecha_hora || ingresoPrevio.fechaHora || habilitacion?.fecha_hora_ingreso || habilitacion?.hora_primer_ingreso;
+  const fechaHoraTexto = fechaHoraIngreso
+    ? (Number.isNaN(Date.parse(fechaHoraIngreso)) ? String(fechaHoraIngreso) : new Date(fechaHoraIngreso).toLocaleString('es-BO'))
+    : 'Hora no disponible';
+  const ambiente = ingresoPrevio.asignacion_ambiente?.ambiente || ingresoPrevio.ambiente || habilitacion?.recinto || habilitacion?.ambiente || examen?.recinto || examen?.ambiente;
+  const recinto = typeof ambiente === 'string' ? ambiente : (ambiente?.nombre || ambiente?.nombre_ambiente || ambiente?.codigo || 'Recinto no disponible');
+
+  if (esReingreso) {
+    return (
+      <div className="card border-danger border-3 shadow-lg rounded-4 p-4 text-center bg-danger-subtle mb-3" role="alert" aria-live="assertive">
+        <div className="bg-danger text-white rounded-3 p-3 mb-3">
+          <i className="bi bi-hand-stop-fill display-3" aria-hidden="true"></i>
+          <h2 className="fw-bold text-uppercase mt-2 mb-0">¡ALERTA! ESTUDIANTE YA INGRESÓ</h2>
+        </div>
+        <div className="bg-white rounded-3 p-3 text-start shadow-sm mb-3 border border-danger-subtle">
+          <p className="fw-bold text-danger text-uppercase mb-3">Primer acceso registrado</p>
+          <p className="mb-2"><i className="bi bi-clock-fill text-danger me-2" aria-hidden="true"></i><strong>Hora:</strong> {fechaHoraTexto}</p>
+          <p className="mb-0"><i className="bi bi-geo-alt-fill text-danger me-2" aria-hidden="true"></i><strong>Recinto:</strong> {recinto}</p>
+        </div>
+        <div className="text-start mb-3">
+          <small className="text-muted text-uppercase fw-bold d-block">Estudiante</small>
+          <span className="fs-5 fw-bold text-dark">{estudiante.nombre} {estudiante.apellido}</span>
+          <div><small className="text-muted">C.I.: </small><span className="fw-bold">{estudiante.ci}</span></div>
+        </div>
+        {onSiguiente && (
+          <button type="button" className="btn btn-outline-danger btn-lg w-100 py-3 fw-bold" onClick={onSiguiente}>
+            <i className="bi bi-arrow-right-circle me-2" aria-hidden="true"></i>Siguiente estudiante
+          </button>
+        )}
+      </div>
+    );
+  }
 
   if (esNoAsociado) {
     const asignatura = examenSeleccionado?.asignatura?.nombre || examenSeleccionado?.asignatura || 'No especificada';

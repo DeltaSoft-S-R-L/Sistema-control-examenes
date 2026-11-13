@@ -2,6 +2,9 @@
 
 namespace Tests\Feature\Sprint4;
 
+use App\Enums\AccionAuditoria;
+use App\Enums\CodigoErrorVerificacion;
+use App\Enums\MotivoIntentoIngreso;
 use App\Models\Ambiente;
 use App\Models\AsignacionAmbiente;
 use App\Models\AuditLog;
@@ -12,6 +15,7 @@ use App\Models\Examen;
 use App\Models\Facultad;
 use App\Models\Habilitacion;
 use App\Models\Ingreso;
+use App\Models\IntentoIngreso;
 use App\Models\Permiso;
 use App\Models\Rol;
 use App\Models\RolPermiso;
@@ -197,125 +201,129 @@ class Ver03ExamenNoCorrespondienteTest extends TestCase
     }
 
     // ─────────────────────────────────────────────────────────────────
-    // A. Estudiante de la materia correcta → 200 OK + habilitado
+    // A. Estudiante de la materia correcta → 200 OK
     // ─────────────────────────────────────────────────────────────────
 
     public function test_estudiante_de_la_materia_correcta_es_verificado_ok(): void
     {
         $response = $this->withToken($this->tokenControl)
-            ->postJson('/api/verificar/documento', [
-                'identificador' => $this->estudianteDeA->ci,
-                'id_examen'     => $this->examenA->id_examen,
+            ->postJson('/api/verificaciones/documento', [
+                'tipo'      => 'CI',
+                'valor'     => $this->estudianteDeA->ci,
+                'examen_id' => $this->examenA->id_examen,
             ]);
 
         $response->assertStatus(200)
             ->assertJson([
-                'identificado' => true,
-                'estudiante'   => ['ci' => '1010101'],
-                'habilitacion' => [
-                    'estado'     => 'HABILITADO',
-                    'habilitado' => true,
-                ],
+                'metodo'     => 'CI',
+                'estudiante' => ['ci' => '1010101'],
+                'examen'     => ['id' => $this->examenA->id_examen],
             ]);
     }
 
     public function test_estudiante_correcto_por_qr_retorna_200(): void
     {
-        $token = QrTokenService::generarToken($this->estudianteDeA);
+        $token = app(QrTokenService::class)->generar($this->estudianteDeA);
 
         $response = $this->withToken($this->tokenControl)
-            ->postJson('/api/verificar/qr', [
+            ->postJson('/api/verificaciones/qr', [
                 'token'     => $token,
-                'id_examen' => $this->examenA->id_examen,
+                'examen_id' => $this->examenA->id_examen,
             ]);
 
         $response->assertStatus(200)
             ->assertJson([
-                'habilitacion' => ['estado' => 'HABILITADO'],
+                'metodo'     => 'QR',
+                'estudiante' => ['ci' => '1010101'],
+                'examen'     => ['id' => $this->examenA->id_examen],
             ]);
     }
 
     // ─────────────────────────────────────────────────────────────────
-    // B. Estudiante de otra materia → rechazo (NO_ASOCIADO) + log
+    // B. Estudiante de otra materia → 422 (NO_ASOCIADO) + log
     // ─────────────────────────────────────────────────────────────────
 
     public function test_estudiante_de_otra_materia_es_rechazado_en_examen_ajeno(): void
     {
         // estudianteDeB intenta entrar al ExamenA (donde no está inscripto)
         $response = $this->withToken($this->tokenControl)
-            ->postJson('/api/verificar/documento', [
-                'identificador' => $this->estudianteDeB->ci,
-                'id_examen'     => $this->examenA->id_examen,  // examen ajeno
+            ->postJson('/api/verificaciones/documento', [
+                'tipo'      => 'CI',
+                'valor'     => $this->estudianteDeB->ci,
+                'examen_id' => $this->examenA->id_examen,  // examen ajeno
             ]);
 
-        $response->assertStatus(200)
+        $response->assertStatus(422)
             ->assertJson([
-                'identificado' => true,
-                'habilitacion' => [
-                    'estado'     => 'NO_ASOCIADO',
-                    'habilitado' => false,
-                ],
+                'code'  => CodigoErrorVerificacion::NO_ASOCIADO->value,
+                'error' => CodigoErrorVerificacion::NO_ASOCIADO->value,
             ]);
     }
 
     public function test_rechazo_por_examen_ajeno_genera_registro_en_auditoria(): void
     {
-        $auditAntes = \App\Models\Auditoria::count();
+        $auditAntes = AuditLog::count();
+        $intentosAntes = IntentoIngreso::count();
 
-        $this->withToken($this->tokenControl)
-            ->postJson('/api/verificar/documento', [
-                'identificador' => $this->estudianteDeB->ci,
-                'id_examen'     => $this->examenA->id_examen,
+        $response = $this->withToken($this->tokenControl)
+            ->postJson('/api/verificaciones/documento', [
+                'tipo'      => 'CI',
+                'valor'     => $this->estudianteDeB->ci,
+                'examen_id' => $this->examenA->id_examen,
             ]);
 
-        // Debe haberse creado al menos un registro de auditoría
-        $this->assertGreaterThan($auditAntes, \App\Models\Auditoria::count());
+        $response->assertStatus(422)
+            ->assertJsonPath('code', CodigoErrorVerificacion::NO_ASOCIADO->value);
 
-        // El registro debe indicar FALLO (estudiante no habilitado en ese examen)
-        $log = \App\Models\Auditoria::latest('id_auditoria')->first();
+        // Debe haberse creado registro de auditoría e intento rechazado
+        $this->assertGreaterThan($auditAntes, AuditLog::count());
+        $this->assertGreaterThan($intentosAntes, IntentoIngreso::count());
+
+        $log = AuditLog::latest('id_audit_log')->first();
         $this->assertNotNull($log);
-        $this->assertEquals('FALLO', $log->resultado);
+        $this->assertEquals(AccionAuditoria::INTENTO_INGRESO_EXAMEN_AJENO->value, $log->accion);
+        $this->assertEquals('estudiante', $log->entidad);
+        $this->assertEquals((string) $this->estudianteDeB->id_estudiante, $log->id_registro);
+
+        $intento = IntentoIngreso::latest('id_intento')->first();
+        $this->assertNotNull($intento);
+        $this->assertEquals(MotivoIntentoIngreso::EXAMEN_NO_CORRESPONDIENTE->value, $intento->motivo);
     }
 
     public function test_estudiante_de_otra_materia_por_qr_en_examen_ajeno_es_rechazado(): void
     {
-        $token = QrTokenService::generarToken($this->estudianteDeB);
+        $token = app(QrTokenService::class)->generar($this->estudianteDeB);
 
         $response = $this->withToken($this->tokenControl)
-            ->postJson('/api/verificar/qr', [
+            ->postJson('/api/verificaciones/qr', [
                 'token'     => $token,
-                'id_examen' => $this->examenA->id_examen,
+                'examen_id' => $this->examenA->id_examen,
             ]);
 
-        $response->assertStatus(200)
+        $response->assertStatus(422)
             ->assertJson([
-                'habilitacion' => [
-                    'estado'     => 'NO_ASOCIADO',
-                    'habilitado' => false,
-                ],
+                'code'  => CodigoErrorVerificacion::NO_ASOCIADO->value,
+                'error' => CodigoErrorVerificacion::NO_ASOCIADO->value,
             ]);
     }
 
     // ─────────────────────────────────────────────────────────────────
-    // C. Estudiante sin ninguna materia asignada → NO_ASOCIADO
+    // C. Estudiante sin ninguna materia asignada → 422 NO_ASOCIADO
     // ─────────────────────────────────────────────────────────────────
 
     public function test_estudiante_sin_ninguna_materia_asignada_retorna_no_asociado(): void
     {
         $response = $this->withToken($this->tokenControl)
-            ->postJson('/api/verificar/documento', [
-                'identificador' => $this->estudianteSinMateria->ci,
-                'id_examen'     => $this->examenA->id_examen,
+            ->postJson('/api/verificaciones/documento', [
+                'tipo'      => 'CI',
+                'valor'     => $this->estudianteSinMateria->ci,
+                'examen_id' => $this->examenA->id_examen,
             ]);
 
-        $response->assertStatus(200)
+        $response->assertStatus(422)
             ->assertJson([
-                'identificado' => true,
-                'habilitacion' => [
-                    'estado'     => 'NO_ASOCIADO',
-                    'habilitado' => false,
-                    'motivo'     => 'El estudiante no está asociado a este examen.',
-                ],
+                'code'  => CodigoErrorVerificacion::NO_ASOCIADO->value,
+                'error' => CodigoErrorVerificacion::NO_ASOCIADO->value,
             ]);
     }
 
@@ -323,21 +331,24 @@ class Ver03ExamenNoCorrespondienteTest extends TestCase
     {
         foreach ([$this->examenA->id_examen, $this->examenB->id_examen] as $idExamen) {
             $response = $this->withToken($this->tokenControl)
-                ->postJson('/api/verificar/documento', [
-                    'identificador' => $this->estudianteSinMateria->ci,
-                    'id_examen'     => $idExamen,
+                ->postJson('/api/verificaciones/documento', [
+                    'tipo'      => 'CI',
+                    'valor'     => $this->estudianteSinMateria->ci,
+                    'examen_id' => $idExamen,
                 ]);
 
-            $response->assertStatus(200)
-                ->assertJson(['habilitacion' => ['estado' => 'NO_ASOCIADO']]);
+            $response->assertStatus(422)
+                ->assertJson([
+                    'code' => CodigoErrorVerificacion::NO_ASOCIADO->value,
+                ]);
         }
     }
 
     // ─────────────────────────────────────────────────────────────────
-    // D. Ingreso duplicado → debe devolver 422 (no 500)
+    // D. Ingreso duplicado → debe devolver 409 REINGRESO_NO_PERMITIDO (no 500)
     // ─────────────────────────────────────────────────────────────────
 
-    public function test_ingreso_duplicado_devuelve_422_no_500(): void
+    public function test_ingreso_duplicado_devuelve_409_no_500(): void
     {
         $habilitacion = Habilitacion::where('id_estudiante', $this->estudianteDeA->id_estudiante)
             ->where('id_examen', $this->examenA->id_examen)
@@ -353,10 +364,10 @@ class Ver03ExamenNoCorrespondienteTest extends TestCase
         $r1 = $this->withToken($this->tokenControl)->postJson('/api/ingresos', $payload);
         $r1->assertStatus(201);
 
-        // Segundo ingreso (duplicado) → 422, no 500
+        // Segundo ingreso (duplicado, ING-03) → 409 Conflict, no 500
         $r2 = $this->withToken($this->tokenControl)->postJson('/api/ingresos', $payload);
-        $r2->assertStatus(422)
-            ->assertJsonPath('code', 'INGRESO_DUPLICADO');
+        $r2->assertStatus(409)
+            ->assertJsonPath('code', CodigoErrorVerificacion::REINGRESO_NO_PERMITIDO->value);
     }
 
     // ─────────────────────────────────────────────────────────────────

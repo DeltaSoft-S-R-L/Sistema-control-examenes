@@ -351,6 +351,7 @@ export default function ControlIngreso() {
             estudiante={resultado.estudiante}
             habilitacion={resultado.habilitacion}
             examenSeleccionado={examenActivo}
+            examen={resultado.examen}
             onSiguiente={handleSiguienteEstudiante}
             onVerMotivo={() => setMostrarModalMotivo(true)}
           />
