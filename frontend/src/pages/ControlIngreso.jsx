@@ -168,11 +168,14 @@ export default function ControlIngreso() {
     console.error('Error en verificación:', err);
     const responseData = err.response?.data;
 
-    // HU-180: Interceptar error de ambiente incorrecto (Modal Ámbar)
+    // Mostrar el resultado de discrepancia en la tarjeta ámbar del flujo principal.
     if (responseData && (responseData.code === 'AULA_INCORRECTA' || responseData.code === 'AMBIENTE_INCORRECTO')) {
-      setAmbienteAsignado(responseData.ambiente_asignado);
-      setResultado({ estudiante: responseData.estudiante || null });
-      setMostrarModalAmbiente(true);
+      const aula = responseData.ambiente_asignado || responseData.aula_asignada || {};
+      setResultado({
+        estudiante: responseData.estudiante || null,
+        habilitacion: { estado: 'AULA_INCORRECTA', ambiente_asignado: aula },
+      });
+      setMostrarModalAmbiente(false);
       if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
       setLoading(false);
       return;
@@ -418,8 +421,17 @@ export default function ControlIngreso() {
     } catch (err) {
       const data = err.response?.data || {};
       if (data.code === 'AULA_INCORRECTA' || data.code === 'AMBIENTE_INCORRECTO') {
-        setAmbienteAsignado(data.ambiente_asignado);
-        setMostrarModalAmbiente(true);
+        const aula = data.ambiente_asignado || data.aula_asignada || {};
+        setResultado((actual) => ({
+          ...actual,
+          estudiante: data.estudiante || actual?.estudiante,
+          habilitacion: {
+            ...actual?.habilitacion,
+            estado: 'AULA_INCORRECTA',
+            ambiente_asignado: aula,
+          },
+        }));
+        setMostrarModalAmbiente(false);
         return;
       }
 

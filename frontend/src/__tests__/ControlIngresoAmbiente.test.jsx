@@ -1,70 +1,70 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import React from 'react';
 import ControlIngreso from '../pages/ControlIngreso';
+import StudentCard from '../components/estudiantes/StudentCard';
 import api from '../services/api';
 
-// 1. Mockeamos la API para simular el servidor
-vi.mock('../services/api');
+vi.mock('../services/api', () => ({ default: { get: vi.fn(), post: vi.fn() } }));
 
-describe('HU-181: Pruebas de renderizado de tarjeta ámbar', () => {
+describe('HU-179: tarjeta ámbar por discrepancia de aula', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-
-    // Evitamos errores de Audio API o Vibrador en Node.js
     global.navigator.vibrate = vi.fn();
-    window.HTMLMediaElement.prototype.play = vi.fn().mockImplementation(() => Promise.resolve());
+    window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
+    api.get.mockImplementation((url) => {
+      if (url === '/examenes') return Promise.resolve({ data: { data: [{
+        id_examen: 1,
+        nombre: 'Examen de Cálculo',
+        fecha: '2026-11-15',
+        hora_inicio: '08:00',
+        asignaciones_ambiente: [{ id_asignacion_ambiente: 10, ambiente: { nombre: 'Aula B' } }],
+      }] } });
+      if (url.includes('/inhabilitacion')) return Promise.resolve({ data: {
+        estado: 'HABILITADO', id_habilitacion: 50, id_asignacion_ambiente: 10,
+      } });
+      return Promise.resolve({ data: {} });
+    });
   });
 
-  it('debe renderizar el modal ámbar al recibir respuesta AMBIENTE_INCORRECTO (AULA_INCORRECTA)', async () => {
+  it('muestra la tarjeta ámbar cuando el servidor rechaza el aula al confirmar el ingreso', async () => {
+    const user = userEvent.setup();
+    api.post
+      .mockResolvedValueOnce({ data: {
+        estudiante: { id: 7, nombres: 'María', apellidos: 'Gómez', ci: '1234567', codigo_sis: '2020123' },
+        examen: { id: 1, asignatura: 'Cálculo', fecha: '2026-11-15' },
+      } })
+      .mockRejectedValueOnce({ response: { status: 422, data: {
+        code: 'AULA_INCORRECTA',
+        ambiente_asignado: { nombre: 'Laboratorio 3', bloque: 'B', piso: '2' },
+      } } });
 
-    // Simulamos la carga inicial de exámenes en el useEffect
-    api.get.mockResolvedValueOnce({
-      data: { data: [{ id_examen: 1, nombre: 'Examen de Cálculo', fecha: '2026-11-15' }] }
-    });
-
-    // Simulamos el rechazo de validación de ambiente por parte del controlador Laravel
-    const mockErrorResponse = {
-      response: {
-        status: 422,
-        data: {
-          code: 'AULA_INCORRECTA',
-          message: 'El estudiante está habilitado, pero le corresponde ingresar en otro ambiente.',
-          ambiente_asignado: 'Laboratorio de Cómputo 3',
-          estudiante: { nombre: 'María', apellido: 'Gómez' }
-        }
-      }
-    };
-    api.post.mockRejectedValueOnce(mockErrorResponse);
-
-    // 2. Renderizamos el componente principal
     render(<ControlIngreso />);
+    await user.type(await screen.findByPlaceholderText(/Ej. 1234567/i), '1234567');
+    await user.click(screen.getByRole('button', { name: /Verificar Estudiante/i }));
 
-    // 3. Escribimos el CI y lanzamos el submit
-    await waitFor(() => expect(api.get).toHaveBeenCalled());
+    await screen.findByRole('button', { name: /Autorizar e Ingresar/i });
+    await user.click(screen.getByRole('button', { name: /Autorizar e Ingresar/i }));
 
-    const inputCi = screen.getByPlaceholderText(/Ej. 1234567/i);
-    fireEvent.change(inputCi, { target: { value: '1234567' } });
-
-    const btnVerificar = screen.getByRole('button', { name: /Verificar Estudiante/i });
-    fireEvent.click(btnVerificar);
-
-    // 4. Verificamos que se llamó al POST
-    await waitFor(() => expect(api.post).toHaveBeenCalled());
-
-    // 5. Criterios de Aceptación (HU-181)
-    // Validar título del modal ámbar
-    expect(await screen.findByText(/Ambiente Incorrecto/i)).toBeInTheDocument();
-
-    // Validar nombre del estudiante y el ambiente correcto
+    expect(await screen.findByText(/DEBE DIRIGIRSE AL AULA:/i)).toBeInTheDocument();
+    expect(screen.getByText('Laboratorio 3')).toBeInTheDocument();
+    expect(screen.getByText(/Bloque:/i)).toBeInTheDocument();
+    expect(screen.getByText(/Piso:/i)).toBeInTheDocument();
     expect(screen.getByText(/María Gómez/i)).toBeInTheDocument();
-    expect(screen.getByText(/Laboratorio de Cómputo 3/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Autorizar e Ingresar/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Ingreso Registrado Exitosamente/i)).not.toBeInTheDocument();
+  });
 
-    // Validar advertencia restrictiva (HU-180)
-    expect(screen.getByText(/Este control NO habilita el ingreso físico en esta aula/i)).toBeInTheDocument();
+  it('muestra ubicación genérica cuando el backend no separa bloque y piso', () => {
+    render(<StudentCard
+      estudiante={{ nombre: 'Ana', apellido: 'Pérez', ci: '1234567' }}
+      habilitacion={{ estado: 'AULA_INCORRECTA', ambiente_asignado: { nombre: 'Aula 5', ubicacion: 'Edificio Norte' } }}
+      onSiguiente={vi.fn()}
+    />);
 
-    // Validar botón de redirección
-    const btnEntendido = screen.getByRole('button', { name: /Entendido \/ Siguiente estudiante/i });
-    expect(btnEntendido).toBeInTheDocument();
+    expect(screen.getByText(/Aula 5/i)).toBeInTheDocument();
+    expect(screen.getByText(/Ubicación:/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Bloque:/i)).not.toBeInTheDocument();
   });
 });

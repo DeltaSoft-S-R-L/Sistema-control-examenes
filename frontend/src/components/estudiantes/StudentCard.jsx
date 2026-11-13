@@ -32,8 +32,8 @@ function StudentPhoto({ estudiante }) {
           <div className="modal-dialog modal-dialog-centered modal-lg"><div className="modal-content">
             <div className="modal-header"><h2 id="student-photo-title" className="modal-title fs-5">Fotografía del estudiante</h2><button type="button" className="btn-close" aria-label="Cerrar fotografía" onClick={() => setMostrarFoto(false)} /></div>
             <div className="modal-body text-center"><img src={urlFoto} alt={`Fotografía ampliada de ${nombre} ${apellido}`} className="img-fluid rounded-3" style={{ maxHeight: '75vh', objectFit: 'contain' }} onError={() => { setFotoFallida(true); setMostrarFoto(false); }} /></div>
-          </div></div>
-        </div>
+            </div></div>
+          </div>
       )}
     </>
   );
@@ -62,6 +62,14 @@ export default function StudentCard({
   const nombreCompleto = `${estudiante.nombre || estudiante.nombres || ''} ${estudiante.apellido || estudiante.apellidos || ''}`.trim();
   const codigoSis = estudiante.codigo_universitario || estudiante.codigo_sis || '—';
   const estado = String(habilitacion?.estado || '').toUpperCase();
+  const esAulaIncorrecta = ['AULA_INCORRECTA', 'AULA_NO_CORRESPONDE', 'AULA_DISCREPANTE', 'AMBIENTE_INCORRECTO'].includes(estado);
+  const aulaAsignada = habilitacion?.ambiente_asignado || habilitacion?.aula_asignada || habilitacion?.ambiente || habilitacion?.aula;
+  const nombreAula = typeof aulaAsignada === 'string'
+    ? aulaAsignada
+    : (aulaAsignada?.nombre || aulaAsignada?.nombre_ambiente || aulaAsignada?.codigo || 'Aula asignada');
+  const bloque = habilitacion?.bloque || aulaAsignada?.bloque;
+  const piso = habilitacion?.piso || aulaAsignada?.piso;
+  const ubicacion = aulaAsignada?.ubicacion;
   const esReingreso = ['YA_INGRESO', 'YA_INGRESÓ', 'REINGRESO', 'INGRESO_PREVIO', 'DUPLICADO'].includes(estado);
   const ingresoPrevio = habilitacion?.ingreso_previo || habilitacion?.ingreso || {};
   const fechaHoraIngreso = ingresoPrevio.fecha_hora || ingresoPrevio.fechaHora || habilitacion?.fecha_hora_ingreso || habilitacion?.hora_primer_ingreso;
@@ -95,6 +103,37 @@ export default function StudentCard({
           </button>
         )}
       </div>
+    );
+  }
+
+  if (esAulaIncorrecta) {
+    return (
+      <section className="card student-card student-card--room-warning shadow-lg rounded-4 p-3 p-md-4 mb-3" role="alert" aria-live="assertive">
+        <div className="student-card__room-warning-heading">
+          <i className="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+          <div>
+            <p className="student-card__room-warning-kicker mb-1">Discrepancia de aula · Ingreso no registrado</p>
+            <h2 className="student-card__room-warning-title">DEBE DIRIGIRSE AL AULA:</h2>
+            <p className="student-card__room-warning-room">{nombreAula}</p>
+          </div>
+        </div>
+        {(bloque || piso || ubicacion) && (
+          <p className="student-card__room-warning-location">
+            {bloque && <span><strong>Bloque:</strong> {bloque}</span>}
+            {piso && <span><strong>Piso:</strong> {piso}</span>}
+            {!bloque && !piso && ubicacion && <span><strong>Ubicación:</strong> {ubicacion}</span>}
+          </p>
+        )}
+        <div className="bg-white rounded-3 p-3 border border-warning-subtle mb-3 text-start">
+          <StudentPhoto estudiante={estudiante} />
+          <small className="text-muted text-uppercase fw-bold d-block">Estudiante</small>
+          <strong className="fs-5 text-dark">{nombreCompleto}</strong>
+          <div className="small mt-1">C.I.: {estudiante.ci || '—'} <span className="mx-1">·</span> Código SIS: {codigoSis}</div>
+        </div>
+        <button type="button" className="btn btn-outline-warning w-100 py-2 fw-bold" onClick={onSiguiente}>
+          <i className="bi bi-arrow-right-circle me-2" aria-hidden="true"></i>Siguiente estudiante
+        </button>
+      </section>
     );
   }
 
@@ -173,7 +212,8 @@ export default function StudentCard({
                 <span className="fw-semibold text-secondary small">{estudiante.carrera}</span>
               </div>
             )}
-          </div></div>
+              </div></div>
+          </div>
         </div>
 
         <button
@@ -254,7 +294,8 @@ export default function StudentCard({
               <span className="fw-semibold text-secondary small">{estudiante.carrera}</span>
             </div>
           )}
-        </div></div>
+          </div></div>
+        </div>
       </div>
 
       {/* Botón Ver Motivo */}
