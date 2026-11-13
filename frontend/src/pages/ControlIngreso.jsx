@@ -29,9 +29,21 @@ export default function ControlIngreso() {
   const inputIdentificadorRef = useRef(null);
   const examenActivo = examenes.find((examen) => Number(examen.id_examen) === Number(examenSeleccionado));
 
+  // Optimización HU-160: Referencias para audio y timeout
+  const audioErrorRef = useRef(new Audio('/error.mp3'));
+  const timeoutRef = useRef(null);
+
   useEffect(() => {
     setOperador(getUsuario());
     cargarExamenes();
+    
+    // Limpieza al desmontar el componente (evitar fugas de memoria)
+    return () => {
+      detenerCamara();
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
   }, []);
 
   const cargarExamenes = async () => {
@@ -82,11 +94,21 @@ export default function ControlIngreso() {
     setCamaraActiva(false);
   };
 
-  useEffect(() => {
-    return () => {
-      detenerCamara();
-    };
-  }, []);
+  // --- HU-160: Función reutilizable para el Feedback Sensorial ---
+  const dispararAlertaRechazo = () => {
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    
+    if (audioErrorRef.current) {
+      audioErrorRef.current.currentTime = 0; // Reiniciar audio si ya estaba sonando
+      audioErrorRef.current.play().catch(e => console.warn('Reproducción de audio bloqueada por el navegador', e));
+    }
+
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    
+    timeoutRef.current = setTimeout(() => {
+      setLoading(false);
+    }, 2000);
+  };
 
   const handleVerificarDocumento = async (e) => {
     if (e) e.preventDefault();
@@ -109,14 +131,22 @@ export default function ControlIngreso() {
         id_examen: examenSeleccionado,
       });
       setResultado(res.data);
+      
+      // Validación en caso de éxito HTTP pero rechazo por negocio
+      const estado = res.data?.habilitacion?.estado || res.data?.estado_verificacion || res.data?.estado;
+      if (String(estado).toUpperCase() !== 'HABILITADO') {
+        dispararAlertaRechazo();
+      } else {
+        setLoading(false); 
+      }
     } catch (err) {
       console.error('Error al verificar documento:', err);
       const msg = err.response?.data?.message || 'Estudiante no encontrado en el sistema.';
       setErrorAlerta(msg);
-    } finally {
-      setLoading(false);
+      dispararAlertaRechazo();
     }
   };
+  
 
   const handleVerificarQr = async (tokenParaEnviar) => {
     const token = tokenParaEnviar || tokenQr;
@@ -140,14 +170,22 @@ export default function ControlIngreso() {
       });
       setResultado(res.data);
       detenerCamara();
+      
+      // Validación en caso de éxito HTTP pero rechazo por negocio
+      const estado = res.data?.habilitacion?.estado || res.data?.estado_verificacion || res.data?.estado;
+      if (String(estado).toUpperCase() !== 'HABILITADO') {
+        dispararAlertaRechazo();
+      } else {
+        setLoading(false);
+      }
     } catch (err) {
       console.error('Error al verificar QR:', err);
       const msg = err.response?.data?.message || 'Código QR no reconocido o estudiante no encontrado.';
       setErrorAlerta(msg);
-    } finally {
-      setLoading(false);
+      dispararAlertaRechazo();
     }
   };
+    
 
   const handleSiguienteEstudiante = () => {
     setResultado(null);
