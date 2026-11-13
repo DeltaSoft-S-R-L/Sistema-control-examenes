@@ -53,7 +53,6 @@ class IngresoController extends Controller
             'id_asignacion_ambiente.required' => 'El campo id_asignacion_ambiente es obligatorio.',
             'id_asignacion_ambiente.exists'   => 'La asignación de ambiente especificada no existe.',
         ]);
-
         // 2. Extracción segura del operador de puerta autenticado
         $idUsuario = Auth::guard('sanctum')->id()
             ?? $request->user()?->id_usuario
