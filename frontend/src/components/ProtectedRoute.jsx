@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
-import { getRol } from '../utils/auth';
+import { getRol, ROLES } from '../utils/auth';
 
 export default function ProtectedRoute({ rolesPermitidos = [] }) {
   const token = localStorage.getItem('token');
@@ -19,8 +19,12 @@ export default function ProtectedRoute({ rolesPermitidos = [] }) {
 
   // Usuario autenticado, pero sin autorización para esta ruta
   if (!rol || !rolesPermitidos.includes(rol)) {
-    return <Navigate to="/" replace />;
-  }
+  const destino = rol === ROLES.ESTUDIANTE
+    ? '/estudiante/dashboard'
+    : '/';
+
+  return <Navigate to={destino} replace />;
+}
 
   return <Outlet />;
 }

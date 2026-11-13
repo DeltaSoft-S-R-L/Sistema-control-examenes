@@ -18,9 +18,11 @@ use App\Models\Ingreso;
 use App\Models\IntentoIngreso;
 use App\Models\Rol;
 use App\Models\Usuario;
+use App\Services\HabilitacionService;
 use App\Services\QrTokenService;
 use App\Utilities\PasswordHasher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class VerificacionEstudianteTest extends TestCase
@@ -196,6 +198,103 @@ class VerificacionEstudianteTest extends TestCase
                     'id' => $this->examen->id_examen,
                 ],
             ]);
+    }
+
+    public function test_ingreso_previo_retorna_reingreso_con_fecha_y_ambiente(): void
+    {
+        $fechaHora = Carbon::parse('2026-10-27 08:15:00');
+        $ambiente = $this->registrarIngresoPrevio($this->estudianteHabilitado, $fechaHora);
+
+        // 1. Verificación de identidad con contrato unificado VER-01
+        $response = $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
+            ->postJson('/api/verificaciones/documento', [
+                'tipo'      => 'CI',
+                'valor'     => $this->estudianteHabilitado->ci,
+                'examen_id' => $this->examen->id_examen,
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'metodo'     => 'CI',
+                'estudiante' => [
+                    'ci' => $this->estudianteHabilitado->ci,
+                ],
+                'examen'     => [
+                    'id' => $this->examen->id_examen,
+                ],
+            ]);
+
+        // 2. Consulta de habilitación reporta REINGRESO con fecha y ambiente
+        $resultado = HabilitacionService::verificarHabilitacion($this->estudianteHabilitado, $this->examen);
+
+        $this->assertEquals('REINGRESO', $resultado['estado']);
+        $this->assertFalse($resultado['habilitado']);
+        $this->assertEquals($ambiente->nombre, $resultado['ingreso_previo']['ambiente']);
+
+        $fechaHoraRespuesta = Carbon::parse($resultado['ingreso_previo']['fecha_hora']);
+        $this->assertTrue($fechaHoraRespuesta->equalTo($fechaHora));
+    }
+
+    public function test_ingreso_previo_tiene_prioridad_sobre_habilitacion_no_habilitado(): void
+    {
+        $fechaHora = Carbon::parse('2026-10-27 08:15:00');
+        $ambiente = $this->registrarIngresoPrevio($this->estudianteInhabilitado, $fechaHora);
+
+        // 1. Identificación exitosa por documento
+        $response = $this->withHeader('Authorization', "Bearer {$this->tokenControl}")
+            ->postJson('/api/verificaciones/documento', [
+                'tipo'      => 'CI',
+                'valor'     => $this->estudianteInhabilitado->ci,
+                'examen_id' => $this->examen->id_examen,
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'metodo'     => 'CI',
+                'estudiante' => [
+                    'ci' => $this->estudianteInhabilitado->ci,
+                ],
+            ]);
+
+        // 2. Prioridad de REINGRESO sobre NO_HABILITADO
+        $resultado = HabilitacionService::verificarHabilitacion($this->estudianteInhabilitado, $this->examen);
+
+        $this->assertEquals('REINGRESO', $resultado['estado']);
+        $this->assertFalse($resultado['habilitado']);
+        $this->assertEquals($ambiente->nombre, $resultado['ingreso_previo']['ambiente']);
+
+        $fechaHoraRespuesta = Carbon::parse($resultado['ingreso_previo']['fecha_hora']);
+        $this->assertTrue($fechaHoraRespuesta->equalTo($fechaHora));
+    }
+
+    private function registrarIngresoPrevio(Estudiante $estudiante, Carbon $fechaHora): Ambiente
+    {
+        $ambiente = Ambiente::create([
+            'codigo'    => 'SALA-REINGRESO',
+            'nombre'    => 'Sala para prueba de reingreso',
+            'ubicacion' => 'Bloque A - Piso 1',
+            'capacidad' => 30,
+            'estado'    => 'DISPONIBLE',
+        ]);
+
+        $asignacion = AsignacionAmbiente::create([
+            'id_examen'   => $this->examen->id_examen,
+            'id_ambiente' => $ambiente->id_ambiente,
+        ]);
+
+        $habilitacion = Habilitacion::where('id_estudiante', $estudiante->id_estudiante)
+            ->where('id_examen', $this->examen->id_examen)
+            ->firstOrFail();
+
+        Ingreso::create([
+            'id_examen'                => $this->examen->id_examen,
+            'id_habilitacion'          => $habilitacion->id_habilitacion,
+            'id_asignacion_ambiente'   => $asignacion->id_asignacion_ambiente,
+            'id_usuario'               => $this->userControl->id_usuario,
+            'fecha_hora'               => $fechaHora,
+        ]);
+
+        return $ambiente;
     }
 
     // ─────────────────────────────────────────────────────────────────

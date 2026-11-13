@@ -54,6 +54,7 @@ class PertenenciaExamenServiceTest extends TestCase
             'ci'                   => $ci,
             'nombre'               => 'Carlos',
             'apellido'             => 'Perez',
+            'correo'               => "carlos.{$ci}@example.com",
             'codigo_universitario' => $codigoSis,
             'id_carrera'           => $this->carrera->id_carrera,
             'estado'               => 'ACTIVO',
