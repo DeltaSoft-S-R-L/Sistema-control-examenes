@@ -231,7 +231,7 @@ export default function NuevoExamenModal({ isOpen, onClose, onSuccess }) {
                               className="form-check-label small"
                               htmlFor={`ambiente-nuevo-${amb.id_ambiente}`}
                             >
-                              <strong>{amb.codigo} - {amb.nombre}</strong>{' '}
+                              <strong>{amb.codigo ? `${amb.codigo} - ${amb.nombre}` : amb.nombre}</strong>{' '}
                               <span className="text-muted">
                                 ({amb.asientos_disponibles ?? amb.capacidad} asientos)
                               </span>

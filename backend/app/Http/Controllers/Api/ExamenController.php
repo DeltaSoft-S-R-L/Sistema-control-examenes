@@ -204,10 +204,16 @@ class ExamenController extends Controller
         }
 
         if ($actualizarAmbientes) {
-            AsignacionAmbiente::where('id_examen', $examen->id_examen)->delete();
+            if (empty($idAmbientes)) {
+                AsignacionAmbiente::where('id_examen', $examen->id_examen)->delete();
+            } else {
+                AsignacionAmbiente::where('id_examen', $examen->id_examen)
+                    ->whereNotIn('id_ambiente', $idAmbientes)
+                    ->delete();
+            }
 
             foreach ($idAmbientes as $idAmb) {
-                AsignacionAmbiente::create([
+                AsignacionAmbiente::firstOrCreate([
                     'id_examen'   => $examen->id_examen,
                     'id_ambiente' => $idAmb,
                 ]);

@@ -499,6 +499,10 @@ class Ing04ValidacionAmbienteTest extends TestCase
             'id_ambiente' => $this->ambiente690A->id_ambiente,
         ]);
 
+        $asignacionOriginal691B = AsignacionAmbiente::where('id_examen', $nuevoExamenId)
+            ->where('id_ambiente', $this->ambiente691B->id_ambiente)
+            ->first();
+
         // 2. Actualizar el examen para asignar solo 1 ambiente
         $responseUpdate = $this->withHeaders([
             'Authorization' => "Bearer {$adminToken}",
@@ -511,6 +515,13 @@ class Ing04ValidacionAmbienteTest extends TestCase
         ]);
 
         $responseUpdate->assertStatus(200);
+
+        $asignacionDespuesUpdate = AsignacionAmbiente::where('id_examen', $nuevoExamenId)
+            ->where('id_ambiente', $this->ambiente691B->id_ambiente)
+            ->first();
+
+        // Verifica que el id_asignacion_ambiente original se conserva intacto
+        $this->assertEquals($asignacionOriginal691B->id_asignacion_ambiente, $asignacionDespuesUpdate->id_asignacion_ambiente);
 
         $this->assertDatabaseHas('asignacion_ambiente', [
             'id_examen'   => $nuevoExamenId,
