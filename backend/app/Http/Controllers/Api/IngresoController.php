@@ -165,10 +165,23 @@ class IngresoController extends Controller
 
         if (!$validacionAmbiente['valido']) {
             return response()->json([
-                'message'           => 'El estudiante está habilitado, pero le corresponde ingresar en otro ambiente.',
+                'message'           => 'El estudiante está asignado a otra aula.',
                 'code'              => CodigoErrorVerificacion::AULA_INCORRECTA->value,
                 'error'             => CodigoErrorVerificacion::AULA_INCORRECTA->value,
                 'ambiente_asignado' => $validacionAmbiente['ambiente_asignado'],
+                'estudiante'        => $habilitacion->estudiante ? [
+                    'id'                   => $habilitacion->estudiante->id_estudiante,
+                    'id_estudiante'        => $habilitacion->estudiante->id_estudiante,
+                    'nombre'               => $habilitacion->estudiante->nombre,
+                    'nombres'              => $habilitacion->estudiante->nombre,
+                    'apellido'             => $habilitacion->estudiante->apellido,
+                    'apellidos'            => $habilitacion->estudiante->apellido,
+                    'ci'                   => $habilitacion->estudiante->ci,
+                    'codigo_universitario' => $habilitacion->estudiante->codigo_universitario,
+                    'codigo_sis'           => $habilitacion->estudiante->codigo_universitario,
+                    'url_foto'             => $habilitacion->estudiante->foto_url,
+                    'foto_url'             => $habilitacion->estudiante->foto_url,
+                ] : null,
             ], 422);
         }
 

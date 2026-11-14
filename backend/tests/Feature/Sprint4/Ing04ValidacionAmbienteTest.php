@@ -228,7 +228,7 @@ class Ing04ValidacionAmbienteTest extends TestCase
 
         $response->assertStatus(422)
             ->assertJson([
-                'message'           => 'El estudiante está habilitado, pero le corresponde ingresar en otro ambiente.',
+                'message'           => 'El estudiante está asignado a otra aula.',
                 'code'              => 'AULA_INCORRECTA',
                 'error'             => 'AULA_INCORRECTA',
                 'ambiente_asignado' => [
@@ -398,7 +398,7 @@ class Ing04ValidacionAmbienteTest extends TestCase
 
         $response->assertStatus(422)
             ->assertJson([
-                'message'           => 'El estudiante está habilitado, pero le corresponde ingresar en otro ambiente.',
+                'message'           => 'El estudiante está asignado a otra aula.',
                 'code'              => 'AULA_INCORRECTA',
                 'error'             => 'AULA_INCORRECTA',
                 'ambiente_asignado' => [
@@ -447,5 +447,78 @@ class Ing04ValidacionAmbienteTest extends TestCase
             'id_habilitacion'        => $this->habilitacion691B->id_habilitacion,
             'id_asignacion_ambiente' => $this->asignacion691B->id_asignacion_ambiente,
         ])->assertStatus(403);
+    }
+
+    /**
+     * Prueba que el sistema permite asignar múltiples ambientes a un examen al crearlo y actualizarlo.
+     */
+    public function test_crear_y_actualizar_examen_con_multiples_ambientes(): void
+    {
+        $rolAdmin = Rol::firstOrCreate(
+            ['nombre' => 'ADMINISTRADOR'],
+            ['descripcion' => 'Administrador']
+        );
+
+        $adminUser = Usuario::create([
+            'nombre'        => 'Admin',
+            'apellido'      => 'General',
+            'correo'        => 'admin.multi@umss.edu.bo',
+            'username'      => 'admin_multi',
+            'password_hash' => PasswordHasher::hash('AdminPass123!'),
+            'id_rol'        => $rolAdmin->id_rol,
+            'estado'        => 'ACTIVO',
+        ]);
+        $adminToken = $adminUser->createToken('admin-token')->plainTextToken;
+
+        // 1. Crear examen con múltiples ambientes
+        $responseCreate = $this->withHeaders([
+            'Authorization' => "Bearer {$adminToken}",
+            'Accept'        => 'application/json',
+        ])->postJson('/api/examenes', [
+            'id_asignatura'    => $this->examen->id_asignatura,
+            'nombre'           => 'Examen Con Múltiples Aulas',
+            'fecha'            => '2026-12-01',
+            'hora_inicio'      => '14:00',
+            'duracion_minutos' => 90,
+            'estado'           => 'PROGRAMADO',
+            'id_ambientes'     => [
+                $this->ambiente691B->id_ambiente,
+                $this->ambiente690A->id_ambiente,
+            ],
+        ]);
+
+        $responseCreate->assertStatus(201);
+        $nuevoExamenId = $responseCreate->json('examen.id_examen');
+
+        $this->assertDatabaseHas('asignacion_ambiente', [
+            'id_examen'   => $nuevoExamenId,
+            'id_ambiente' => $this->ambiente691B->id_ambiente,
+        ]);
+        $this->assertDatabaseHas('asignacion_ambiente', [
+            'id_examen'   => $nuevoExamenId,
+            'id_ambiente' => $this->ambiente690A->id_ambiente,
+        ]);
+
+        // 2. Actualizar el examen para asignar solo 1 ambiente
+        $responseUpdate = $this->withHeaders([
+            'Authorization' => "Bearer {$adminToken}",
+            'Accept'        => 'application/json',
+        ])->putJson("/api/examenes/{$nuevoExamenId}", [
+            'nombre'       => 'Examen Con Múltiples Aulas Actualizado',
+            'id_ambientes' => [
+                $this->ambiente691B->id_ambiente,
+            ],
+        ]);
+
+        $responseUpdate->assertStatus(200);
+
+        $this->assertDatabaseHas('asignacion_ambiente', [
+            'id_examen'   => $nuevoExamenId,
+            'id_ambiente' => $this->ambiente691B->id_ambiente,
+        ]);
+        $this->assertDatabaseMissing('asignacion_ambiente', [
+            'id_examen'   => $nuevoExamenId,
+            'id_ambiente' => $this->ambiente690A->id_ambiente,
+        ]);
     }
 }

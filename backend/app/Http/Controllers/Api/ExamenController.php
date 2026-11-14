@@ -94,20 +94,26 @@ class ExamenController extends Controller
         }
 
         $examen = DB::transaction(function () use ($data, $request) {
-            $idAmbiente = $data['id_ambiente'] ?? null;
-            unset($data['id_ambiente']);
+            $idAmbientes = [];
+            if (!empty($data['id_ambientes']) && is_array($data['id_ambientes'])) {
+                $idAmbientes = array_unique(array_filter(array_map('intval', $data['id_ambientes'])));
+            } elseif (!empty($data['id_ambiente'])) {
+                $idAmbientes = [(int) $data['id_ambiente']];
+            }
+            unset($data['id_ambiente'], $data['id_ambientes']);
 
             $examen = Examen::create($data);
 
-            if ($idAmbiente) {
+            foreach ($idAmbientes as $idAmb) {
                 AsignacionAmbiente::create([
                     'id_examen' => $examen->id_examen,
-                    'id_ambiente' => $idAmbiente,
+                    'id_ambiente' => $idAmb,
                 ]);
             }
 
             $examenCargado = $examen->load(['asignatura', 'asignacionesAmbiente.ambiente']);
-            $ambienteInfo = $examenCargado->asignacionesAmbiente->first()?->ambiente?->nombre ?? 'Sin ambiente';
+            $nombresAmbientes = $examenCargado->asignacionesAmbiente->pluck('ambiente.nombre')->filter()->join(', ');
+            $ambienteInfo = !empty($nombresAmbientes) ? $nombresAmbientes : 'Sin ambiente';
 
             AuditoriaService::registrar(
                 $request->user()?->id_usuario,
@@ -180,16 +186,30 @@ class ExamenController extends Controller
             'id_asignatura'    => $examen->id_asignatura,
         ];
 
+        $actualizarAmbientes = false;
+        $idAmbientes = [];
+        if (array_key_exists('id_ambientes', $data)) {
+            $actualizarAmbientes = true;
+            $idAmbientes = is_array($data['id_ambientes'])
+                ? array_unique(array_filter(array_map('intval', $data['id_ambientes'])))
+                : [];
+            unset($data['id_ambientes']);
+        }
         if (array_key_exists('id_ambiente', $data)) {
-            $idAmbiente = $data['id_ambiente'];
+            if (!$actualizarAmbientes) {
+                $actualizarAmbientes = true;
+                $idAmbientes = $data['id_ambiente'] ? [(int) $data['id_ambiente']] : [];
+            }
             unset($data['id_ambiente']);
+        }
 
+        if ($actualizarAmbientes) {
             AsignacionAmbiente::where('id_examen', $examen->id_examen)->delete();
 
-            if ($idAmbiente) {
+            foreach ($idAmbientes as $idAmb) {
                 AsignacionAmbiente::create([
                     'id_examen'   => $examen->id_examen,
-                    'id_ambiente' => $idAmbiente,
+                    'id_ambiente' => $idAmb,
                 ]);
             }
         }
