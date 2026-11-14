@@ -26,7 +26,10 @@ describe('Pruebas de interfaz de usuario - Respuesta de Examen No Correspondient
 
   beforeEach(() => {
     vi.clearAllMocks();
-    api.get.mockResolvedValue({ data: listaExamenesMock });
+    window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
+    api.get.mockImplementation((url) => url === '/examenes'
+      ? Promise.resolve({ data: listaExamenesMock })
+      : Promise.resolve({ data: { estado: 'NO_ASOCIADO', motivo: 'El estudiante no está asociado a este examen.' } }));
   });
 
   it('debe rechazar estudiante de examen no correspondiente, omitir botón de autorizar y mostrar advertencia', async () => {
@@ -37,18 +40,18 @@ describe('Pruebas de interfaz de usuario - Respuesta de Examen No Correspondient
       data: {
         identificado: true,
         estudiante: {
-          id_estudiante: 55,
-          nombre: 'Carlos',
-          apellido: 'Fernandez',
+          id: 55,
+          nombres: 'Carlos',
+          apellidos: 'Fernandez',
           ci: '8877665',
-          codigo_universitario: '202099999',
-          carrera: 'Ingeniería Civil',
+          codigo_sis: '202099999',
         },
+        examen: { id: 101, asignatura: 'Ingeniería de Software' },
         habilitacion: {
-          estado: 'NO_ASOCIADO',
-          habilitado: false,
-          motivo: 'El estudiante no está asociado a este examen.',
-        },
+  estado: 'NO_ASOCIADO',
+  habilitado: false,
+  motivo: 'El estudiante no está asociado a este examen.',
+},
       },
     });
 
@@ -60,7 +63,7 @@ describe('Pruebas de interfaz de usuario - Respuesta de Examen No Correspondient
     });
 
     // 2. Ingresar C.I. y verificar
-    const inputCI = screen.getByPlaceholderText(/Ej. 1234567 o 202000001/i);
+    const inputCI = screen.getByPlaceholderText(/Ej. 1234567/i);
     await user.type(inputCI, '8877665');
 
     const btnVerificar = screen.getByRole('button', { name: /Verificar Estudiante/i });
@@ -88,7 +91,7 @@ describe('Pruebas de interfaz de usuario - Respuesta de Examen No Correspondient
       expect(screen.queryByText(/ACCESO DENEGADO/i)).not.toBeInTheDocument();
     });
 
-    const inputLimpio = screen.getByPlaceholderText(/Ej. 1234567 o 202000001/i);
+    const inputLimpio = screen.getByPlaceholderText(/Ej. 1234567/i);
     expect(inputLimpio).toBeInTheDocument();
     expect(inputLimpio.value).toBe('');
   });
@@ -112,7 +115,7 @@ describe('Pruebas de interfaz de usuario - Respuesta de Examen No Correspondient
       expect(screen.getByText(/Primer Parcial - Ingeniería de Software/i)).toBeInTheDocument();
     });
 
-    const inputCI = screen.getByPlaceholderText(/Ej. 1234567 o 202000001/i);
+    const inputCI = screen.getByPlaceholderText(/Ej. 1234567/i);
     await user.type(inputCI, '9999999');
 
     const btnVerificar = screen.getByRole('button', { name: /Verificar Estudiante/i });

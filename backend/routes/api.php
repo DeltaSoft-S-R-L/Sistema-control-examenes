@@ -60,6 +60,10 @@ Route::get('/estudiante/perfil', [
     PerfilEstudianteController::class,
     'mostrar'
 ])->middleware('role:ESTUDIANTE');
+Route::get('/estudiante/qr', [
+    PerfilEstudianteController::class,
+    'generarQr'
+])->middleware('role:ESTUDIANTE');
 // Estado de la fotografía del estudiante autenticado
 Route::get('/estudiante/foto', [
     EstudianteFotoController::class,
@@ -220,6 +224,7 @@ Route::get('/docente/mis-materias', [
     Route::get('/ingresos/{ingreso}', [IngresoController::class, 'show']);
 
     Route::middleware('role:CONTROL_INGRESO,ADMINISTRADOR')->group(function () {
+        Route::post('/ingresos/confirmar', [IngresoController::class, 'store']);
         Route::post('/ingresos', [IngresoController::class, 'store']);
         Route::put('/ingresos/{ingreso}', [IngresoController::class, 'update']);
         Route::patch('/ingresos/{ingreso}', [IngresoController::class, 'update']);
