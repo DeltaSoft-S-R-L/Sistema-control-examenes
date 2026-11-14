@@ -395,11 +395,18 @@ export default function ControlIngreso() {
 
     try {
       // El backend obtiene el controlador desde la sesión autenticada.
-      await api.post("/ingresos/confirmar", {
+      const resp = await api.post("/ingresos/confirmar", {
         id_examen: idExamen,
         id_habilitacion: idHabilitacion,
         id_asignacion_ambiente: idAsignacionAmbiente,
       });
+
+      const datosIngreso = resp.data?.data || resp.data || {};
+      setResultado((actual) => ({
+        ...actual,
+        ingreso: datosIngreso,
+        fecha_hora: datosIngreso.fecha_hora || actual?.fecha_hora,
+      }));
 
       setIngresoConfirmado(true);
       setIngresoRegistrado(true);

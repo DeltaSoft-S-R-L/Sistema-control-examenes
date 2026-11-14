@@ -103,6 +103,18 @@ export default function DashboardEstudiante() {
     },
   };
 
+  const handleCerrarSesion = async () => {
+    try {
+      await api.post("/logout");
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error);
+    } finally {
+      localStorage.removeItem("token");
+      localStorage.removeItem("usuario");
+      window.location.replace("/login");
+    }
+  };
+
   if (cargando) {
     return (
       <div style={estilos.pagina}>
@@ -117,27 +129,70 @@ export default function DashboardEstudiante() {
     return (
       <div style={estilos.pagina}>
         <div style={estilos.contenedor}>
-          <h1>Panel del Estudiante</h1>
-          <p role="alert" style={{ color: "#b91c1c" }}>
-            {error || "No se encontró información del estudiante."}
-          </p>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "12px",
+              marginBottom: "24px",
+            }}
+          >
+            <div>
+              <h1 style={{ fontSize: "28px", margin: 0 }}>
+                Panel del Estudiante
+              </h1>
+              <p style={{ color: "#64748b", marginTop: "6px" }}>
+                Sistema de Control de Exámenes
+              </p>
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-outline-danger fw-semibold"
+              onClick={handleCerrarSesion}
+            >
+              Cerrar Sesión
+            </button>
+          </div>
+
+          <div
+            style={{
+              ...estilos.tarjeta,
+              borderColor: "#fecaca",
+              backgroundColor: "#fef2f2",
+            }}
+          >
+            <h2 style={{ fontSize: "18px", color: "#991b1b", marginBottom: "8px" }}>
+              Atención
+            </h2>
+            <p role="alert" style={{ color: "#b91c1c", margin: 0 }}>
+              {error || "No se encontró información del estudiante."}
+            </p>
+            <div style={{ marginTop: "16px", display: "flex", gap: "10px" }}>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => window.location.reload()}
+              >
+                Reintentar
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline-secondary btn-sm"
+                onClick={handleCerrarSesion}
+              >
+                Volver al inicio de sesión
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   const asignaturas = perfil.asignaturas || [];
-  const handleCerrarSesion = async () => {
-    try {
-      await api.post("/logout");
-    } catch (error) {
-      console.error("Error al cerrar sesión:", error);
-    } finally {
-      localStorage.removeItem("token");
-      localStorage.removeItem("usuario");
-      window.location.replace("/login");
-    }
-  };
   return (
     <main style={estilos.pagina}>
       <div style={estilos.contenedor}>
