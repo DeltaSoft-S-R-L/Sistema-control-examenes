@@ -215,4 +215,36 @@ public function test_estudiante_solo_puede_consultar_su_propio_perfil(): void
     ]);
 }
 
+public function test_usuario_rol_estudiante_creado_manualmente_aprovisiona_perfil_sin_bloqueo(): void
+{
+    $rolEstudiante = Rol::firstOrCreate(
+        ['nombre' => 'ESTUDIANTE'],
+        ['descripcion' => 'Estudiante del sistema']
+    );
+
+    $usuarioManual = Usuario::create([
+        'nombre' => 'Jairo',
+        'apellido' => 'Rojas',
+        'username' => 'Jairo123',
+        'correo' => 'jairo@gmail.com',
+        'password_hash' => 'hash_de_prueba',
+        'estado' => 'ACTIVO',
+        'id_rol' => $rolEstudiante->id_rol,
+    ]);
+
+    Sanctum::actingAs($usuarioManual);
+
+    $response = $this->getJson('/api/estudiante/perfil');
+
+    $response->assertOk()
+        ->assertJsonPath('nombre', 'Jairo')
+        ->assertJsonPath('apellido', 'Rojas')
+        ->assertJsonPath('correo', 'jairo@gmail.com');
+
+    $this->assertDatabaseHas('estudiante', [
+        'id_usuario' => $usuarioManual->id_usuario,
+        'correo' => 'jairo@gmail.com',
+    ]);
+}
+
 }

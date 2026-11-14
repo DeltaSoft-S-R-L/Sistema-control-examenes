@@ -47,6 +47,7 @@ function StudentPhoto({ estudiante }) {
 export default function StudentCard({
   estudiante,
   habilitacion,
+  fechaHora,
   onConfirmarIngreso,
   confirmandoIngreso = false,
   ingresoConfirmado = false,
@@ -210,6 +211,16 @@ export default function StudentCard({
               <div className="col-12 pt-2 border-top">
                 <small className="text-muted text-uppercase fw-bold d-block">Carrera:</small>
                 <span className="fw-semibold text-secondary small">{estudiante.carrera}</span>
+              </div>
+            )}
+            {fechaHora && (
+              <div className="col-12 pt-2 border-top">
+                <small className="text-muted text-uppercase fw-bold d-block">
+                  <i className="bi bi-clock-history me-1 text-success"></i>Fecha y Hora de Ingreso (Servidor):
+                </small>
+                <span className="fw-bold text-success fs-6">
+                  {Number.isNaN(Date.parse(fechaHora)) ? String(fechaHora) : new Date(fechaHora).toLocaleString('es-BO')}
+                </span>
               </div>
             )}
               </div></div>
