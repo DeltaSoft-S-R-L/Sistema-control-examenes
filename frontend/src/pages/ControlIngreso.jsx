@@ -145,15 +145,17 @@ export default function ControlIngreso() {
         responseData.aula_asignada ||
         {};
 
-      setResultado({
-        estudiante: responseData.estudiante || null,
+      setResultado((actual) => ({
+        ...actual,
+        estudiante: responseData.estudiante || actual?.estudiante || null,
         habilitacion: {
+          ...actual?.habilitacion,
           estado: "AULA_INCORRECTA",
           ambiente_asignado: aula,
         },
-      });
+      }));
 
-      setMostrarModalAmbiente(false);;
+      setMostrarModalAmbiente(false);
       if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
       setLoading(false);
       return;
@@ -323,6 +325,26 @@ export default function ControlIngreso() {
             data.message || "El estudiante ya tiene un ingreso registrado.",
           fechaHora,
         });
+      } else if (
+        status === 422 &&
+        (data.code === "AULA_INCORRECTA" || data.code === "AMBIENTE_INCORRECTO")
+      ) {
+        const aula =
+          data.ambiente_asignado ||
+          data.aula_asignada ||
+          {};
+
+        setResultado((actual) => ({
+          ...actual,
+          estudiante: data.estudiante || actual?.estudiante,
+          habilitacion: {
+            ...actual?.habilitacion,
+            estado: "AULA_INCORRECTA",
+            ambiente_asignado: aula,
+          },
+        }));
+
+        setMostrarModalAmbiente(false);
       } else {
         setErrorAlerta(data.message || "No se pudo registrar el ingreso.");
       }

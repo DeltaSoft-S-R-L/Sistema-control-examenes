@@ -56,6 +56,14 @@ class StoreExamenRequest extends FormRequest
                 'integer',
                 'exists:ambiente,id_ambiente',
             ],
+            'id_ambientes' => [
+                'nullable',
+                'array',
+            ],
+            'id_ambientes.*' => [
+                'integer',
+                'exists:ambiente,id_ambiente',
+            ],
         ];
     }
 
@@ -75,6 +83,7 @@ class StoreExamenRequest extends FormRequest
             'estado.required' => 'El estado del examen es obligatorio.',
             'estado.in' => 'El estado seleccionado no es válido.',
             'id_ambiente.exists' => 'El ambiente seleccionado no existe.',
+            'id_ambientes.*.exists' => 'Uno de los ambientes seleccionados no existe.',
         ];
     }
 
@@ -87,22 +96,36 @@ class StoreExamenRequest extends FormRequest
 
             $data = $validator->getData();
 
-            if (empty($data['id_ambiente'])) {
+            $ambientes = [];
+            if (!empty($data['id_ambientes']) && is_array($data['id_ambientes'])) {
+                $ambientes = array_unique(array_filter(array_map('intval', $data['id_ambientes'])));
+            } elseif (!empty($data['id_ambiente'])) {
+                $ambientes = [(int) $data['id_ambiente']];
+            }
+
+            if (empty($ambientes)) {
                 return;
             }
 
-            $hayConflicto = TraslapeAmbienteService::existeConflicto(
-                (int) $data['id_ambiente'],
-                $data['fecha'],
-                $data['hora_inicio'],
-                (int) $data['duracion_minutos']
-            );
-
-            if ($hayConflicto) {
-                $validator->errors()->add(
-                    'id_ambiente',
-                    'El ambiente seleccionado ya está ocupado por otro examen en ese horario.'
+            foreach ($ambientes as $idAmbiente) {
+                $hayConflicto = TraslapeAmbienteService::existeConflicto(
+                    (int) $idAmbiente,
+                    $data['fecha'],
+                    $data['hora_inicio'],
+                    (int) $data['duracion_minutos']
                 );
+
+                if ($hayConflicto) {
+                    $validator->errors()->add(
+                        'id_ambientes',
+                        'El ambiente seleccionado ya está ocupado por otro examen en ese horario.'
+                    );
+                    $validator->errors()->add(
+                        'id_ambiente',
+                        'El ambiente seleccionado ya está ocupado por otro examen en ese horario.'
+                    );
+                    break;
+                }
             }
         });
     }

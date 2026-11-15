@@ -63,6 +63,14 @@ class UpdateExamenRequest extends FormRequest
                 'integer',
                 'exists:ambiente,id_ambiente',
             ],
+            'id_ambientes' => [
+                'nullable',
+                'array',
+            ],
+            'id_ambientes.*' => [
+                'integer',
+                'exists:ambiente,id_ambiente',
+            ],
         ];
     }
 
@@ -81,6 +89,7 @@ class UpdateExamenRequest extends FormRequest
             'estado.required' => 'El estado del examen es obligatorio.',
             'estado.in' => 'El estado seleccionado no es válido.',
             'id_ambiente.exists' => 'El ambiente seleccionado no existe.',
+            'id_ambientes.*.exists' => 'Uno de los ambientes seleccionados no existe.',
         ];
     }
 
@@ -101,9 +110,12 @@ class UpdateExamenRequest extends FormRequest
 
             $data = $validator->getData();
 
-            // Si se envía id_ambiente, el controlador reemplazará
-            // las asignaciones actuales por ese único ambiente.
-            if (array_key_exists('id_ambiente', $data)) {
+            // Si se envía id_ambientes o id_ambiente, se actualizan los ambientes
+            if (array_key_exists('id_ambientes', $data)) {
+                $ambientes = is_array($data['id_ambientes'])
+                    ? array_unique(array_filter(array_map('intval', $data['id_ambientes'])))
+                    : [];
+            } elseif (array_key_exists('id_ambiente', $data)) {
                 $ambientes = empty($data['id_ambiente'])
                     ? []
                     : [(int) $data['id_ambiente']];
@@ -139,6 +151,10 @@ class UpdateExamenRequest extends FormRequest
                 );
 
                 if ($hayConflicto) {
+                    $validator->errors()->add(
+                        'id_ambientes',
+                        "El ambiente {$idAmbiente} ya está ocupado por otro examen en ese horario."
+                    );
                     $validator->errors()->add(
                         'id_ambiente',
                         "El ambiente {$idAmbiente} ya está ocupado por otro examen en ese horario."

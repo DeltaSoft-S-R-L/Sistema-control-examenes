@@ -9,6 +9,7 @@ export default function NuevoExamenModal({ isOpen, onClose, onSuccess }) {
     hora_inicio: '',
     duracion_minutos: 90,
     id_ambiente: '',
+    id_ambientes: [],
     descripcion: '',
     estado: 'PROGRAMADO',
   });
@@ -49,11 +50,16 @@ export default function NuevoExamenModal({ isOpen, onClose, onSuccess }) {
     setLoading(true);
 
     try {
+      const selectedAmbientes = (formData.id_ambientes && formData.id_ambientes.length > 0)
+        ? formData.id_ambientes.map(Number)
+        : (formData.id_ambiente ? [Number(formData.id_ambiente)] : []);
+
       const payload = {
         ...formData,
         id_asignatura: Number(formData.id_asignatura),
         duracion_minutos: Number(formData.duracion_minutos),
-        id_ambiente: formData.id_ambiente ? Number(formData.id_ambiente) : null,
+        id_ambiente: selectedAmbientes.length > 0 ? selectedAmbientes[0] : null,
+        id_ambientes: selectedAmbientes,
       };
 
       await api.post('/examenes', payload);
@@ -65,6 +71,7 @@ export default function NuevoExamenModal({ isOpen, onClose, onSuccess }) {
         hora_inicio: '',
         duracion_minutos: 90,
         id_ambiente: '',
+        id_ambientes: [],
         descripcion: '',
         estado: 'PROGRAMADO',
       });
@@ -186,20 +193,57 @@ export default function NuevoExamenModal({ isOpen, onClose, onSuccess }) {
                 </div>
 
                 <div className="col-12 col-md-6">
-                  <label className="form-label fw-semibold">Ambiente / Aula (Opcional)</label>
-                  <select
-                    name="id_ambiente"
-                    className="form-select"
-                    value={formData.id_ambiente}
-                    onChange={handleChange}
+                  <label className="form-label fw-semibold">
+                    Ambientes / Aulas Asignadas (Opcional - Puede seleccionar varios)
+                  </label>
+                  <div
+                    className="border rounded p-2 bg-white"
+                    style={{ maxHeight: '140px', overflowY: 'auto' }}
                   >
-                    <option value="">Sin asignar aún...</option>
-                    {ambientes.map((amb) => (
-                      <option key={amb.id_ambiente} value={amb.id_ambiente}>
-                        {amb.codigo} - {amb.nombre} ({amb.asientos_disponibles ?? amb.capacidad} asientos disponibles)
-                      </option>
-                    ))}
-                  </select>
+                    {ambientes.length === 0 ? (
+                      <span className="text-muted small">No hay ambientes registrados.</span>
+                    ) : (
+                      ambientes.map((amb) => {
+                        const checked = (formData.id_ambientes || []).includes(Number(amb.id_ambiente));
+                        return (
+                          <div key={amb.id_ambiente} className="form-check mb-1">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id={`ambiente-nuevo-${amb.id_ambiente}`}
+                              checked={checked}
+                              onChange={(e) => {
+                                const id = Number(amb.id_ambiente);
+                                setFormData((prev) => {
+                                  const actuales = prev.id_ambientes || [];
+                                  const nuevos = e.target.checked
+                                    ? [...actuales, id]
+                                    : actuales.filter((x) => x !== id);
+                                  return {
+                                    ...prev,
+                                    id_ambientes: nuevos,
+                                    id_ambiente: nuevos.length > 0 ? String(nuevos[0]) : '',
+                                  };
+                                });
+                              }}
+                            />
+                            <label
+                              className="form-check-label small"
+                              htmlFor={`ambiente-nuevo-${amb.id_ambiente}`}
+                            >
+                              <strong>{amb.codigo ? `${amb.codigo} - ${amb.nombre}` : amb.nombre}</strong>{' '}
+                              <span className="text-muted">
+                                ({amb.asientos_disponibles ?? amb.capacidad} asientos)
+                              </span>
+                            </label>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                  <small className="text-muted d-block mt-1">
+                    {(formData.id_ambientes || []).length} ambiente(s) seleccionado(s)
+                  </small>
                 </div>
 
                 <div className="col-12 col-md-6">

@@ -165,5 +165,87 @@ describe('Pruebas de interfaz de usuario - Respuesta de Examen No Correspondient
       expect(screen.getByText(/ACCESO DENEGADO/i)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Ver motivo/i })).toBeInTheDocument();
     });
+
+    it('muestra tarjeta ámbar con mensaje DEBE DIRIGIRSE AL AULA cuando el estado es AULA_INCORRECTA', () => {
+      const mockOnSiguiente = vi.fn();
+
+      render(
+        <StudentCard
+          estudiante={{
+            nombre: 'Elena',
+            apellido: 'Rojas',
+            ci: '7766554',
+            codigo_universitario: '20210001',
+          }}
+          habilitacion={{
+            estado: 'AULA_INCORRECTA',
+            ambiente_asignado: {
+              nombre: 'Aula 691B',
+              ubicacion: 'Edificio Nuevo - Piso 2',
+            },
+          }}
+          onSiguiente={mockOnSiguiente}
+        />
+      );
+
+      // Botón autorizar ausente
+      expect(screen.queryByText(/ACCESO AUTORIZADO/i)).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Autorizar/i })).not.toBeInTheDocument();
+
+      // Tarjeta ámbar y advertencia de redirección presentes
+      expect(screen.getByText(/DEBE DIRIGIRSE AL AULA:/i)).toBeInTheDocument();
+      expect(screen.getByText(/Aula 691B/i)).toBeInTheDocument();
+      expect(screen.getByText(/Edificio Nuevo - Piso 2/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Siguiente estudiante/i })).toBeInTheDocument();
+    });
+  });
+
+  it('debe desplegar la tarjeta ámbar al recibir HTTP 422 con AULA_INCORRECTA y aula asignada', async () => {
+    const user = userEvent.setup();
+
+    // Mockear la respuesta HTTP 422 del backend para discrepancia de aula (ING-04)
+    api.post.mockRejectedValueOnce({
+      response: {
+        status: 422,
+        data: {
+          code: 'AULA_INCORRECTA',
+          message: 'El estudiante está asignado a otra aula.',
+          ambiente_asignado: {
+            nombre: 'Aula 691B',
+            ubicacion: 'Edificio Nuevo - Piso 2',
+          },
+          estudiante: {
+            id_estudiante: 33,
+            nombre: 'Rodrigo',
+            apellido: 'Torrez',
+            ci: '5544332',
+            codigo_universitario: '20210099',
+          },
+        },
+      },
+    });
+
+    render(<ControlIngreso />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Primer Parcial - Ingeniería de Software/i)).toBeInTheDocument();
+    });
+
+    const inputCI = screen.getByPlaceholderText(/Ej. 1234567/i);
+    await user.type(inputCI, '5544332');
+
+    const btnVerificar = screen.getByRole('button', { name: /Verificar Estudiante/i });
+    await user.click(btnVerificar);
+
+    // Debe mostrar la tarjeta ámbar con el mensaje "DEBE DIRIGIRSE AL AULA: Aula 691B"
+    await waitFor(() => {
+      expect(screen.getByText(/DEBE DIRIGIRSE AL AULA:/i)).toBeInTheDocument();
+    });
+    expect(screen.getByText(/Aula 691B/i)).toBeInTheDocument();
+    expect(screen.getByText(/Edificio Nuevo - Piso 2/i)).toBeInTheDocument();
+
+    // Botón de autorizar debe permanecer ausente
+    expect(screen.queryByRole('button', { name: /Autorizar/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/ACCESO AUTORIZADO/i)).not.toBeInTheDocument();
   });
 });
