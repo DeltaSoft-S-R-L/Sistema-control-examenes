@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from "../../services/api";
+import RecortadorFoto from "./RecortadorFoto";
 
 const TAMANO_MAXIMO = 5 * 1024 * 1024;
 const TIPOS_PERMITIDOS = ["image/jpeg", "image/png"];
@@ -7,6 +8,8 @@ const TIPOS_PERMITIDOS = ["image/jpeg", "image/png"];
 export default function FotoEstudiante() {
   const [archivo, setArchivo] = useState(null);
   const [vistaPrevia, setVistaPrevia] = useState("");
+  const [imagenParaRecortar, setImagenParaRecortar] = useState("");
+  const [nombreArchivoOriginal, setNombreArchivoOriginal] = useState("");
   const [error, setError] = useState("");
   const [estadoFoto, setEstadoFoto] = useState(null);
   const [cargandoFoto, setCargandoFoto] = useState(true);
@@ -110,7 +113,8 @@ export default function FotoEstudiante() {
         return;
       }
 
-      setArchivo(seleccionado);
+      setNombreArchivoOriginal(seleccionado.name);
+      setImagenParaRecortar(URL.createObjectURL(seleccionado));
     } catch {
       setError("No se pudo procesar la fotografía seleccionada.");
     } finally {
@@ -119,6 +123,16 @@ export default function FotoEstudiante() {
     }
   }
 
+  function confirmarRecorte(archivoRecortado) {
+    setArchivo(archivoRecortado);
+    setImagenParaRecortar("");
+    setError("");
+  }
+
+  function cancelarRecorte() {
+    setImagenParaRecortar("");
+    setNombreArchivoOriginal("");
+  }
   async function registrarFoto() {
     if (
       !archivo ||
@@ -355,6 +369,13 @@ export default function FotoEstudiante() {
           )}
         </div>
       </div>
+      {imagenParaRecortar && (
+        <RecortadorFoto
+          imagen={imagenParaRecortar}
+          onConfirmar={confirmarRecorte}
+          onCancelar={cancelarRecorte}
+        />
+      )}
     </section>
   );
 }

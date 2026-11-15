@@ -40,13 +40,18 @@ class ValidadorFotoEstudianteService
 
         try {
             $proceso = new Process([
-                $rutaPython,
-                $rutaAnalizador,
-                $rutaFoto,
-            ]);
+    $rutaPython,
+    $rutaAnalizador,
+    $rutaFoto,
+]);
 
-            $proceso->setTimeout(30);
-            $proceso->run();
+// Fuerza la salida UTF-8 de Python en Windows.
+$proceso->setEnv([
+    'PYTHONIOENCODING' => 'utf-8',
+]);
+
+$proceso->setTimeout(30);
+$proceso->run();
 
             if (!$proceso->isSuccessful()) {
     Log::error('Falló el analizador facial de Python', [
