@@ -63,10 +63,10 @@ export default function DashboardEstudiante() {
   const estilos = {
     pagina: {
       minHeight: "100vh",
-      background: "#f4f7fb",
+      background: "#f8f9fa",
       padding: "32px 24px",
       fontFamily: "inherit",
-      color: "#1e293b",
+      color: "#212529",
     },
     contenedor: {
       maxWidth: "1100px",
@@ -80,7 +80,7 @@ export default function DashboardEstudiante() {
       boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
     },
     encabezado: {
-      background: "linear-gradient(120deg, #173b75, #2563a6)",
+      background: "linear-gradient(120deg, #0d6efd, #3d8bfd)",
       color: "#ffffff",
       borderRadius: "18px",
       padding: "32px",
@@ -164,7 +164,13 @@ export default function DashboardEstudiante() {
               backgroundColor: "#fef2f2",
             }}
           >
-            <h2 style={{ fontSize: "18px", color: "#991b1b", marginBottom: "8px" }}>
+            <h2
+              style={{
+                fontSize: "18px",
+                color: "#991b1b",
+                marginBottom: "8px",
+              }}
+            >
               Atención
             </h2>
             <p role="alert" style={{ color: "#b91c1c", margin: 0 }}>
@@ -204,20 +210,24 @@ export default function DashboardEstudiante() {
             flexWrap: "wrap",
             gap: "12px",
             marginBottom: "24px",
+            background: "#0D6EFD",
+            padding: "20px 24px",
+            borderRadius: "12px",
+            color: "#ffffff",
           }}
         >
           <div>
             <h1 style={{ fontSize: "28px", margin: 0 }}>
               Panel del Estudiante
             </h1>
-            <p style={{ color: "#64748b", marginTop: "6px" }}>
+            <p style={{ color: "#ffffff", marginTop: "6px" }}>
               Sistema de Control de Exámenes
             </p>
           </div>
 
           <button
             type="button"
-            className="btn btn-outline-danger fw-semibold"
+            className="btn btn-outline-light fw-semibold"
             onClick={handleCerrarSesion}
           >
             <i className="bi bi-box-arrow-right me-2"></i>
@@ -261,7 +271,7 @@ export default function DashboardEstudiante() {
               style={{
                 fontSize: "38px",
                 fontWeight: 700,
-                color: "#1d4ed8",
+                color: "#212529",
               }}
             >
               {asignaturas.length}

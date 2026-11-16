@@ -39,11 +39,14 @@ export default function Login() {
   };
 
   return (
-    <div className="container-fluid vh-100 d-flex flex-column flex-md-row p-0">
+    <div
+      className="container-fluid d-flex flex-column flex-md-row p-0"
+      style={{ minHeight: "100vh" }}
+    >
       {/* Sección Izquierda: Branding CampusGate */}
       <div
-        className="col-12 col-md-7 text-white d-flex flex-column justify-content-center p-5"
-        style={{ backgroundColor: "#0A3123" }}
+        className="col-12 col-md-7 text-white d-flex flex-column justify-content-center p-4 p-md-5 order-2 order-md-1"
+        style={{ backgroundColor: "#052C65" }}
       >
         <h1 className="display-4 fw-bold mb-3">
           Cada estudiante.
@@ -83,8 +86,8 @@ export default function Login() {
 
       {/* Sección Derecha: Formulario */}
       <div
-        className="col-12 col-md-5 d-flex align-items-center justify-content-center"
-        style={{ backgroundColor: "#072419" }}
+        className="col-12 col-md-5 d-flex align-items-center justify-content-center py-4 py-md-0 order-1 order-md-2"
+        style={{ backgroundColor: "#052C65" }}
       >
         <div
           className="card shadow-lg w-100 mx-4 mx-md-5 border-0 rounded-4"
@@ -138,7 +141,7 @@ export default function Login() {
               <button
                 type="submit"
                 className="btn w-100 text-white fw-bold py-2 shadow-sm"
-                style={{ backgroundColor: "#0A3123" }}
+                style={{ backgroundColor: "#052C65" }}
                 disabled={loading}
               >
                 {loading ? (
