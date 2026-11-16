@@ -58,18 +58,22 @@ export default function FotoEstudiante() {
       setVistaPrevia("");
       return;
     }
-    useEffect(() => {
-      return () => {
-        if (imagenParaRecortar) {
-          URL.revokeObjectURL(imagenParaRecortar);
-        }
-      };
-    }, [imagenParaRecortar]);
+
     const url = URL.createObjectURL(archivo);
     setVistaPrevia(url);
 
-    return () => URL.revokeObjectURL(url);
+    return () => {
+      URL.revokeObjectURL(url);
+    };
   }, [archivo]);
+
+  useEffect(() => {
+    return () => {
+      if (imagenParaRecortar) {
+        URL.revokeObjectURL(imagenParaRecortar);
+      }
+    };
+  }, [imagenParaRecortar]);
 
   async function seleccionarFoto(evento) {
     const seleccionado = evento.target.files?.[0];
