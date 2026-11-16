@@ -48,6 +48,7 @@ class ValidadorFotoEstudianteService
 // Fuerza la salida UTF-8 de Python en Windows.
 $proceso->setEnv([
     'PYTHONIOENCODING' => 'utf-8',
+    'PYTHONUTF8' => '1',
 ]);
 
 $proceso->setTimeout(30);

@@ -58,7 +58,13 @@ export default function FotoEstudiante() {
       setVistaPrevia("");
       return;
     }
-
+    useEffect(() => {
+      return () => {
+        if (imagenParaRecortar) {
+          URL.revokeObjectURL(imagenParaRecortar);
+        }
+      };
+    }, [imagenParaRecortar]);
     const url = URL.createObjectURL(archivo);
     setVistaPrevia(url);
 
@@ -114,7 +120,10 @@ export default function FotoEstudiante() {
       }
 
       setNombreArchivoOriginal(seleccionado.name);
-      setImagenParaRecortar(URL.createObjectURL(seleccionado));
+      setImagenParaRecortar((anterior) => {
+        if (anterior) URL.revokeObjectURL(anterior);
+        return URL.createObjectURL(seleccionado);
+      });
     } catch {
       setError("No se pudo procesar la fotografía seleccionada.");
     } finally {
@@ -126,6 +135,7 @@ export default function FotoEstudiante() {
   function confirmarRecorte(archivoRecortado) {
     setArchivo(archivoRecortado);
     setImagenParaRecortar("");
+    setNombreArchivoOriginal("");
     setError("");
   }
 
