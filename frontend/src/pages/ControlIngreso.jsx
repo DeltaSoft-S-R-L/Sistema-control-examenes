@@ -177,12 +177,33 @@ export default function ControlIngreso() {
       return;
     }
 
+    // BUG-SPR4-01: Renderizar tarjeta roja para NO_ASOCIADO aunque falte el objeto estudiante
+    if (responseData && responseData.code === "NO_ASOCIADO") {
+      const datosEstudianteFallback = {
+        nombre: "Estudiante No Asociado",
+        apellido: "",
+        documento: metodo === "ci_sis" ? identificador : "QR Ajeno"
+      };
+
+      setResultado({
+        metodo: metodo,
+        estudiante: responseData.estudiante || datosEstudianteFallback,
+        habilitacion: {
+          estado: "NO_ASOCIADO",
+          motivo: responseData.message || "El estudiante no pertenece a este examen."
+        }
+      });
+      dispararAlertaRechazo();
+      return;
+    }
+
     const msg =
       responseData?.message || "Estudiante no encontrado en el sistema.";
 
     setErrorAlerta(msg);
     dispararAlertaRechazo();
   };
+
   // Verificar estudiante por CI/SIS
   const handleVerificarDocumento = async (e) => {
     if (e) e.preventDefault();
@@ -271,105 +292,6 @@ export default function ControlIngreso() {
     }
   };
 
-  // Registrar ingreso del estudiante habilitado
-  const handleRegistrarIngreso = async () => {
-    const habilitacion = resultado?.habilitacion;
-
-    if (habilitacion?.estado !== "HABILITADO") {
-      return;
-    }
-
-    if (!habilitacion.id_habilitacion) {
-      setErrorAlerta("No se encontró la habilitación del estudiante.");
-      return;
-    }
-
-    if (!asignacionSeleccionada) {
-      setErrorAlerta("Seleccione un ambiente asignado al examen.");
-      return;
-    }
-
-    if (registrando || ingresoRegistrado || dobleIngreso) {
-      return;
-    }
-
-    setRegistrando(true);
-    setErrorAlerta(null);
-
-    try {
-      await api.post("/ingresos", {
-        id_examen: examenSeleccionado,
-        id_habilitacion: habilitacion.id_habilitacion,
-        id_asignacion_ambiente: asignacionSeleccionada,
-      });
-
-      setIngresoRegistrado(true);
-      await cargarIngresosSesion();
-    } catch (err) {
-      console.error("Error al registrar ingreso:", err);
-
-      const status = err.response?.status;
-      const data = err.response?.data || {};
-
-      const esDobleIngreso =
-        status === 409 || (status === 422 && data.code === "INGRESO_DUPLICADO");
-
-      if (esDobleIngreso) {
-        let fechaHora =
-          data.fecha_hora ||
-          data.ingreso?.fecha_hora ||
-          data.primer_ingreso?.fecha_hora ||
-          null;
-
-        if (!fechaHora && data.id_ingreso) {
-          try {
-            const respuesta = await api.get(`/ingresos/${data.id_ingreso}`);
-
-            const ingreso =
-              respuesta.data?.data || respuesta.data?.ingreso || respuesta.data;
-
-            fechaHora = ingreso?.fecha_hora || null;
-          } catch (consultaError) {
-            console.warn(
-              "No se pudo recuperar la hora del primer ingreso:",
-              consultaError,
-            );
-          }
-        }
-
-        setDobleIngreso({
-          mensaje:
-            data.message || "El estudiante ya tiene un ingreso registrado.",
-          fechaHora,
-        });
-      } else if (
-        status === 422 &&
-        (data.code === "AULA_INCORRECTA" || data.code === "AMBIENTE_INCORRECTO")
-      ) {
-        const aula =
-          data.ambiente_asignado ||
-          data.aula_asignada ||
-          {};
-
-        setResultado((actual) => ({
-          ...actual,
-          estudiante: data.estudiante || actual?.estudiante,
-          habilitacion: {
-            ...actual?.habilitacion,
-            estado: "AULA_INCORRECTA",
-            ambiente_asignado: aula,
-          },
-        }));
-
-        setMostrarModalAmbiente(false);
-      } else {
-        setErrorAlerta(data.message || "No se pudo registrar el ingreso.");
-      }
-    } finally {
-      setRegistrando(false);
-    }
-  };
-
   // Continuar con el siguiente estudiante
   const handleSiguienteEstudiante = () => {
     setResultado(null);
@@ -449,6 +371,7 @@ export default function ControlIngreso() {
 
       setIngresoConfirmado(true);
       setIngresoRegistrado(true);
+      await cargarIngresosSesion();
     } catch (err) {
       const data = err.response?.data || {};
       if (
