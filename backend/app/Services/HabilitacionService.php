@@ -6,6 +6,7 @@ use App\Models\Estudiante;
 use App\Models\Examen;
 use App\Models\Habilitacion;
 use App\Models\Ingreso;
+use App\Models\Incidencia;
 
 class HabilitacionService
 {
@@ -32,7 +33,7 @@ class HabilitacionService
 
         $estado = strtoupper($habilitacion->estado ?? '');
 
-        $ingresoPrevio = Ingreso::with('asignacionAmbiente.ambiente')
+        $ingresoPrevio = Ingreso::with(['asignacionAmbiente.ambiente', 'expulsion'])
             ->where('id_habilitacion', $habilitacion->id_habilitacion)
             ->where('id_examen', $examen->id_examen)
             ->orderBy('fecha_hora')
@@ -41,6 +42,28 @@ class HabilitacionService
         // Un ingreso previo siempre debe advertirse, aunque luego cambie el
         // estado de habilitación del estudiante.
         if ($ingresoPrevio) {
+            if ($estado === 'EXPULSADO' && $ingresoPrevio->expulsion) {
+                $expulsion = $ingresoPrevio->expulsion;
+                return [
+                    'estado' => 'EXPULSADO',
+                    'habilitado' => false,
+                    'motivo' => $expulsion->motivo,
+                    'id_habilitacion' => $habilitacion->id_habilitacion,
+                    'ingreso_previo' => [
+                        'fecha_hora' => $ingresoPrevio->fecha_hora?->toIso8601String(),
+                        'ambiente' => $ingresoPrevio->asignacionAmbiente?->ambiente?->nombre,
+                        'expulsion' => [
+                            'id_expulsion' => $expulsion->id_expulsion,
+                            'motivo' => $expulsion->motivo,
+                            'fecha_hora' => $expulsion->fecha_hora?->toIso8601String(),
+                            'descripcion' => Incidencia::where('id_examen', $examen->id_examen)
+                                ->where('id_estudiante', $estudiante->id_estudiante)
+                                ->where('tipo', $expulsion->motivo)
+                                ->latest('fecha_hora')->value('descripcion'),
+                        ],
+                    ],
+                ];
+            }
             return [
                 'estado'          => 'REINGRESO',
                 'habilitado'      => false,

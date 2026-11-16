@@ -4,6 +4,7 @@ import StudentCard from "../components/estudiantes/StudentCard";
 import MotivoInhabilitacionModal from "../components/habilitaciones/MotivoInhabilitacionModal";
 import QrScanner from "../components/qr/QrScanner";
 import ModalAmbienteIncorrecto from "../components/habilitaciones/ModalAmbienteIncorrecto";
+import IngresosSesion from "../components/incidencias/IngresosSesion";
 import { getUsuario } from "../utils/auth";
 
 export default function ControlIngreso() {
@@ -36,6 +37,7 @@ export default function ControlIngreso() {
   const [registrando, setRegistrando] = useState(false);
   const [ingresoRegistrado, setIngresoRegistrado] = useState(false);
   const [dobleIngreso, setDobleIngreso] = useState(null);
+  const [ingresosSesion, setIngresosSesion] = useState([]);
 
   // Cámara para QR en celular
   const [camaraActiva, setCamaraActiva] = useState(false);
@@ -56,6 +58,20 @@ export default function ControlIngreso() {
   );
 
   const asignaciones = examenActual?.asignaciones_ambiente || [];
+
+  const cargarIngresosSesion = async () => {
+    if (!examenSeleccionado) { setIngresosSesion([]); return; }
+    try {
+      const response = await api.get(`/ingresos?id_examen=${examenSeleccionado}`);
+      const data = response.data?.data || response.data || [];
+      setIngresosSesion(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("No se pudieron cargar los ingresos del examen:", error);
+      setIngresosSesion([]);
+    }
+  };
+
+  useEffect(() => { cargarIngresosSesion(); }, [examenSeleccionado]);
 
   // Cargar exámenes
   useEffect(() => {
@@ -288,6 +304,7 @@ export default function ControlIngreso() {
       });
 
       setIngresoRegistrado(true);
+      await cargarIngresosSesion();
     } catch (err) {
       console.error("Error al registrar ingreso:", err);
 
@@ -893,6 +910,7 @@ export default function ControlIngreso() {
           />
         </div>
       )}
+      <IngresosSesion ingresos={ingresosSesion} examenSeleccionado={examenSeleccionado} onExpulsionActualizada={(data) => setIngresosSesion((lista) => lista.map((item) => Number(item.id_ingreso) === Number(data.id_ingreso) ? { ...item, estado: 'EXPULSADO', expulsion: data } : item))} />
     </div>
   );
 }

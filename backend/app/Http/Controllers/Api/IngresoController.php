@@ -26,13 +26,13 @@ class IngresoController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Ingreso::with(['habilitacion.estudiante', 'asignacionAmbiente.ambiente', 'usuario']);
+        $query = Ingreso::with(['habilitacion.estudiante', 'asignacionAmbiente.ambiente', 'usuario', 'expulsion']);
 
         if ($request->has('id_examen')) {
             $query->where('id_examen', $request->id_examen);
         }
 
-        return response()->json($query->orderBy('fecha_hora', 'desc')->paginate(20));
+        return IngresoResource::collection($query->orderBy('fecha_hora', 'desc')->paginate(20));
     }
 
     /**

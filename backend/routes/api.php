@@ -239,6 +239,11 @@ Route::get('/docente/mis-materias', [
     Route::get('/incidencias', [IncidenciaController::class, 'index']);
     Route::get('/incidencias/{incidencia}', [IncidenciaController::class, 'show']);
 
+    Route::middleware(['auth:sanctum', 'role:ADMINISTRADOR,DOCENTE,CONTROL_INGRESO'])->group(function () {
+        Route::post('/examenes/{examen}/expulsiones', [IncidenciaController::class, 'registrarExpulsion']);
+        Route::post('/incidencias/expulsion', [IncidenciaController::class, 'registrarExpulsion']);
+    });
+
     Route::middleware('permission:REGISTRAR_INCIDENCIAS')->group(function () {
         Route::post('/incidencias', [IncidenciaController::class, 'store']);
         Route::put('/incidencias/{incidencia}', [IncidenciaController::class, 'update']);
