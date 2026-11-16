@@ -6,6 +6,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Models\Incidencia;
 
 class IngresoResource extends JsonResource
 {
@@ -26,6 +27,16 @@ class IngresoResource extends JsonResource
             'asignacion_ambiente' => $this->whenLoaded('asignacionAmbiente'),
             'asignacionAmbiente' => $this->whenLoaded('asignacionAmbiente'),
             'usuario' => $this->whenLoaded('usuario'),
+            'expulsion' => $this->whenLoaded('expulsion', fn () => $this->expulsion ? [
+                'id_expulsion' => $this->expulsion->id_expulsion,
+                'motivo' => $this->expulsion->motivo,
+                'fecha_hora' => $this->expulsion->fecha_hora?->toIso8601String(),
+                'descripcion' => Incidencia::where('id_examen', $this->id_examen)
+                    ->where('id_estudiante', $this->habilitacion?->id_estudiante)
+                    ->where('tipo', $this->expulsion->motivo)
+                    ->latest('fecha_hora')->value('descripcion'),
+            ] : null),
+            'estado' => $this->expulsion ? 'EXPULSADO' : 'EN_SALA',
         ];
     }
 }

@@ -80,6 +80,20 @@ export default function StudentCard({
   const ambiente = ingresoPrevio.asignacion_ambiente?.ambiente || ingresoPrevio.ambiente || habilitacion?.recinto || habilitacion?.ambiente || examen?.recinto || examen?.ambiente;
   const recinto = typeof ambiente === 'string' ? ambiente : (ambiente?.nombre || ambiente?.nombre_ambiente || ambiente?.codigo || 'Recinto no disponible');
 
+  if (String(habilitacion?.estado || '').toUpperCase() === 'EXPULSADO') {
+    const expulsion = habilitacion?.expulsion || ingresoPrevio?.expulsion || habilitacion?.ingreso?.expulsion || {};
+    const etiquetasMotivo = { INTENTO_COPIA: 'Intento de copia o fraude académico', SUPLANTACION_IDENTIDAD: 'Suplantación de identidad', USO_DISPOSITIVO_NO_AUTORIZADO: 'Uso de celular o dispositivo no autorizado', CONDUCTA_INAPROPIADA: 'Conducta inapropiada o alteración del orden', OTRO: 'Otro motivo disciplinario' };
+    const horaExpulsion = expulsion.fecha_hora ? new Date(expulsion.fecha_hora).toLocaleString('es-BO') : 'Hora no disponible';
+    return <section className="card border-danger border-3 shadow-lg rounded-4 p-4 text-center mb-3" role="alert" aria-live="assertive">
+      <div className="bg-danger text-white rounded-3 p-3 mb-3"><i className="bi bi-person-fill-slash display-3" aria-hidden="true" /><h2 className="fw-bold mt-2 mb-0">ESTUDIANTE EXPULSADO</h2></div>
+      <StudentPhoto estudiante={estudiante} />
+      <p className="fs-5 fw-bold mb-1">{nombreCompleto}</p><p className="mb-1">C.I.: {estudiante.ci || '—'} · Código SIS: {codigoSis}</p>
+      <p className="mb-1"><strong>Motivo:</strong> {etiquetasMotivo[expulsion.motivo] || expulsion.motivo || habilitacion.motivo || 'No especificado'}</p>
+      <p className="text-muted"><strong>Hora de expulsión:</strong> {horaExpulsion}</p>
+      {onSiguiente && <button type="button" className="btn btn-outline-danger w-100" onClick={onSiguiente}>Siguiente estudiante</button>}
+    </section>;
+  }
+
   if (esReingreso) {
     return (
       <div className="card border-danger border-3 shadow-lg rounded-4 p-4 text-center bg-danger-subtle mb-3" role="alert" aria-live="assertive">
