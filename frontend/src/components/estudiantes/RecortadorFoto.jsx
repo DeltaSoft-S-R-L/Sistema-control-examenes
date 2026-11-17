@@ -2,9 +2,10 @@
 import { useCallback, useEffect, useState } from "react";
 import Cropper from "react-easy-crop";
 
-const ANCHO_SALIDA = 600;
-const ALTO_SALIDA = 750;
-const MINIMO_PIXELES = 400;
+const ANCHO_SALIDA = 709;
+const ALTO_SALIDA = 709;
+const DPI_SALIDA = 600;
+const MINIMO_PIXELES = 709;
 const TAMANO_MAXIMO = 5 * 1024 * 1024;
 
 function cargarImagen(url) {
@@ -25,7 +26,7 @@ async function generarRecorte(url, area) {
     area.height < MINIMO_PIXELES
   ) {
     throw new Error(
-      "El recorte debe contener al menos 400 × 400 píxeles originales. " +
+      "El recorte debe contener al menos 709 × 709 píxeles originales. " +
       "Reduce el zoom o selecciona una fotografía de mayor resolución."
     );
   }
@@ -62,14 +63,65 @@ async function generarRecorte(url, area) {
     throw new Error("No se pudo generar la fotografía recortada.");
   }
 
-  if (blob.size > TAMANO_MAXIMO) {
+  const foto600Ppp = await agregarDensidadJpeg(blob, DPI_SALIDA);
+
+  if (foto600Ppp.size > TAMANO_MAXIMO) {
     throw new Error("La fotografía recortada supera los 5 MB.");
   }
 
-  return new File([blob], "fotografia-carnet.jpg", {
+  return new File([foto600Ppp], "fotografia-carnet.jpg", {
     type: "image/jpeg",
     lastModified: Date.now(),
   });
+}
+
+export async function agregarDensidadJpeg(blob, dpi) {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let posicion = 2;
+  let encontrado = false;
+
+  while (posicion + 4 < bytes.length && bytes[posicion] === 0xff) {
+    const marcador = bytes[posicion + 1];
+    if (marcador === 0xda || marcador === 0xd9) break;
+
+    const longitud = (bytes[posicion + 2] << 8) | bytes[posicion + 3];
+    if (longitud < 2 || posicion + 2 + longitud > bytes.length) break;
+
+    const esJfif = marcador === 0xe0
+      && longitud >= 16
+      && bytes[posicion + 4] === 0x4a
+      && bytes[posicion + 5] === 0x46
+      && bytes[posicion + 6] === 0x49
+      && bytes[posicion + 7] === 0x46
+      && bytes[posicion + 8] === 0x00;
+
+    if (esJfif) {
+      bytes[posicion + 11] = 1;
+      bytes[posicion + 12] = (dpi >> 8) & 0xff;
+      bytes[posicion + 13] = dpi & 0xff;
+      bytes[posicion + 14] = (dpi >> 8) & 0xff;
+      bytes[posicion + 15] = dpi & 0xff;
+      encontrado = true;
+      break;
+    }
+
+    posicion += 2 + longitud;
+  }
+
+  if (encontrado) return new Blob([bytes], { type: "image/jpeg" });
+
+  const jfif = new Uint8Array([
+    0xff, 0xe0, 0x00, 0x10,
+    0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x01,
+    (dpi >> 8) & 0xff, dpi & 0xff,
+    (dpi >> 8) & 0xff, dpi & 0xff,
+    0x00, 0x00,
+  ]);
+  const jpeg = new Uint8Array(bytes.length + jfif.length);
+  jpeg.set(bytes.slice(0, 2), 0);
+  jpeg.set(jfif, 2);
+  jpeg.set(bytes.slice(2), 2 + jfif.length);
+  return new Blob([jpeg], { type: "image/jpeg" });
 }
 
 export default function RecortadorFoto({
@@ -163,7 +215,7 @@ export default function RecortadorFoto({
             image={imagen}
             crop={recorte}
             zoom={zoom}
-            aspect={4 / 5}
+            aspect={1}
             onCropChange={setRecorte}
             onZoomChange={setZoom}
             onCropComplete={alCompletarRecorte}
@@ -198,8 +250,8 @@ export default function RecortadorFoto({
         )}
 
         <p style={{ fontSize: "13px", color: "#64748b" }}>
-          La fotografía final tendrá una resolución de 600 × 750
-          píxeles. Se comprobará la resolución original del recorte.
+          La fotografía final será de 709 × 709 píxeles (3 × 3 cm a 600 PPP).
+          El recorte debe conservar al menos esa resolución original.
         </p>
 
         <div

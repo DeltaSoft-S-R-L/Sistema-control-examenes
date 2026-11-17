@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
+import api from "./services/api";
 
 // Páginas
 import Login from "./pages/Login";
@@ -16,14 +17,55 @@ import Usuarios from "./pages/Usuarios";
 import Habilitaciones from "./pages/Habilitaciones";
 import ControlIngreso from "./pages/ControlIngreso";
 import VerificacionMovil from "./pages/VerificacionMovil";
-import ModuloEnConstruccion from "./pages/ModuloEnConstruccion";
+import Incidencias from "./pages/Incidencias";
+import Reportes from "./pages/Reportes";
 
-import { ROLES } from "./utils/auth";
+import { getUsuario, normalizarUsuario, ROLES } from "./utils/auth";
 
-export default function App() {
+function RutasConSesion() {
+  const [sesionVerificada, setSesionVerificada] = useState(
+    () => !localStorage.getItem("token"),
+  );
+
+  useEffect(() => {
+    if (!localStorage.getItem("token")) return undefined;
+
+    let activa = true;
+
+    api
+      .get("/me")
+      .then(({ data }) => {
+        const perfil = normalizarUsuario(data);
+        if (activa && perfil) {
+          localStorage.setItem(
+            "usuario",
+            JSON.stringify({ ...(getUsuario() || {}), ...perfil }),
+          );
+        }
+      })
+      .catch(() => {
+        // La sesión en caché sigue disponible si el servidor no responde.
+        // El interceptor de API ya limpia las credenciales cuando recibe 401.
+      })
+      .finally(() => {
+        if (activa) setSesionVerificada(true);
+      });
+
+    return () => {
+      activa = false;
+    };
+  }, []);
+
+  if (!sesionVerificada) {
+    return (
+      <div className="container py-5" role="status" aria-live="polite">
+        Cargando sesión…
+      </div>
+    );
+  }
+
   return (
-    <BrowserRouter>
-      <Routes>
+    <Routes>
         {/* Rutas públicas */}
         <Route path="/login" element={<Login />} />
         <Route
@@ -84,7 +126,7 @@ export default function App() {
             <Route
               element={
                 <ProtectedRoute
-                  rolesPermitidos={[ROLES.ADMINISTRADOR, ROLES.CONTROL_INGRESO]}
+                  rolesPermitidos={[ROLES.ADMINISTRADOR, ROLES.DOCENTE, ROLES.CONTROL_INGRESO]}
                 />
               }
             >
@@ -97,12 +139,7 @@ export default function App() {
 
               <Route
                 path="/incidencias"
-                element={
-                  <ModuloEnConstruccion
-                    titulo="Incidencias"
-                    descripcion="El módulo de incidencias se encuentra actualmente en construcción."
-                  />
-                }
+                element={<Incidencias />}
               />
             </Route>
 
@@ -118,23 +155,21 @@ export default function App() {
                 />
               }
             >
+              <Route path="/reportes" element={<Reportes />} />
             </Route>
-            {/* Reportes */}
-            <Route
-              path="/reportes"
-              element={
-                <ModuloEnConstruccion
-                  titulo="Reportes"
-                  descripcion="El módulo de reportes se encuentra actualmente en construcción."
-                />
-              }
-            />
           </Route>
         </Route>
 
         {/* Ruta no encontrada */}
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <RutasConSesion />
     </BrowserRouter>
   );
 }

@@ -188,6 +188,29 @@ class UsuarioIsActiveTest extends TestCase
             ]);
     }
 
+    public function test_endpoint_usuarios_index_excluye_cuentas_con_rol_estudiante(): void
+    {
+        $rolEstudiante = Rol::firstOrCreate(
+            ['nombre' => 'ESTUDIANTE'],
+            ['descripcion' => 'Cuenta de estudiante']
+        );
+        Usuario::create([
+            'nombre' => 'Ana',
+            'apellido' => 'Estudiante',
+            'correo' => 'ana.estudiante@umss.edu.bo',
+            'username' => 'ana_estudiante',
+            'password_hash' => PasswordHasher::hash('Estudiante123'),
+            'id_rol' => $rolEstudiante->id_rol,
+            'estado' => 'ACTIVO',
+        ]);
+
+        $this->getJson('/api/usuarios', $this->adminHeaders())
+            ->assertOk()
+            ->assertJsonMissing(['username' => 'ana_estudiante'])
+            ->assertJsonFragment(['username' => 'admin_root'])
+            ->assertJsonFragment(['username' => 'carlos_activo']);
+    }
+
     /**
      * 8. Endpoint /api/usuarios/{id}/revocar retorna is_active = false tras revocar.
      */

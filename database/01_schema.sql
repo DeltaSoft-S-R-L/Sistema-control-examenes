@@ -69,6 +69,7 @@ CREATE TABLE public.estudiante (
     apellido character varying(100) NOT NULL,
     codigo_universitario character varying(50) NOT NULL,
     id_carrera bigint NOT NULL,
+    id_usuario bigint,
     correo character varying(150),
     estado character varying(20) NOT NULL,
     CONSTRAINT ck_estudiante_estado CHECK (((estado)::text = ANY ((ARRAY['ACTIVO'::character varying, 'INACTIVO'::character varying])::text[])))
@@ -88,6 +89,7 @@ CREATE TABLE public.examen (
     duracion_minutos integer NOT NULL,
     descripcion text,
     estado character varying(20) NOT NULL,
+    deleted_at timestamp without time zone,
     CONSTRAINT ck_examen_duracion CHECK ((duracion_minutos > 0)),
     CONSTRAINT ck_examen_estado CHECK (((estado)::text = ANY ((ARRAY['PROGRAMADO'::character varying, 'EN_CURSO'::character varying, 'FINALIZADO'::character varying, 'CANCELADO'::character varying])::text[])))
 );
@@ -108,8 +110,13 @@ CREATE TABLE public.habilitacion (
     id_examen bigint NOT NULL,
     estado character varying(20) NOT NULL,
     motivo text,
+    motivo_detalle text,
+    motivo_tipo character varying(50),
+    inhabilitado_por bigint,
+    inhabilitado_at timestamp without time zone,
     CONSTRAINT ck_habilitacion_estado CHECK (((estado)::text = ANY ((ARRAY['HABILITADO'::character varying, 'NO_HABILITADO'::character varying])::text[]))),
-    CONSTRAINT ck_habilitacion_motivo CHECK ((((estado)::text = 'HABILITADO'::text) OR (motivo IS NOT NULL)))
+    CONSTRAINT ck_habilitacion_motivo CHECK ((((estado)::text = 'HABILITADO'::text) OR (motivo_detalle IS NOT NULL))),
+    CONSTRAINT ck_habilitacion_motivo_tipo CHECK (((estado)::text = 'HABILITADO'::text OR (motivo_tipo)::text = ANY ((ARRAY['ACADEMICO'::character varying, 'MORA'::character varying, 'DOCUMENTACION'::character varying, 'OTRO'::character varying])::text[])))
 );
 
 
@@ -167,6 +174,23 @@ CREATE TABLE public.regla_individual (
     descripcion text NOT NULL,
     estado character varying(20) NOT NULL,
     CONSTRAINT ck_regla_individual_estado CHECK (((estado)::text = ANY ((ARRAY['ACTIVA'::character varying, 'INACTIVA'::character varying])::text[])))
+);
+
+
+CREATE TABLE public.norma_examen (
+    id_norma_examen bigint NOT NULL,
+    id_examen bigint NOT NULL,
+    id_estudiante bigint,
+    tipo character varying(20) NOT NULL,
+    descripcion text NOT NULL,
+    created_by bigint NOT NULL,
+    created_at timestamp without time zone,
+    updated_at timestamp without time zone,
+    CONSTRAINT norma_examen_tipo_check CHECK (((tipo)::text = ANY ((ARRAY['GENERAL'::character varying, 'PARTICULAR'::character varying])::text[]))),
+    CONSTRAINT norma_examen_tipo_estudiante_check CHECK (
+        ((tipo)::text = 'GENERAL'::text AND id_estudiante IS NULL) OR
+        ((tipo)::text = 'PARTICULAR'::text AND id_estudiante IS NOT NULL)
+    )
 );
 
 
@@ -345,6 +369,15 @@ ALTER TABLE public.regla_examen ALTER COLUMN id_regla_examen ADD GENERATED ALWAY
 
 ALTER TABLE public.regla_individual ALTER COLUMN id_regla_individual ADD GENERATED ALWAYS AS IDENTITY (
     SEQUENCE NAME public.regla_individual_id_regla_individual_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+ALTER TABLE public.norma_examen ALTER COLUMN id_norma_examen ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.norma_examen_id_norma_examen_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE

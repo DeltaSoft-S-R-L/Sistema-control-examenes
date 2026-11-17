@@ -21,6 +21,7 @@ use App\Models\Usuario;
 use App\Utilities\PasswordHasher;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class Ing01Ing02RegistroIngresoTest extends TestCase
@@ -97,6 +98,15 @@ class Ing01Ing02RegistroIngresoTest extends TestCase
             'codigo'      => 'SIS-101',
             'nombre'      => 'Programación I',
             'descripcion' => 'Primer semestre',
+        ]);
+        DB::table('carrera_asignatura')->insert([
+            'id_carrera' => $carrera->id_carrera,
+            'id_asignatura' => $asignatura->id_asignatura,
+        ]);
+        DB::table('docente_asignatura')->insert([
+            'id_usuario' => $this->docenteUser->id_usuario,
+            'id_carrera' => $carrera->id_carrera,
+            'id_asignatura' => $asignatura->id_asignatura,
         ]);
 
         // 4. Examen
@@ -241,7 +251,7 @@ class Ing01Ing02RegistroIngresoTest extends TestCase
      * Caso 3 (Seguridad RBAC):
      * Un usuario con rol DOCENTE o sin autenticación intenta hacer POST /api/ingresos y recibe 403 / 401.
      */
-    public function test_usuario_docente_o_sin_autenticacion_es_rechazado_con_403_o_401(): void
+    public function test_docente_asignado_puede_registrar_ingreso_y_sin_autenticacion_se_rechaza(): void
     {
         // 3a. Sin autenticación -> 401 Unauthorized
         $respSinAuth = $this->withHeaders([
@@ -254,7 +264,7 @@ class Ing01Ing02RegistroIngresoTest extends TestCase
 
         $respSinAuth->assertStatus(401);
 
-        // 3b. Con rol DOCENTE -> 403 Forbidden
+        // 3b. Docente asignado al examen y carrera -> ingreso permitido
         $respDocente = $this->withHeaders([
             'Authorization' => "Bearer {$this->docenteToken}",
             'Accept'        => 'application/json',
@@ -264,13 +274,9 @@ class Ing01Ing02RegistroIngresoTest extends TestCase
             'id_asignacion_ambiente' => $this->asignacionAmbiente->id_asignacion_ambiente,
         ]);
 
-        $respDocente->assertStatus(403)
-            ->assertJson([
-                'message' => 'No tiene permisos para realizar esta acción.',
-            ]);
+        $respDocente->assertStatus(201);
 
-        // Comprobar que no se creó registro en ingreso
-        $this->assertSame(0, Ingreso::count());
+        $this->assertSame(1, Ingreso::count());
     }
 
     /**
@@ -408,9 +414,11 @@ class Ing01Ing02RegistroIngresoTest extends TestCase
                 'code'                      => 'REINGRESO_NO_PERMITIDO',
                 'error'                     => 'REINGRESO_NO_PERMITIDO',
                 'primer_ingreso'            => $primerIngreso->fecha_hora->format('H:i:s'),
-                'fecha_hora_primer_ingreso' => $primerIngreso->fecha_hora->toIso8601String(),
                 'ambiente'                  => 'Aula 624',
             ]);
+
+        $fechaHoraRespuesta = Carbon::parse($response->json('fecha_hora_primer_ingreso'));
+        $this->assertTrue($fechaHoraRespuesta->equalTo($primerIngreso->fecha_hora->copy()->startOfSecond()));
     }
 
     /**

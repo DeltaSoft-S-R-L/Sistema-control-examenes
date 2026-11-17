@@ -279,4 +279,123 @@ $this->assertSame(
     Habilitacion::where('id_examen', $examen->id_examen)->count()
 );
 }
+
+public function test_docente_puede_habilitar_solo_estudiantes_de_su_materia_y_carrera(): void
+{
+    $sufijo = strtolower(Str::random(10));
+    $rolDocente = Rol::firstOrCreate(
+        ['nombre' => 'DOCENTE'],
+        ['descripcion' => 'Docente']
+    );
+    $docente = Usuario::create([
+        'nombre' => 'Docente',
+        'apellido' => 'Prueba',
+        'correo' => "docente_{$sufijo}@example.com",
+        'username' => "docente_{$sufijo}",
+        'password_hash' => PasswordHasher::hash('Password123'),
+        'id_rol' => $rolDocente->id_rol,
+        'estado' => 'ACTIVO',
+    ]);
+    $token = $docente->createToken('test-habilitacion-docente')->plainTextToken;
+
+    $facultad = Facultad::create([
+        'codigo' => 'F' . $sufijo,
+        'nombre' => 'Facultad de Prueba',
+    ]);
+    $carreraAsignada = Carrera::create([
+        'id_facultad' => $facultad->id_facultad,
+        'codigo' => 'CA' . $sufijo,
+        'nombre' => 'Carrera Asignada',
+    ]);
+    $carreraNoAsignada = Carrera::create([
+        'id_facultad' => $facultad->id_facultad,
+        'codigo' => 'CN' . $sufijo,
+        'nombre' => 'Carrera No Asignada',
+    ]);
+    $asignatura = Asignatura::create([
+        'codigo' => 'A' . $sufijo,
+        'nombre' => 'Asignatura de Prueba',
+        'descripcion' => 'Asignatura temporal',
+    ]);
+    DB::table('carrera_asignatura')->insert([
+        'id_carrera' => $carreraAsignada->id_carrera,
+        'id_asignatura' => $asignatura->id_asignatura,
+    ]);
+    DB::table('docente_asignatura')->insert([
+        'id_usuario' => $docente->id_usuario,
+        'id_carrera' => $carreraAsignada->id_carrera,
+        'id_asignatura' => $asignatura->id_asignatura,
+    ]);
+    $examen = Examen::create([
+        'id_asignatura' => $asignatura->id_asignatura,
+        'nombre' => 'Examen de Prueba',
+        'fecha' => '2026-11-16',
+        'hora_inicio' => '08:00',
+        'duracion_minutos' => 90,
+        'estado' => 'PROGRAMADO',
+    ]);
+    $estudianteAsignado = Estudiante::create([
+        'ci' => $sufijo . '1',
+        'nombre' => 'Estudiante',
+        'apellido' => 'Asignado',
+        'codigo_universitario' => $sufijo . '1',
+        'id_carrera' => $carreraAsignada->id_carrera,
+        'correo' => "est_asignado_{$sufijo}@example.com",
+        'estado' => 'ACTIVO',
+    ]);
+    $estudianteNoAsignado = Estudiante::create([
+        'ci' => $sufijo . '2',
+        'nombre' => 'Estudiante',
+        'apellido' => 'No Asignado',
+        'codigo_universitario' => $sufijo . '2',
+        'id_carrera' => $carreraNoAsignada->id_carrera,
+        'correo' => "est_no_asignado_{$sufijo}@example.com",
+        'estado' => 'ACTIVO',
+    ]);
+    $estudianteInhabilitado = Estudiante::create([
+        'ci' => $sufijo . '3',
+        'nombre' => 'Estudiante',
+        'apellido' => 'Inhabilitado',
+        'codigo_universitario' => $sufijo . '3',
+        'id_carrera' => $carreraAsignada->id_carrera,
+        'correo' => "est_inhabilitado_{$sufijo}@example.com",
+        'estado' => 'ACTIVO',
+    ]);
+
+    $this->postJson('/api/habilitaciones', [
+        'id_examen' => $examen->id_examen,
+        'id_estudiante' => $estudianteAsignado->id_estudiante,
+    ], ['Authorization' => "Bearer {$token}"])->assertCreated();
+
+    $this->postJson('/api/habilitaciones', [
+        'id_examen' => $examen->id_examen,
+        'id_estudiante' => $estudianteNoAsignado->id_estudiante,
+    ], ['Authorization' => "Bearer {$token}"])->assertForbidden();
+
+    $registroInhabilitado = Habilitacion::create([
+        'id_examen' => $examen->id_examen,
+        'id_estudiante' => $estudianteInhabilitado->id_estudiante,
+        'estado' => 'NO_HABILITADO',
+        'motivo_tipo' => 'OTRO',
+        'motivo_detalle' => 'Motivo de prueba',
+    ]);
+    $this->patchJson('/api/habilitaciones/' . $registroInhabilitado->id_habilitacion, [
+        'estado' => 'HABILITADO',
+    ], ['Authorization' => "Bearer {$token}"])->assertOk();
+
+    $this->assertDatabaseHas('habilitacion', [
+        'id_examen' => $examen->id_examen,
+        'id_estudiante' => $estudianteAsignado->id_estudiante,
+        'estado' => 'HABILITADO',
+    ]);
+    $this->assertDatabaseMissing('habilitacion', [
+        'id_examen' => $examen->id_examen,
+        'id_estudiante' => $estudianteNoAsignado->id_estudiante,
+    ]);
+    $this->assertDatabaseHas('habilitacion', [
+        'id_habilitacion' => $registroInhabilitado->id_habilitacion,
+        'estado' => 'HABILITADO',
+        'motivo_detalle' => null,
+    ]);
+}
 }

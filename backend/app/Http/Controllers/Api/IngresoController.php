@@ -28,6 +28,20 @@ class IngresoController extends Controller
     {
         $query = Ingreso::with(['habilitacion.estudiante', 'asignacionAmbiente.ambiente', 'usuario', 'expulsion']);
 
+        if (strtoupper((string) $request->user()?->rol?->nombre) === 'DOCENTE') {
+            $usuario = $request->user();
+            $query->whereIn('id_ingreso', DB::table('ingreso as i')
+                ->join('habilitacion as h', 'h.id_habilitacion', '=', 'i.id_habilitacion')
+                ->join('examen as ex', 'ex.id_examen', '=', 'h.id_examen')
+                ->join('estudiante as e', 'e.id_estudiante', '=', 'h.id_estudiante')
+                ->join('docente_asignatura as da', function ($join) {
+                    $join->on('da.id_asignatura', '=', 'ex.id_asignatura')
+                        ->on('da.id_carrera', '=', 'e.id_carrera');
+                })
+                ->where('da.id_usuario', $usuario->id_usuario)
+                ->select('i.id_ingreso'));
+        }
+
         if ($request->has('id_examen')) {
             $query->where('id_examen', $request->id_examen);
         }
@@ -73,6 +87,13 @@ class IngresoController extends Controller
                 'code'    => CodigoErrorVerificacion::NO_ASOCIADO->value,
                 'error'   => CodigoErrorVerificacion::NO_ASOCIADO->value,
             ], 422);
+        }
+
+        if (strtoupper((string) $request->user()?->rol?->nombre) === 'DOCENTE'
+            && !$this->docentePuedeControlar((int) $validated['id_examen'], (int) $habilitacion->id_estudiante, (int) $idUsuario)) {
+            return response()->json([
+                'message' => 'No puede registrar ingresos de estudiantes fuera de sus materias y carreras asignadas.',
+            ], 403);
         }
 
         // 4. Validar estado de HABILITADO
@@ -322,9 +343,25 @@ class IngresoController extends Controller
 
     public function show(string $id)
     {
-        return response()->json(
-            Ingreso::with(['habilitacion.estudiante', 'asignacionAmbiente.ambiente', 'usuario', 'expulsion'])->findOrFail($id)
-        );
+        $ingreso = Ingreso::with(['habilitacion.estudiante', 'asignacionAmbiente.ambiente', 'usuario', 'expulsion'])->findOrFail($id);
+        $usuario = request()->user();
+        if (strtoupper((string) $usuario?->rol?->nombre) === 'DOCENTE'
+            && !$this->docentePuedeControlar((int) $ingreso->id_examen, (int) $ingreso->habilitacion?->id_estudiante, (int) $usuario->id_usuario)) {
+            return response()->json(['message' => 'No tiene permisos para consultar este ingreso.'], 403);
+        }
+
+        return response()->json($ingreso);
+    }
+
+    private function docentePuedeControlar(int $idExamen, int $idEstudiante, int $idUsuario): bool
+    {
+        return DB::table('docente_asignatura as da')
+            ->join('examen as ex', 'ex.id_asignatura', '=', 'da.id_asignatura')
+            ->join('estudiante as e', 'e.id_carrera', '=', 'da.id_carrera')
+            ->where('da.id_usuario', $idUsuario)
+            ->where('ex.id_examen', $idExamen)
+            ->where('e.id_estudiante', $idEstudiante)
+            ->exists();
     }
 
     public function update(Request $request, string $id)

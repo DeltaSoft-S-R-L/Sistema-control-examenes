@@ -3,12 +3,17 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Examen extends Model
 {
+    use SoftDeletes;
+
     protected $table = 'examen';
     protected $primaryKey = 'id_examen';
     public $timestamps = false;
+
+    const DELETED_AT = 'deleted_at';
 
     protected $fillable = [
         'id_asignatura',

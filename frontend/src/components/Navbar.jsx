@@ -2,11 +2,12 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { getUsuario, ROLES } from '../utils/auth';
+import { getRol, getUsuario, ROLES } from '../utils/auth';
 
 export default function Navbar() {
   const navigate = useNavigate();
   const usuario = getUsuario() || {};
+  const rol = getRol();
   const [menuAbierto, setMenuAbierto] = useState(false);
 
   const enlaces = [
@@ -54,13 +55,13 @@ export default function Navbar() {
       ruta: '/control-ingreso',
       nombre: 'Control de ingreso',
       icono: 'bi-box-arrow-in-right',
-      roles: [ROLES.ADMINISTRADOR, ROLES.CONTROL_INGRESO],
+      roles: [ROLES.ADMINISTRADOR, ROLES.DOCENTE, ROLES.CONTROL_INGRESO],
     },
     {
       ruta: '/incidencias',
       nombre: 'Incidencias',
       icono: 'bi-exclamation-triangle',
-      roles: [ROLES.ADMINISTRADOR, ROLES.CONTROL_INGRESO],
+      roles: [ROLES.ADMINISTRADOR, ROLES.DOCENTE, ROLES.CONTROL_INGRESO],
     },
     {
       ruta: '/reportes',
@@ -75,7 +76,7 @@ export default function Navbar() {
   ];
 
   const enlacesVisibles = enlaces.filter((enlace) =>
-    enlace.roles.includes(usuario.rol)
+    enlace.roles.includes(rol)
   );
 
   const handleLogout = async () => {
@@ -121,7 +122,7 @@ export default function Navbar() {
               {usuario.nombre} {usuario.apellido}
             </div>
             <small className="badge bg-light text-primary">
-              {usuario.rol || 'Usuario'}
+              {rol || 'Usuario'}
             </small>
           </div>
 

@@ -24,8 +24,10 @@ class CuentaEstudianteService
             ->lockForUpdate()
             ->findOrFail($estudiante->id_estudiante);
 
-        // No crear cuentas duplicadas.
+        // Si ya tiene una cuenta estudiantil, mantener sus credenciales
+        // sincronizadas con el código y el CI registrados.
         if ($estudiante->id_usuario !== null) {
+            $this->sincronizarCuenta($estudiante);
             return null;
         }
 
@@ -98,5 +100,44 @@ class CuentaEstudianteService
 
         // Ya no se generan tokens de activación.
         return $usuario;
+    }
+
+    /** Mantiene username=código SIS y contraseña inicial/actual=CI. */
+    public function sincronizarCuenta(Estudiante $estudiante): void
+    {
+        if (!$estudiante->id_usuario) {
+            return;
+        }
+
+        $usuario = Usuario::query()->with('rol')->lockForUpdate()
+            ->find($estudiante->id_usuario);
+        if (!$usuario || strtoupper((string) $usuario->rol?->nombre) !== 'ESTUDIANTE') {
+            return;
+        }
+
+        $sis = trim((string) $estudiante->codigo_universitario);
+        $ci = trim((string) $estudiante->ci);
+        $correo = trim((string) $estudiante->correo);
+
+        if ($sis === '' || $ci === '' || !filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+            throw new RuntimeException('El estudiante debe tener código, CI y correo válidos.');
+        }
+
+        $usuarioDuplicado = Usuario::query()
+            ->where('id_usuario', '<>', $usuario->id_usuario)
+            ->where(fn ($query) => $query->where('username', $sis)->orWhere('correo', $correo))
+            ->exists();
+        if ($usuarioDuplicado) {
+            throw new RuntimeException('El código o correo ya pertenece a otra cuenta.');
+        }
+
+        $usuario->update([
+            'nombre' => $estudiante->nombre,
+            'apellido' => $estudiante->apellido,
+            'correo' => $correo,
+            'username' => $sis,
+            'password_hash' => PasswordHasher::hash($ci),
+            'estado' => strtoupper((string) $estudiante->estado) === 'ACTIVO' ? 'ACTIVO' : 'REVOCADO',
+        ]);
     }
 }

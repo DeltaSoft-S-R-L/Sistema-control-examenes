@@ -1,23 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 
-const roles = [
-  {
-    id: 1,
-    nombre: 'ADMINISTRADOR',
-    etiqueta: 'Administrador',
-  },
-  {
-    id: 2,
-    nombre: 'DOCENTE',
-    etiqueta: 'Docente',
-  },
-  {
-    id: 3,
-    nombre: 'CONTROL_INGRESO',
-    etiqueta: 'Control de ingreso',
-  },
-];
+const etiquetasRoles = {
+  ADMINISTRADOR: 'Administrador',
+  DOCENTE: 'Docente',
+  CONTROL_INGRESO: 'Control de ingreso',
+};
 
 const formularioInicial = {
   nombre: '',
@@ -37,6 +25,18 @@ export default function EditarUsuarioModal({
   const [formulario, setFormulario] = useState(formularioInicial);
   const [errores, setErrores] = useState({});
   const [guardando, setGuardando] = useState(false);
+  const [roles, setRoles] = useState([]);
+
+  useEffect(() => {
+    if (!mostrar) return undefined;
+    const controller = new AbortController();
+    api.get('/roles', { signal: controller.signal })
+      .then(({ data }) => setRoles(Array.isArray(data) ? data : []))
+      .catch(() => {
+        if (!controller.signal.aborted) setRoles([]);
+      });
+    return () => controller.abort();
+  }, [mostrar]);
 
   useEffect(() => {
     if (usuario && mostrar) {
@@ -384,11 +384,8 @@ export default function EditarUsuarioModal({
                       </option>
 
                       {roles.map((rol) => (
-                        <option
-                          key={rol.id}
-                          value={rol.id}
-                        >
-                          {rol.etiqueta}
+                        <option key={rol.id_rol} value={rol.id_rol}>
+                          {etiquetasRoles[rol.nombre] || rol.nombre}
                         </option>
                       ))}
                     </select>

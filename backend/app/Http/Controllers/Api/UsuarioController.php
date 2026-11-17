@@ -105,7 +105,10 @@ Mail::to($usuario->correo)->send(
      */
     public function index(Request $request)
     {
-        $query = Usuario::with('rol');
+        // Las cuentas ESTUDIANTE se administran desde la página de estudiantes.
+        $query = Usuario::with('rol')->whereHas('rol', function ($rolQuery) {
+            $rolQuery->where('nombre', '<>', 'ESTUDIANTE');
+        });
 
         if ($request->filled('rol')) {
             $rolId = $request->input('rol');

@@ -26,6 +26,7 @@ use App\Services\QrTokenService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -143,6 +144,14 @@ class VerificacionController extends Controller
                 'code'    => CodigoErrorVerificacion::EXAMEN_NO_ENCONTRADO->value,
                 'error'   => CodigoErrorVerificacion::EXAMEN_NO_ENCONTRADO->value,
             ], 404);
+        }
+
+        if (strtoupper((string) $request->user()?->rol?->nombre) === 'DOCENTE'
+            && !$this->docentePuedeVerificar($request, (int) $estudiante->id_estudiante, (int) $examen->id_asignatura)) {
+            return response()->json([
+                'message' => 'No puede verificar estudiantes fuera de sus materias y carreras asignadas.',
+                'code' => 'DOCENTE_FUERA_DE_ALCANCE',
+            ], 403);
         }
 
         try {
@@ -272,6 +281,14 @@ class VerificacionController extends Controller
             ], 404);
         }
 
+        if (strtoupper((string) $request->user()?->rol?->nombre) === 'DOCENTE'
+            && !$this->docentePuedeVerificar($request, (int) $estudiante->id_estudiante, (int) $examen->id_asignatura)) {
+            return response()->json([
+                'message' => 'No puede verificar estudiantes fuera de sus materias y carreras asignadas.',
+                'code' => 'DOCENTE_FUERA_DE_ALCANCE',
+            ], 403);
+        }
+
         try {
             $pertenenciaService->verificarPertenencia(
                 (int) $estudiante->id_estudiante,
@@ -303,6 +320,19 @@ class VerificacionController extends Controller
 
         return response()->json($resource->resolve(), 200);
     }
+
+    private function docentePuedeVerificar(Request $request, int $idEstudiante, int $idAsignatura): bool
+    {
+        $usuario = $request->user();
+
+        return DB::table('docente_asignatura as da')
+            ->join('estudiante as e', 'e.id_carrera', '=', 'da.id_carrera')
+            ->where('da.id_usuario', $usuario->id_usuario)
+            ->where('da.id_asignatura', $idAsignatura)
+            ->where('e.id_estudiante', $idEstudiante)
+            ->exists();
+    }
+
         /**
      * Registrar intento indebido de ingreso a examen ajeno y su auditoría.
      */

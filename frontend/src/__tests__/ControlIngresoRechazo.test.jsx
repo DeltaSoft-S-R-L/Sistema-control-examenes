@@ -132,6 +132,25 @@ describe('Pruebas de interfaz de usuario - Respuesta de Examen No Correspondient
     expect(screen.queryByText(/ACCESO AUTORIZADO/i)).not.toBeInTheDocument();
   });
 
+  it('debe mostrar tarjeta de rechazo cuando NO_ASOCIADO llega sin datos del estudiante', async () => {
+    const user = userEvent.setup();
+    api.post.mockRejectedValueOnce({
+      response: {
+        status: 422,
+        data: { code: 'NO_ASOCIADO', message: 'El estudiante no pertenece a este examen.' },
+      },
+    });
+
+    render(<ControlIngreso />);
+    await screen.findByText(/Primer Parcial - Ingeniería de Software/i);
+    await user.type(screen.getByPlaceholderText(/Ej. 1234567/i), '99887766');
+    await user.click(screen.getByRole('button', { name: /Verificar Estudiante/i }));
+
+    expect((await screen.findAllByText(/Estudiante No Asociado/i)).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Identificador consultado: 99887766/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Confirmar ingreso/i })).not.toBeInTheDocument();
+  });
+
   describe('Componente StudentCard - Validación unitaria del estado NO_ASOCIADO', () => {
     it('muestra acceso denegado y no ofrece opción de autorizar', () => {
       const mockOnSiguiente = vi.fn();

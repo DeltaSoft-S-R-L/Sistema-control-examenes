@@ -26,7 +26,10 @@ class NormaController extends Controller
             ], 404);
         }
 
-        $this->sincronizarReglasLegadas($examen);
+        $this->sincronizarReglasLegadas(
+            $examen,
+            (int) ($request->user()?->id_usuario ?? $request->user()?->id)
+        );
 
         $query = NormaExamen::with(['estudiante', 'creador'])
             ->where('id_examen', $examen->id_examen);
@@ -207,7 +210,7 @@ class NormaController extends Controller
         ], 200);
     }
 
-    private function sincronizarReglasLegadas(Examen $examen): void
+    private function sincronizarReglasLegadas(Examen $examen, int $createdBy): void
     {
         $reglasGenerales = ReglaExamen::where('id_examen', $examen->id_examen)->get();
         foreach ($reglasGenerales as $rg) {
@@ -217,7 +220,7 @@ class NormaController extends Controller
                 'tipo' => 'GENERAL',
                 'descripcion' => $rg->descripcion,
             ], [
-                'created_by' => 1,
+                'created_by' => $createdBy,
             ]);
         }
 
@@ -234,7 +237,7 @@ class NormaController extends Controller
                     'tipo' => 'PARTICULAR',
                     'descripcion' => $rp->descripcion,
                 ], [
-                    'created_by' => 1,
+                    'created_by' => $createdBy,
                 ]);
             }
         }

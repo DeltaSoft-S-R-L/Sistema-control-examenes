@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\NormaController;
 use App\Http\Controllers\Api\PasswordSetupController;
 use App\Http\Controllers\Api\PerfilEstudianteController;
 use App\Http\Controllers\Api\EstudianteFotoController;
+use App\Http\Controllers\Api\ReporteController;
 
 /*
 |--------------------------------------------------------------------------
@@ -48,6 +49,12 @@ Route::middleware('throttle:6,1')->group(function () {
         'configurar'
     ]);
 });
+
+// Las fotos locales se entregan con enlaces temporales firmados; el archivo
+// permanece en almacenamiento privado y no requiere exponerlo como recurso público.
+Route::get('/estudiante/foto/{id_estudiante}/archivo', [EstudianteFotoController::class, 'archivo'])
+    ->middleware('signed')
+    ->name('estudiante.foto.archivo');
 
 // Rutas protegidas con Sanctum y verificación de cuenta activa
 Route::middleware(['auth:sanctum', 'active'])->group(function () {
@@ -85,7 +92,7 @@ Route::get('/docente/mis-materias', [
     */
     Route::middleware('permission:GESTIONAR_USUARIOS')->group(function () {
         Route::get('/roles', fn () => response()->json(
-            Rol::query()->orderBy('id_rol')->get(['id_rol', 'nombre'])
+            Rol::query()->where('nombre', '<>', 'ESTUDIANTE')->orderBy('id_rol')->get(['id_rol', 'nombre'])
         ));
         Route::get('/usuarios', [UsuarioController::class, 'index']);
         Route::post('/usuarios', [UsuarioController::class, 'store']);
@@ -200,8 +207,8 @@ Route::get('/docente/mis-materias', [
     */
     Route::get('/habilitaciones', [HabilitacionController::class, 'index']);
     Route::get('/habilitaciones/{habilitacione}', [HabilitacionController::class, 'show']);
-    // La autorización específica del PATCH permite al docente revocar solo
-    // dentro de sus materias asignadas; las demás operaciones siguen protegidas.
+    // El controlador valida el alcance del docente tanto al revocar como al
+    // reactivar, siempre dentro de sus materias y carreras asignadas.
     Route::patch('/habilitaciones/{habilitacione}', [HabilitacionController::class, 'update']);
 
     // Consulta del motivo de inhabilitación por estudiante y examen 
@@ -209,9 +216,14 @@ Route::get('/docente/mis-materias', [
         ->middleware('role:ADMINISTRADOR,DOCENTE,CONTROL_INGRESO');
         
 
-    Route::middleware('permission:GESTIONAR_HABILITACIONES')->group(function () {
+    // El controlador limita al docente a su materia/carrera; otros roles
+    // necesitan el permiso explícito.
+    Route::middleware('habilitaciones')->group(function () {
         Route::post('/habilitaciones', [HabilitacionController::class, 'store']);
         Route::post('/habilitaciones/masiva', [HabilitacionController::class, 'storeMasiva']);
+    });
+
+    Route::middleware('permission:GESTIONAR_HABILITACIONES')->group(function () {
         Route::put('/habilitaciones/{habilitacione}', [HabilitacionController::class, 'update']);
         Route::delete('/habilitaciones/{habilitacione}', [HabilitacionController::class, 'destroy']);
     });
@@ -220,10 +232,12 @@ Route::get('/docente/mis-materias', [
     | Control de ingreso
     |--------------------------------------------------------------------------
     */
-    Route::get('/ingresos', [IngresoController::class, 'index']);
-    Route::get('/ingresos/{ingreso}', [IngresoController::class, 'show']);
+    Route::middleware('role:CONTROL_INGRESO,ADMINISTRADOR,DOCENTE')->group(function () {
+        Route::get('/ingresos', [IngresoController::class, 'index']);
+        Route::get('/ingresos/{ingreso}', [IngresoController::class, 'show']);
+    });
 
-    Route::middleware('role:CONTROL_INGRESO,ADMINISTRADOR')->group(function () {
+    Route::middleware('role:CONTROL_INGRESO,ADMINISTRADOR,DOCENTE')->group(function () {
         Route::post('/ingresos/confirmar', [IngresoController::class, 'store']);
         Route::post('/ingresos', [IngresoController::class, 'store']);
         Route::put('/ingresos/{ingreso}', [IngresoController::class, 'update']);
@@ -236,16 +250,28 @@ Route::get('/docente/mis-materias', [
     | Incidencias
     |--------------------------------------------------------------------------
     */
-    Route::get('/incidencias', [IncidenciaController::class, 'index']);
-    Route::get('/incidencias/{incidencia}', [IncidenciaController::class, 'show']);
+    Route::middleware('role:ADMINISTRADOR,DOCENTE,CONTROL_INGRESO')->group(function () {
+        Route::get('/incidencias', [IncidenciaController::class, 'index']);
+        Route::get('/incidencias/{incidencia}', [IncidenciaController::class, 'show']);
+    });
+
+    Route::middleware('role:ADMINISTRADOR,DOCENTE,CONTROL_INGRESO')->group(function () {
+        Route::get('/reportes/examenes', [ReporteController::class, 'examenes']);
+        Route::get('/reportes/examenes/{id}/asistencia', [ReporteController::class, 'asistencia']);
+        Route::get('/reportes/examenes/{id}/intentos', [ReporteController::class, 'intentos']);
+    });
 
     Route::middleware(['auth:sanctum', 'role:ADMINISTRADOR,DOCENTE,CONTROL_INGRESO'])->group(function () {
         Route::post('/examenes/{examen}/expulsiones', [IncidenciaController::class, 'registrarExpulsion']);
         Route::post('/incidencias/expulsion', [IncidenciaController::class, 'registrarExpulsion']);
     });
 
-    Route::middleware('permission:REGISTRAR_INCIDENCIAS')->group(function () {
+    Route::middleware('incidencias')->group(function () {
+        Route::post('/incidencias/cambio-ambiente', [IncidenciaController::class, 'registrarCambioAmbiente']);
         Route::post('/incidencias', [IncidenciaController::class, 'store']);
+    });
+
+    Route::middleware('permission:REGISTRAR_INCIDENCIAS')->group(function () {
         Route::put('/incidencias/{incidencia}', [IncidenciaController::class, 'update']);
         Route::patch('/incidencias/{incidencia}', [IncidenciaController::class, 'update']);
         Route::delete('/incidencias/{incidencia}', [IncidenciaController::class, 'destroy']);
@@ -256,9 +282,9 @@ Route::get('/docente/mis-materias', [
     |--------------------------------------------------------------------------
     */
     Route::post('/verificaciones/qr', [VerificacionController::class, 'verificarPorQr'])
-        ->middleware(['role:CONTROL_INGRESO,ADMINISTRADOR', 'throttle:60,1']);
+        ->middleware(['role:CONTROL_INGRESO,ADMINISTRADOR,DOCENTE', 'throttle:60,1']);
     Route::post('/verificaciones/documento', [VerificacionController::class, 'verificarPorDocumento'])
-        ->middleware(['role:CONTROL_INGRESO,ADMINISTRADOR', 'throttle:60,1']);
+        ->middleware(['role:CONTROL_INGRESO,ADMINISTRADOR,DOCENTE', 'throttle:60,1']);
     Route::post('/verificaciones/ambiente', [VerificacionController::class, 'verificarAmbiente'])
         ->middleware(['role:CONTROL_INGRESO,ADMINISTRADOR', 'throttle:60,1']);
 });

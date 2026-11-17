@@ -57,10 +57,10 @@ class NormaExamenApiTest extends TestCase
             'descripcion' => 'Control de Ingreso',
         ]);
 
-        $rolEstudiante = Rol::create([
-            'nombre' => 'ESTUDIANTE',
-            'descripcion' => 'Estudiante',
-        ]);
+        $rolEstudiante = Rol::firstOrCreate(
+            ['nombre' => 'ESTUDIANTE'],
+            ['descripcion' => 'Estudiante']
+        );
 
         $this->adminUser = Usuario::create([
             'nombre' => 'Admin',

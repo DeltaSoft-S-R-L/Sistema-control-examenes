@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '../services/api';
 import MotivoInhabilitacionModal from '../components/habilitaciones/MotivoInhabilitacionModal';
+import RevocarHabilitacionModal from '../components/habilitaciones/RevocarHabilitacionModal';
 
 const obtenerDatos = (respuesta) => respuesta.data.data || respuesta.data || [];
 
@@ -19,6 +20,7 @@ export default function Habilitaciones() {
   const [revocando, setRevocando] = useState(null);
   const [mensaje, setMensaje] = useState(null);
   const [estudianteMotivo, setEstudianteMotivo] = useState(null);
+  const [habilitacionPorRevocar, setHabilitacionPorRevocar] = useState(null);
 
   const cerrarMotivoInhabilitacion = useCallback(() => setEstudianteMotivo(null), []);
 
@@ -124,61 +126,70 @@ export default function Habilitaciones() {
     setGuardando(true);
     setMensaje(null);
 
-    const resultados = await Promise.allSettled(
-      seleccionados.map((id_estudiante) => api.post('/habilitaciones', {
-        id_estudiante,
+    const estadosPrevios = seleccionados.map((idEstudiante) => ({
+      idEstudiante,
+      habilitacion: habilitacionesPorEstudiante.get(Number(idEstudiante)),
+    }));
+    const yaHabilitados = estadosPrevios.filter(
+      ({ habilitacion }) => String(habilitacion?.estado || '').toUpperCase() === 'HABILITADO',
+    ).length;
+    const porActualizar = estadosPrevios.filter(
+      ({ habilitacion }) => String(habilitacion?.estado || '').toUpperCase() === 'NO_HABILITADO',
+    );
+    const porCrear = estadosPrevios.filter(({ habilitacion }) => !habilitacion);
+
+    const resultados = await Promise.allSettled([
+      ...porActualizar.map(({ habilitacion }) => api.patch(
+        `/habilitaciones/${habilitacion.id_habilitacion}`,
+        { estado: 'HABILITADO' },
+      )),
+      ...porCrear.map(({ idEstudiante }) => api.post('/habilitaciones', {
+        id_estudiante: idEstudiante,
         id_examen: Number(idExamen),
         estado: 'HABILITADO',
       })),
-    );
+    ]);
 
-    const creadas = resultados.filter((resultado) => resultado.status === 'fulfilled').length;
-    const fallidas = resultados.length - creadas;
+    const exitosas = resultados.filter((resultado) => resultado.status === 'fulfilled').length;
+    const reactivadas = resultados
+      .slice(0, porActualizar.length)
+      .filter((resultado) => resultado.status === 'fulfilled').length;
+    const creadas = exitosas - reactivadas;
+    const fallidas = resultados.length - exitosas;
 
-    if (creadas > 0) {
+    if (exitosas > 0 || yaHabilitados > 0) {
       setSeleccionados([]);
     }
 
     setMensaje({
       tipo: fallidas ? 'warning' : 'success',
-      texto: fallidas
-        ? `Se habilitaron ${creadas} estudiante(s). ${fallidas} no se pudieron habilitar; posiblemente ya están registrados para este examen.`
-        : `${creadas} estudiante(s) habilitado(s) correctamente.`,
+      texto: [
+        exitosas ? `Se habilitaron ${exitosas} estudiante(s) (${creadas} nuevos, ${reactivadas} reactivados).` : '',
+        yaHabilitados ? `${yaHabilitados} ya estaban habilitados.` : '',
+        fallidas ? `${fallidas} no se pudieron habilitar; revise sus estados o vuelva a intentarlo.` : '',
+      ].filter(Boolean).join(' '),
     });
     setGuardando(false);
-    cargarHabilitaciones();
+    await cargarHabilitaciones();
   };
 
-  const revocarHabilitacion = async (habilitacion) => {
+  const revocarHabilitacion = async (habilitacion, { tipo, detalle }) => {
     const nombre = `${habilitacion.estudiante?.nombre ?? ''} ${habilitacion.estudiante?.apellido ?? ''}`.trim();
-    if (!window.confirm(`¿Revocar la habilitación de ${nombre || 'este estudiante'} para el examen seleccionado?`)) return;
-
-    const motivo = window.prompt('Indique el motivo de la revocación (máximo 500 caracteres):');
-    if (motivo === null) return;
-
-    const motivoLimpio = motivo.trim();
-    if (!motivoLimpio) {
-      setMensaje({ tipo: 'warning', texto: 'Debe indicar un motivo para revocar la habilitación.' });
-      return;
-    }
-    if (motivoLimpio.length > 500) {
-      setMensaje({ tipo: 'warning', texto: 'El motivo no puede superar los 500 caracteres.' });
-      return;
-    }
-
     setRevocando(habilitacion.id_habilitacion);
     setMensaje(null);
     try {
       await api.patch(`/habilitaciones/${habilitacion.id_habilitacion}`, {
         estado: 'NO_HABILITADO',
-        motivo: motivoLimpio,
+        motivo_tipo: tipo,
+        motivo_detalle: detalle,
       });
       setHabilitaciones((actuales) => actuales.map((actual) => (
         actual.id_habilitacion === habilitacion.id_habilitacion
-          ? { ...actual, estado: 'NO_HABILITADO', motivo: motivoLimpio }
+          ? { ...actual, estado: 'NO_HABILITADO', motivo_tipo: tipo, motivo_detalle: detalle, motivo: detalle }
           : actual
       )));
       setMensaje({ tipo: 'success', texto: `Se revocó la habilitación de ${nombre || 'el estudiante'}.` });
+      setHabilitacionPorRevocar(null);
     } catch (error) {
       console.error('Error al revocar habilitación:', error);
       const respuesta = error.response?.data;
@@ -216,7 +227,7 @@ export default function Habilitaciones() {
               <option value="">Seleccione un examen</option>
               {examenes.map((examen) => (
                 <option key={examen.id_examen} value={examen.id_examen}>
-                  {examen.nombre} — {examen.fecha}
+                  {examen.nombre} — {String(examen.fecha || '').slice(0, 10)}
                 </option>
               ))}
             </select>
@@ -361,7 +372,7 @@ export default function Habilitaciones() {
                             type="button"
                             className="btn btn-sm btn-outline-danger"
                             disabled={revocando !== null}
-                            onClick={() => revocarHabilitacion(habilitacion)}
+                            onClick={() => setHabilitacionPorRevocar(habilitacion)}
                           >
                             {revocando === habilitacion.id_habilitacion ? 'Revocando...' : 'Revocar'}
                           </button>
@@ -384,6 +395,12 @@ export default function Habilitaciones() {
           onClose={cerrarMotivoInhabilitacion}
         />
       )}
+      <RevocarHabilitacionModal
+        habilitacion={habilitacionPorRevocar}
+        guardando={Boolean(revocando)}
+        onClose={() => { if (!revocando) setHabilitacionPorRevocar(null); }}
+        onConfirm={(motivo) => revocarHabilitacion(habilitacionPorRevocar, motivo)}
+      />
     </div>
   );
 }

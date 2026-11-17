@@ -61,7 +61,9 @@ class VerificacionResource extends JsonResource
         if ($this->estudiante->foto) {
             try {
                 $urlFoto = app(EstudianteFotoService::class)->obtenerUrlTemporal(
-                    $this->estudiante->foto->cloudinary_public_id
+                    $this->estudiante->foto->cloudinary_public_id,
+                    $this->estudiante->foto->cloudinary_type,
+                    (int) $this->estudiante->id_estudiante
                 );
             } catch (\Throwable $e) {
                 report($e);

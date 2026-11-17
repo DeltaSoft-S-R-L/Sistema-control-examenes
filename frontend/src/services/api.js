@@ -24,11 +24,22 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('usuario');
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+    if (error.response?.status === 401) {
+      const autorizacion = error.config?.headers?.Authorization
+        ?? error.config?.headers?.authorization;
+      const tokenSolicitado = typeof autorizacion === 'string'
+        ? autorizacion.replace(/^Bearer\s+/i, '')
+        : null;
+      const tokenActual = localStorage.getItem('token');
+
+      // Una respuesta atrasada de una petición anterior no debe cerrar
+      // una sesión nueva iniciada mientras esa petición seguía pendiente.
+      if (tokenSolicitado && tokenSolicitado === tokenActual) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('usuario');
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
       }
     }
     return Promise.reject(error);

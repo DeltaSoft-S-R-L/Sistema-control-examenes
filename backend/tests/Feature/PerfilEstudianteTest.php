@@ -12,6 +12,8 @@ use Tests\Support\SQLiteSeguroTestCase;
 use App\Models\Facultad;
 use App\Models\Carrera;
 use App\Models\Asignatura;
+use App\Models\Examen;
+use App\Models\Habilitacion;
 
 class PerfilEstudianteTest extends SQLiteSeguroTestCase
 {
@@ -47,9 +49,10 @@ class PerfilEstudianteTest extends SQLiteSeguroTestCase
             ->assertJsonPath('apellido', 'Gomez')
             ->assertJsonPath('codigo_universitario', '202600456')
             ->assertJsonPath('correo', 'maria.perfil@example.com')
+            ->assertJsonPath('ci', '87654321')
             ->assertJsonPath('carrera', null)
             ->assertJsonCount(0, 'asignaturas')
-            ->assertJsonMissingPath('ci');
+            ->assertJsonCount(0, 'examenes');
     }
 
 
@@ -101,6 +104,20 @@ public function test_estudiante_puede_consultar_carrera_y_asignaturas(): void
         $asignatura2->id_asignatura,
     ]);
 
+    $examen = Examen::create([
+        'id_asignatura' => $asignatura1->id_asignatura,
+        'nombre' => 'Primer parcial de Matemática',
+        'fecha' => '2026-12-01',
+        'hora_inicio' => '09:00',
+        'duracion_minutos' => 90,
+        'estado' => 'PROGRAMADO',
+    ]);
+    Habilitacion::create([
+        'id_estudiante' => $estudiante->id_estudiante,
+        'id_examen' => $examen->id_examen,
+        'estado' => 'HABILITADO',
+    ]);
+
     $usuario = DB::transaction(function () use ($estudiante) {
         return app(CuentaEstudianteService::class)
             ->crearCuenta($estudiante);
@@ -115,7 +132,10 @@ public function test_estudiante_puede_consultar_carrera_y_asignaturas(): void
         ->assertJsonPath('codigo_universitario', '202600123')
         ->assertJsonPath('carrera.codigo', 'SIS')
         ->assertJsonPath('carrera.nombre', 'Ingeniería de Sistemas')
+        ->assertJsonPath('ci', '12345678')
         ->assertJsonCount(2, 'asignaturas')
+        ->assertJsonPath('examenes.0.id_examen', $examen->id_examen)
+        ->assertJsonPath('examenes.0.estado_habilitacion', 'HABILITADO')
         ->assertJsonFragment([
             'codigo' => 'MAT101',
             'nombre' => 'Matemática I',
@@ -215,7 +235,7 @@ public function test_estudiante_solo_puede_consultar_su_propio_perfil(): void
     ]);
 }
 
-public function test_usuario_rol_estudiante_creado_manualmente_aprovisiona_perfil_sin_bloqueo(): void
+public function test_perfil_no_crea_registros_sinteticos_para_usuarios_sin_estudiante_vinculado(): void
 {
     $rolEstudiante = Rol::firstOrCreate(
         ['nombre' => 'ESTUDIANTE'],
@@ -236,14 +256,10 @@ public function test_usuario_rol_estudiante_creado_manualmente_aprovisiona_perfi
 
     $response = $this->getJson('/api/estudiante/perfil');
 
-    $response->assertOk()
-        ->assertJsonPath('nombre', 'Jairo')
-        ->assertJsonPath('apellido', 'Rojas')
-        ->assertJsonPath('correo', 'jairo@gmail.com');
+    $response->assertNotFound();
 
-    $this->assertDatabaseHas('estudiante', [
+    $this->assertDatabaseMissing('estudiante', [
         'id_usuario' => $usuarioManual->id_usuario,
-        'correo' => 'jairo@gmail.com',
     ]);
 }
 

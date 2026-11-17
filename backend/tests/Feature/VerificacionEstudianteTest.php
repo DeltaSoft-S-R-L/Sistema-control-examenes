@@ -22,6 +22,7 @@ use App\Services\HabilitacionService;
 use App\Services\QrTokenService;
 use App\Utilities\PasswordHasher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
@@ -202,7 +203,7 @@ class VerificacionEstudianteTest extends TestCase
 
     public function test_ingreso_previo_retorna_reingreso_con_fecha_y_ambiente(): void
     {
-        $fechaHora = Carbon::parse('2026-10-27 08:15:00');
+        $fechaHora = Carbon::parse('2026-10-27 08:15:00', config('app.timezone'));
         $ambiente = $this->registrarIngresoPrevio($this->estudianteHabilitado, $fechaHora);
 
         // 1. Verificación de identidad con contrato unificado VER-01
@@ -237,7 +238,7 @@ class VerificacionEstudianteTest extends TestCase
 
     public function test_ingreso_previo_tiene_prioridad_sobre_habilitacion_no_habilitado(): void
     {
-        $fechaHora = Carbon::parse('2026-10-27 08:15:00');
+        $fechaHora = Carbon::parse('2026-10-27 08:15:00', config('app.timezone'));
         $ambiente = $this->registrarIngresoPrevio($this->estudianteInhabilitado, $fechaHora);
 
         // 1. Identificación exitosa por documento
@@ -286,7 +287,7 @@ class VerificacionEstudianteTest extends TestCase
             ->where('id_examen', $this->examen->id_examen)
             ->firstOrFail();
 
-        Ingreso::create([
+        DB::table('ingreso')->insert([
             'id_examen'                => $this->examen->id_examen,
             'id_habilitacion'          => $habilitacion->id_habilitacion,
             'id_asignacion_ambiente'   => $asignacion->id_asignacion_ambiente,

@@ -15,6 +15,7 @@ COPY public.rol (id_rol, nombre, descripcion) FROM stdin;
 1	ADMINISTRADOR	\N
 2	DOCENTE	\N
 3	CONTROL_INGRESO	\N
+4	ESTUDIANTE	Acceso al dashboard del estudiante
 \.
 
 
@@ -977,6 +978,6 @@ SELECT pg_catalog.setval('public.regla_examen_id_regla_examen_seq', 1, false);
 
 SELECT pg_catalog.setval('public.regla_individual_id_regla_individual_seq', 1, false);
 
-SELECT pg_catalog.setval('public.rol_id_rol_seq', 3, true);
+SELECT pg_catalog.setval('public.rol_id_rol_seq', 4, true);
 
 SELECT pg_catalog.setval('public.usuario_id_usuario_seq', 1, true);

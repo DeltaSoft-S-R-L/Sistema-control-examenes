@@ -226,7 +226,7 @@ if ($usuarioNuevo !== null) {
     }
 }
 
-$estudiante->load([
+$estudiante->refresh()->load([
     'carrera',
     'asignaturas',
 ]);
@@ -795,10 +795,21 @@ if ($asignaturas !== null) {
     }
 }
 
-$estudiante->update($data);
+try {
+    DB::transaction(function () use ($estudiante, $data, $asignaturas) {
+        $estudiante->update($data);
 
-if ($asignaturas !== null) {
-    $estudiante->asignaturas()->sync($asignaturas);
+        if ($asignaturas !== null) {
+            $estudiante->asignaturas()->sync($asignaturas);
+        }
+
+        app(CuentaEstudianteService::class)->sincronizarCuenta($estudiante->fresh());
+    });
+} catch (\Throwable $e) {
+    report($e);
+    return response()->json([
+        'message' => 'No se pudieron actualizar el estudiante y sus credenciales.',
+    ], 422);
 }
 
     $estudiante->load([

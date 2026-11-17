@@ -57,6 +57,9 @@ ALTER TABLE ONLY public.regla_examen
 ALTER TABLE ONLY public.regla_individual
     ADD CONSTRAINT pk_regla_individual PRIMARY KEY (id_regla_individual);
 
+ALTER TABLE ONLY public.norma_examen
+    ADD CONSTRAINT pk_norma_examen PRIMARY KEY (id_norma_examen);
+
 ALTER TABLE ONLY public.rol
     ADD CONSTRAINT pk_rol PRIMARY KEY (id_rol);
 
@@ -140,6 +143,8 @@ CREATE INDEX idx_habilitacion_estado ON public.habilitacion USING btree (estado)
 
 CREATE INDEX idx_habilitacion_examen ON public.habilitacion USING btree (id_examen);
 
+CREATE INDEX idx_habilitacion_inhabilitado_por ON public.habilitacion USING btree (inhabilitado_por);
+
 CREATE INDEX idx_incidencia_examen ON public.incidencia USING btree (id_examen);
 
 CREATE INDEX idx_incidencia_tipo ON public.incidencia USING btree (tipo);
@@ -151,6 +156,10 @@ CREATE INDEX idx_regla_examen_examen ON public.regla_examen USING btree (id_exam
 CREATE INDEX idx_regla_individual_estado ON public.regla_individual USING btree (estado);
 
 CREATE INDEX idx_regla_individual_habilitacion ON public.regla_individual USING btree (id_habilitacion);
+
+CREATE INDEX idx_norma_examen_examen ON public.norma_examen USING btree (id_examen);
+
+CREATE INDEX idx_norma_examen_examen_estudiante ON public.norma_examen USING btree (id_examen, id_estudiante);
 
 CREATE INDEX idx_usuario_estado ON public.usuario USING btree (estado);
 
@@ -187,6 +196,13 @@ ALTER TABLE ONLY public.estudiante
     ADD CONSTRAINT fk_estudiante_carrera FOREIGN KEY (id_carrera)
     REFERENCES public.carrera(id_carrera);
 
+ALTER TABLE ONLY public.estudiante
+    ADD CONSTRAINT uq_estudiante_usuario UNIQUE (id_usuario);
+
+ALTER TABLE ONLY public.estudiante
+    ADD CONSTRAINT fk_estudiante_usuario FOREIGN KEY (id_usuario)
+    REFERENCES public.usuario(id_usuario) ON DELETE RESTRICT;
+
 ALTER TABLE ONLY public.estudiante_asignatura
     ADD CONSTRAINT fk_estudiante_asignatura_estudiante FOREIGN KEY (id_estudiante) REFERENCES public.estudiante(id_estudiante) ON DELETE CASCADE;
 
@@ -207,6 +223,9 @@ ALTER TABLE ONLY public.habilitacion
 
 ALTER TABLE ONLY public.habilitacion
     ADD CONSTRAINT fk_habilitacion_examen FOREIGN KEY (id_examen) REFERENCES public.examen(id_examen);
+
+ALTER TABLE ONLY public.habilitacion
+    ADD CONSTRAINT fk_habilitacion_inhabilitado_por FOREIGN KEY (inhabilitado_por) REFERENCES public.usuario(id_usuario) ON DELETE SET NULL;
 
 ALTER TABLE ONLY public.incidencia
     ADD CONSTRAINT fk_incidencia_estudiante FOREIGN KEY (id_estudiante) REFERENCES public.estudiante(id_estudiante);
@@ -243,6 +262,15 @@ ALTER TABLE ONLY public.regla_examen
 
 ALTER TABLE ONLY public.regla_individual
     ADD CONSTRAINT fk_regla_individual_habilitacion FOREIGN KEY (id_habilitacion) REFERENCES public.habilitacion(id_habilitacion);
+
+ALTER TABLE ONLY public.norma_examen
+    ADD CONSTRAINT fk_norma_examen_examen FOREIGN KEY (id_examen) REFERENCES public.examen(id_examen) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.norma_examen
+    ADD CONSTRAINT fk_norma_examen_estudiante FOREIGN KEY (id_estudiante) REFERENCES public.estudiante(id_estudiante) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.norma_examen
+    ADD CONSTRAINT fk_norma_examen_created_by FOREIGN KEY (created_by) REFERENCES public.usuario(id_usuario);
 
 ALTER TABLE ONLY public.rol_permiso
     ADD CONSTRAINT fk_rol_permiso_permiso FOREIGN KEY (id_permiso) REFERENCES public.permiso(id_permiso) ON DELETE CASCADE;

@@ -82,6 +82,28 @@ class LoginDisabledAccountTest extends TestCase
         $this->assertNotEmpty($response->json('token'));
     }
 
+    public function test_perfil_me_devuelve_el_rol_administrador(): void
+    {
+        $rolAdmin = Rol::create([
+            'nombre' => 'ADMINISTRADOR',
+            'descripcion' => 'Administrador del sistema',
+        ]);
+        $admin = Usuario::create([
+            'nombre' => 'Administrador',
+            'apellido' => 'Principal',
+            'correo' => 'admin@test.local',
+            'username' => 'admin_principal',
+            'password_hash' => PasswordHasher::hash('Password123'),
+            'id_rol' => $rolAdmin->id_rol,
+            'estado' => 'ACTIVO',
+        ]);
+        $token = $admin->createToken('profile-test')->plainTextToken;
+
+        $this->getJson('/api/me', [
+            'Authorization' => "Bearer {$token}",
+        ])->assertOk()->assertJsonPath('rol', 'ADMINISTRADOR');
+    }
+
     /**
      * 2. Login rechazado por cuenta inactiva/revocada: Contraseña correcta pero estado no activo.
      * Retorna 422 con mensaje explícito en 'username'.

@@ -12,6 +12,7 @@ use App\Models\Rol;
 use App\Models\Usuario;
 use App\Utilities\PasswordHasher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class AsociarEstudianteExamenTest extends TestCase
@@ -112,6 +113,16 @@ class AsociarEstudianteExamenTest extends TestCase
             'id_carrera'           => $carrera->id_carrera,
             'correo'               => 'luis.paz@universidad.edu',
             'estado'               => 'ACTIVO',
+        ]);
+
+        DB::table('carrera_asignatura')->insert([
+            'id_carrera' => $carrera->id_carrera,
+            'id_asignatura' => $this->asignatura->id_asignatura,
+        ]);
+        DB::table('docente_asignatura')->insert([
+            'id_usuario' => $this->docenteUser->id_usuario,
+            'id_carrera' => $carrera->id_carrera,
+            'id_asignatura' => $this->asignatura->id_asignatura,
         ]);
     }
 
@@ -353,22 +364,23 @@ class AsociarEstudianteExamenTest extends TestCase
     /**
      * 10. BE-22: Estado 'NO_HABILITADO' requiere motivo por restricción de base de datos.
      */
-    public function test_estado_no_habilitado_requiere_motivo_y_persiste_correctamente(): void
+    public function test_estado_no_habilitado_acepta_motivo_opcional_y_persiste_correctamente(): void
     {
-        // Sin motivo -> Rechazado con 422
+        // El backlog permite inhabilitar sin detalle; el tipo queda en OTRO.
         $responseSinMotivo = $this->postJson('/api/habilitaciones', [
             'id_examen'     => $this->examen1->id_examen,
             'id_estudiante' => $this->estudiante1->id_estudiante,
             'estado'        => 'NO_HABILITADO',
         ], $this->authHeaders());
 
-        $responseSinMotivo->assertStatus(422)
-            ->assertJsonValidationErrors(['motivo']);
+        $responseSinMotivo->assertStatus(201)
+            ->assertJsonPath('estado', 'NO_HABILITADO')
+            ->assertJsonPath('motivo_tipo', 'OTRO');
 
-        // Con motivo -> Creado con 201 y persistido en BD
+        // Si se envía detalle, también queda persistido.
         $responseConMotivo = $this->postJson('/api/habilitaciones', [
             'id_examen'     => $this->examen1->id_examen,
-            'id_estudiante' => $this->estudiante1->id_estudiante,
+            'id_estudiante' => $this->estudiante2->id_estudiante,
             'estado'        => 'no_habilitado',
             'motivo'        => 'No presentó matrícula vigente',
         ], $this->authHeaders());
@@ -381,7 +393,14 @@ class AsociarEstudianteExamenTest extends TestCase
             'id_estudiante' => $this->estudiante1->id_estudiante,
             'id_examen'     => $this->examen1->id_examen,
             'estado'        => 'NO_HABILITADO',
-            'motivo'        => 'No presentó matrícula vigente',
+            'motivo_tipo'   => 'OTRO',
+            'motivo_detalle' => null,
+        ]);
+        $this->assertDatabaseHas('habilitacion', [
+            'id_estudiante' => $this->estudiante2->id_estudiante,
+            'id_examen'     => $this->examen1->id_examen,
+            'estado'        => 'NO_HABILITADO',
+            'motivo_detalle' => 'No presentó matrícula vigente',
         ]);
     }
 

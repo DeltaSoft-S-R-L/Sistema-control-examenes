@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
-import { ROLES } from "../utils/auth";
+import { normalizarUsuario, ROLES } from "../utils/auth";
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -18,9 +18,17 @@ export default function Login() {
     try {
       const response = await api.post("/login", { username, password });
       localStorage.setItem("token", response.data.token);
-      localStorage.setItem("usuario", JSON.stringify(response.data.usuario));
+      const usuario = normalizarUsuario(response.data);
 
-      const rol = response.data.usuario?.rol;
+      if (!usuario?.rol) {
+        localStorage.removeItem("token");
+        setError("El servidor autenticó la cuenta, pero no devolvió un rol válido. Revisa el perfil del usuario.");
+        return;
+      }
+
+      localStorage.setItem("usuario", JSON.stringify(usuario || {}));
+
+      const rol = usuario?.rol;
 
       if (rol === ROLES.ESTUDIANTE) {
         navigate("/estudiante/dashboard", { replace: true });

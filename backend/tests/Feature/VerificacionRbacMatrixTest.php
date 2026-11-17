@@ -13,6 +13,7 @@ use App\Models\Usuario;
 use App\Services\QrTokenService;
 use App\Utilities\PasswordHasher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class VerificacionRbacMatrixTest extends TestCase
@@ -97,7 +98,7 @@ class VerificacionRbacMatrixTest extends TestCase
             'username'      => 'revocado_test',
             'password_hash' => PasswordHasher::hash('Revocado123'),
             'id_rol'        => $rolControl->id_rol,
-            'estado'        => 'INACTIVO',
+            'estado'        => 'REVOCADO',
         ]);
         $this->inactivoToken = $this->inactivoUser->createToken('inactivo-token')->plainTextToken;
 
@@ -117,6 +118,15 @@ class VerificacionRbacMatrixTest extends TestCase
             'codigo'      => '2010020',
             'nombre'      => 'INGENIERIA DE SOFTWARE',
             'descripcion' => 'Nivel F - Sistemas',
+        ]);
+        DB::table('carrera_asignatura')->insert([
+            'id_carrera' => $carrera->id_carrera,
+            'id_asignatura' => $asignatura->id_asignatura,
+        ]);
+        DB::table('docente_asignatura')->insert([
+            'id_usuario' => $this->docenteUser->id_usuario,
+            'id_carrera' => $carrera->id_carrera,
+            'id_asignatura' => $asignatura->id_asignatura,
         ]);
 
         // 4. Estudiante
@@ -230,7 +240,7 @@ class VerificacionRbacMatrixTest extends TestCase
             ]);
     }
 
-    public function test_verificaciones_qr_rol_docente_retorna_403(): void
+    public function test_verificaciones_qr_docente_puede_controlar_su_estudiante_asignado(): void
     {
         $response = $this->withHeaders([
             'Authorization' => "Bearer {$this->docenteToken}",
@@ -240,9 +250,10 @@ class VerificacionRbacMatrixTest extends TestCase
             'examen_id' => $this->examen->id_examen,
         ]);
 
-        $response->assertStatus(403)
+        $response->assertStatus(200)
             ->assertJson([
-                'message' => 'No tiene permisos para realizar esta acción.',
+                'metodo' => 'QR',
+                'estudiante' => ['id' => $this->estudiante->id_estudiante],
             ]);
     }
 
@@ -314,7 +325,7 @@ class VerificacionRbacMatrixTest extends TestCase
             ]);
     }
 
-    public function test_verificaciones_documento_rol_docente_retorna_403(): void
+    public function test_verificaciones_documento_docente_puede_controlar_su_estudiante_asignado(): void
     {
         $response = $this->withHeaders([
             'Authorization' => "Bearer {$this->docenteToken}",
@@ -325,9 +336,10 @@ class VerificacionRbacMatrixTest extends TestCase
             'examen_id' => $this->examen->id_examen,
         ]);
 
-        $response->assertStatus(403)
+        $response->assertStatus(200)
             ->assertJson([
-                'message' => 'No tiene permisos para realizar esta acción.',
+                'metodo' => 'CI',
+                'estudiante' => ['id' => $this->estudiante->id_estudiante],
             ]);
     }
 

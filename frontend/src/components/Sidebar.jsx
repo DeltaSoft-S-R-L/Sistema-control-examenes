@@ -65,6 +65,7 @@ export default function Sidebar() {
       icon: 'bi-box-arrow-in-right',
       roles: [
         ROLES.ADMINISTRADOR,
+        ROLES.DOCENTE,
         ROLES.CONTROL_INGRESO,
       ],
     },
@@ -74,6 +75,7 @@ export default function Sidebar() {
       icon: 'bi-exclamation-triangle',
       roles: [
         ROLES.ADMINISTRADOR,
+        ROLES.DOCENTE,
         ROLES.CONTROL_INGRESO,
       ],
     },

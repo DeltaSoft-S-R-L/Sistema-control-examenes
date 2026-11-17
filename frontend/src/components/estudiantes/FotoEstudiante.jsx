@@ -16,6 +16,7 @@ export default function FotoEstudiante() {
   const [errorConsulta, setErrorConsulta] = useState("");
   const [enviandoFoto, setEnviandoFoto] = useState(false);
   const [mensajeExito, setMensajeExito] = useState("");
+  const [confirmarCarga, setConfirmarCarga] = useState(false);
 
   useEffect(() => {
     let activo = true;
@@ -113,8 +114,8 @@ export default function FotoEstudiante() {
         imagen.src = url;
       });
 
-      if (dimensiones.ancho < 400 || dimensiones.alto < 400) {
-        setError("La fotografía debe medir al menos 400 × 400 píxeles.");
+      if (dimensiones.ancho < 709 || dimensiones.alto < 709) {
+        setError("La fotografía debe medir al menos 709 × 709 píxeles para conservar 600 PPP.");
         return;
       }
 
@@ -147,6 +148,12 @@ export default function FotoEstudiante() {
     setImagenParaRecortar("");
     setNombreArchivoOriginal("");
   }
+  function solicitarConfirmacionCarga() {
+    if (!archivo || enviandoFoto) return;
+    setError("");
+    setConfirmarCarga(true);
+  }
+
   async function registrarFoto() {
     if (
       !archivo ||
@@ -160,6 +167,7 @@ export default function FotoEstudiante() {
 
     setError("");
     setMensajeExito("");
+    setConfirmarCarga(false);
     setEnviandoFoto(true);
 
     try {
@@ -231,7 +239,7 @@ export default function FotoEstudiante() {
     },
     foto: {
       width: "180px",
-      height: "220px",
+      height: "180px",
       borderRadius: "12px",
       border: "2px dashed #cbd5e1",
       background: "#f8fafc",
@@ -267,6 +275,35 @@ export default function FotoEstudiante() {
             alt="Vista previa de la fotografía seleccionada"
             style={estilos.foto}
           />
+        ) : !cargandoFoto && estadoFoto?.puede_subir_primera_foto === true ? (
+          <label
+            htmlFor="foto-estudiante-archivo"
+            style={{
+              ...estilos.foto,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+              color: "#1d4ed8",
+              textAlign: "center",
+              boxSizing: "border-box",
+              padding: "16px",
+              cursor: "pointer",
+              fontWeight: 600,
+            }}
+          >
+            <span style={{ color: "#64748b", fontWeight: 400 }}>Sin fotografía</span>
+            <span>Subir foto</span>
+            <input
+              id="foto-estudiante-archivo"
+              aria-label="Subir foto"
+              type="file"
+              accept=".jpg,.jpeg,.png"
+              onChange={seleccionarFoto}
+              style={{ display: "none" }}
+            />
+          </label>
         ) : (
           <div
             style={{
@@ -301,9 +338,25 @@ export default function FotoEstudiante() {
             <li>Buena iluminación y enfoque.</li>
             <li>Fondo uniforme, preferentemente claro.</li>
             <li>Formato JPG, JPEG o PNG.</li>
-            <li>Resolución entre 400 y 4000 píxeles por lado.</li>
-            <li>Tamaño máximo de 5 MB.</li>
+            <li>Foto final cuadrada: exactamente 709 × 709 píxeles.</li>
+            <li>Impresión: 30 × 30 mm a 600 PPP.</li>
+            <li>Peso del archivo: máximo 5 MB.</li>
           </ul>
+
+          {!cargandoFoto && !estadoFoto?.tiene_foto && estadoFoto?.puede_subir_primera_foto === true && (
+            <p role="note" style={{
+              color: "#854d0e",
+              background: "#fef3c7",
+              border: "1px solid #fcd34d",
+              borderRadius: "8px",
+              padding: "12px",
+              fontSize: "14px",
+            }}>
+              Atención: solo podrás registrar tu fotografía una vez. Después de
+              subirla no podrás cambiarla ni reemplazarla; revisa que cumpla las
+              medidas y que sea la foto correcta.
+            </p>
+          )}
 
           {cargandoFoto ? (
             <p style={{ color: "#64748b", fontSize: "14px" }}>
@@ -329,15 +382,9 @@ export default function FotoEstudiante() {
               </p>
             </div>
           ) : estadoFoto?.puede_subir_primera_foto === true ? (
-            <label style={estilos.boton}>
-              Seleccionar fotografía
-              <input
-                type="file"
-                accept=".jpg,.jpeg,.png"
-                onChange={seleccionarFoto}
-                style={{ display: "none" }}
-              />
-            </label>
+            <p style={{ color: "#475569", fontSize: "14px" }}>
+              Haz clic en “Subir foto” para elegir un archivo.
+            </p>
           ) : (
             <p style={{ color: "#b91c1c", fontSize: "14px" }}>
               No está permitido seleccionar una fotografía en este momento.
@@ -355,7 +402,7 @@ export default function FotoEstudiante() {
             estadoFoto?.puede_subir_primera_foto === true && (
               <button
                 type="button"
-                onClick={registrarFoto}
+                onClick={solicitarConfirmacionCarga}
                 disabled={enviandoFoto}
                 style={{
                   ...estilos.boton,
@@ -389,6 +436,38 @@ export default function FotoEstudiante() {
           onConfirmar={confirmarRecorte}
           onCancelar={cancelarRecorte}
         />
+      )}
+      {confirmarCarga && archivo && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirmar-foto-titulo"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1100,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(15, 23, 42, 0.65)",
+            padding: "16px",
+          }}
+        >
+          <div style={{ background: "#fff", borderRadius: "12px", padding: "24px", maxWidth: "460px", width: "100%" }}>
+            <h3 id="confirmar-foto-titulo" style={{ marginTop: 0 }}>Confirma tu fotografía</h3>
+            <p>La foto se subirá una sola vez y luego no se podrá modificar ni reemplazar.</p>
+            <p>Verifica que sea la correcta: 709 × 709 píxeles, 30 × 30 mm a 600 PPP, y un archivo de hasta 5 MB.</p>
+            <p>Al continuar, confirmas que revisaste la foto y sus especificaciones.</p>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "20px" }}>
+              <button type="button" onClick={() => setConfirmarCarga(false)} disabled={enviandoFoto}>
+                Revisar foto
+              </button>
+              <button type="button" onClick={registrarFoto} disabled={enviandoFoto}>
+                {enviandoFoto ? "Subiendo..." : "Confirmar y subir"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </section>
   );

@@ -360,17 +360,20 @@ class VerificacionDocumentoEndpointTest extends TestCase
         $jsonQr = $respQr->json();
         $jsonDoc = $respDoc->json();
 
-        // 1. Mismas llaves en la raíz: ['metodo', 'estudiante', 'examen']
+        // Ambos métodos comparten el contrato vigente, incluida la habilitación.
         $this->assertEquals(array_keys($jsonQr), array_keys($jsonDoc));
-        $this->assertEquals(['metodo', 'estudiante', 'examen'], array_keys($jsonDoc));
+        $this->assertEquals(['metodo', 'estudiante', 'examen', 'habilitacion'], array_keys($jsonDoc));
 
-        // 2. Mismas llaves en el objeto estudiante: ['id', 'nombres', 'apellidos', 'ci', 'codigo_sis']
+        // 2. Mismas llaves en los datos del estudiante, incluida la fotografía.
         $this->assertEquals(array_keys($jsonQr['estudiante']), array_keys($jsonDoc['estudiante']));
-        $this->assertEquals(['id', 'nombres', 'apellidos', 'ci', 'codigo_sis'], array_keys($jsonDoc['estudiante']));
+        $this->assertEquals(['id', 'nombres', 'apellidos', 'ci', 'codigo_sis', 'url_foto', 'foto_url'], array_keys($jsonDoc['estudiante']));
 
         // 3. Mismas llaves en el objeto examen: ['id', 'asignatura', 'fecha', 'hora']
         $this->assertEquals(array_keys($jsonQr['examen']), array_keys($jsonDoc['examen']));
         $this->assertEquals(['id', 'asignatura', 'fecha', 'hora'], array_keys($jsonDoc['examen']));
+
+        // 4. La habilitación debe mantener la misma forma en ambos métodos.
+        $this->assertEquals(array_keys($jsonQr['habilitacion']), array_keys($jsonDoc['habilitacion']));
     }
 
     /**

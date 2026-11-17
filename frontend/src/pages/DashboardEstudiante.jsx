@@ -318,6 +318,11 @@ export default function DashboardEstudiante() {
             </div>
 
             <div>
+              <p style={estilos.etiqueta}>Cédula de identidad</p>
+              <div style={estilos.valor}>{perfil.ci || "No registrada"}</div>
+            </div>
+
+            <div>
               <p style={estilos.etiqueta}>Código SIS</p>
               <div style={estilos.valor}>{perfil.codigo_universitario}</div>
             </div>
@@ -334,6 +339,16 @@ export default function DashboardEstudiante() {
               <div style={estilos.valor}>
                 {perfil.carrera?.nombre || "No registrada"}
               </div>
+            </div>
+
+            <div>
+              <p style={estilos.etiqueta}>Facultad</p>
+              <div style={estilos.valor}>{perfil.carrera?.facultad || "No registrada"}</div>
+            </div>
+
+            <div>
+              <p style={estilos.etiqueta}>Estado</p>
+              <div style={estilos.valor}>{perfil.estado || "No registrado"}</div>
             </div>
           </div>
         </section>
@@ -503,6 +518,59 @@ export default function DashboardEstudiante() {
             <p style={{ color: "#64748b" }}>
               No tienes asignaturas inscritas actualmente.
             </p>
+          )}
+        </section>
+
+        <section style={{ ...estilos.tarjeta, marginTop: "24px" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "12px",
+              marginBottom: "20px",
+            }}
+          >
+            <h2 style={{ fontSize: "21px", margin: 0 }}>Mis exámenes</h2>
+            <span style={{ color: "#64748b", fontSize: "14px" }}>
+              {perfil.examenes?.length || 0} asignados
+            </span>
+          </div>
+
+          {perfil.examenes?.length ? (
+            <div className="table-responsive">
+              <table className="table align-middle mb-0">
+                <thead className="table-light">
+                  <tr>
+                    <th>Examen</th>
+                    <th>Asignatura</th>
+                    <th>Fecha</th>
+                    <th>Hora</th>
+                    <th>Duración</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {perfil.examenes.map((examen) => (
+                    <tr key={examen.id_examen}>
+                      <td className="fw-semibold">{examen.nombre}</td>
+                      <td>{examen.asignatura || "—"}</td>
+                      <td>{examen.fecha || "—"}</td>
+                      <td>{String(examen.hora_inicio || "—").slice(0, 5)}</td>
+                      <td>{examen.duracion_minutos ? `${examen.duracion_minutos} min` : "—"}</td>
+                      <td>
+                        <span className="badge text-bg-light border">
+                          {examen.estado_habilitacion || examen.estado || "—"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-muted mb-0">Todavía no tienes exámenes asignados.</p>
           )}
         </section>
       </div>

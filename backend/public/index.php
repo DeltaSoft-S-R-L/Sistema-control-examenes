@@ -1,5 +1,8 @@
 <?php
 
+// Los avisos PHP se registran, pero no deben anteponerse al JSON de la API.
+ini_set('display_errors', '0');
+
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 

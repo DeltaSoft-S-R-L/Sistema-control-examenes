@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Models\Permiso;
 use App\Models\Rol;
 use App\Models\Usuario;
+use App\Utilities\PasswordHasher;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use RuntimeException;
 use Tests\TestCase;
@@ -39,6 +41,24 @@ class TraslapeAmbienteTest extends TestCase
 
         // Iniciar la transacción después de verificar la base.
         $conexion->beginTransaction();
+
+        // Cada prueba prepara las referencias que consume; no depende de seeders.
+        DB::table('permiso')->updateOrInsert(
+            ['nombre' => 'GESTIONAR_EXAMENES'],
+            ['descripcion' => 'Gestionar exámenes']
+        );
+        DB::table('asignatura')->updateOrInsert(
+            ['id_asignatura' => 1],
+            ['codigo' => 'TEST-TRASLAPE', 'nombre' => 'Asignatura de prueba']
+        );
+        DB::table('ambiente')->updateOrInsert(
+            ['id_ambiente' => 1],
+            ['codigo' => 'TEST-TRASLAPE-1', 'nombre' => 'Aula de prueba 1', 'capacidad' => 30, 'estado' => 'DISPONIBLE']
+        );
+        DB::table('ambiente')->updateOrInsert(
+            ['id_ambiente' => 2],
+            ['codigo' => 'TEST-TRASLAPE-2', 'nombre' => 'Aula de prueba 2', 'capacidad' => 30, 'estado' => 'DISPONIBLE']
+        );
 
         // Revertir los cambios al finalizar cada prueba.
         $this->beforeApplicationDestroyed(function () use ($conexion) {
@@ -212,19 +232,27 @@ public function test_rechaza_traslape_al_actualizar_examen(): void
 }
     private function autenticarUsuarioConPermiso(): void
     {
-        $permiso = Permiso::where(
-            'nombre',
-            'GESTIONAR_EXAMENES'
-        )->firstOrFail();
+        $permiso = Permiso::firstOrCreate(
+            ['nombre' => 'GESTIONAR_EXAMENES'],
+            ['descripcion' => 'Gestionar exámenes']
+        );
+        $sufijo = strtolower(Str::random(8));
+        $rol = Rol::firstOrCreate(
+            ['nombre' => 'CONTROL_INGRESO'],
+            ['descripcion' => 'Personal de control de ingreso']
+        );
+        $rol->permisos()->syncWithoutDetaching([$permiso->id_permiso]);
 
-        // Rol simulado, sin guardarlo en la base.
-        $rol = new Rol();
-        $rol->setRelation('permisos', collect([$permiso]));
-
-        // Usuario simulado, sin guardarlo en la base.
-        $usuario = new Usuario();
-        $usuario->id_usuario = 1;
-        $usuario->setRelation('rol', $rol);
+        // El observer de auditoría exige que el usuario exista en la BD.
+        $usuario = Usuario::create([
+            'nombre' => 'Usuario',
+            'apellido' => 'Prueba',
+            'correo' => "traslape_{$sufijo}@example.test",
+            'username' => "traslape_{$sufijo}",
+            'password_hash' => PasswordHasher::hash('Password123'),
+            'id_rol' => $rol->id_rol,
+            'estado' => 'ACTIVO',
+        ]);
 
         Sanctum::actingAs($usuario);
     }

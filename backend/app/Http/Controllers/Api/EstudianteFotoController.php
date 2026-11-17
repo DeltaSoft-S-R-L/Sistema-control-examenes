@@ -7,11 +7,12 @@ use App\Http\Requests\EstudianteFotoRequest;
 use App\Models\Estudiante;
 use App\Models\EstudianteFoto;
 use App\Services\EstudianteFotoService;
-use App\Services\ValidadorFotoEstudianteService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class EstudianteFotoController extends Controller
 {
@@ -42,9 +43,18 @@ class EstudianteFotoController extends Controller
         }
 
         $foto = $estudiante->foto;
-        $urlFoto = $foto
-    ? $fotoService->obtenerUrlTemporal($foto->cloudinary_public_id)
-    : null;
+        $urlFoto = null;
+        if ($foto) {
+            try {
+                $urlFoto = $fotoService->obtenerUrlTemporal(
+                    $foto->cloudinary_public_id,
+                    $foto->cloudinary_type,
+                    (int) $estudiante->id_estudiante
+                );
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
 
         return response()->json([
             'tiene_foto' => $foto !== null,
@@ -60,8 +70,7 @@ class EstudianteFotoController extends Controller
      */
     public function subir(
     EstudianteFotoRequest $request,
-    EstudianteFotoService $fotoService,
-    ValidadorFotoEstudianteService $validadorFoto
+    EstudianteFotoService $fotoService
 ): JsonResponse {
         $usuario = $request->user();
 
@@ -83,27 +92,16 @@ if ($estudiante->foto()->exists()) {
     ], 409);
 }
 
-// Validación facial obligatoria antes de Cloudinary.
-$validacion = $validadorFoto->validar($request->file('foto'));
-
-if (
-    ($validacion['aprobada'] ?? false) !== true ||
-    ($validacion['validacion_completa'] ?? false) !== true
-) {
-    return response()->json([
-        'message' => 'La fotografía no superó la validación facial.',
-        'motivos' => $validacion['motivos'] ?? [],
-    ], 422);
-}
-
 $publicId = null;
+$cloudinaryType = null;
 
         try {
             $resultado = DB::transaction(function () use (
                 $estudiante,
                 $request,
                 $fotoService,
-                &$publicId
+                &$publicId,
+                &$cloudinaryType
             ) {
                 // Bloquea al estudiante para evitar subidas simultáneas.
                 $estudianteBloqueado = Estudiante::whereKey(
@@ -122,12 +120,13 @@ $publicId = null;
                 );
 
                 $publicId = $subida['public_id'];
+                $cloudinaryType = $subida['type'];
 
                 // Registra la referencia en PostgreSQL.
                 return EstudianteFoto::create([
     'id_estudiante' => $estudianteBloqueado->id_estudiante,
     'cloudinary_public_id' => $publicId,
-    'cloudinary_type' => $subida['type'],
+                    'cloudinary_type' => $cloudinaryType,
     'estado_validacion' => 'aprobada',
 ]);
             });
@@ -153,7 +152,7 @@ $publicId = null;
             // después de que Cloudinary confirma la subida.
             if ($publicId !== null) {
                 try {
-                    $fotoService->eliminarFoto($publicId);
+                    $fotoService->eliminarFoto($publicId, $cloudinaryType ?? 'authenticated');
                 } catch (\Throwable $errorLimpieza) {
                     Log::critical(
                         'No se pudo limpiar una fotografía de Cloudinary',
@@ -170,5 +169,28 @@ $publicId = null;
                 'message' => 'No fue posible registrar la fotografía.',
             ], 500);
         }
+    }
+
+    /** Sirve fotos guardadas localmente mediante URL temporal firmada. */
+    public function archivo(string $id_estudiante): StreamedResponse|JsonResponse
+    {
+        $foto = EstudianteFoto::query()
+            ->where('id_estudiante', $id_estudiante)
+            ->where('cloudinary_type', 'local')
+            ->first();
+
+        if (!$foto || !Storage::disk('local')->exists($foto->cloudinary_public_id)) {
+            return response()->json(['message' => 'No se encontró la fotografía.'], 404);
+        }
+
+        return Storage::disk('local')->response(
+            $foto->cloudinary_public_id,
+            'fotografia-carnet.jpg',
+            [
+                'Content-Type' => 'image/jpeg',
+                'Cache-Control' => 'private, max-age=300',
+                'X-Content-Type-Options' => 'nosniff',
+            ]
+        );
     }
 }

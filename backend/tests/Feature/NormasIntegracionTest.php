@@ -49,7 +49,7 @@ class NormasIntegracionTest extends TestCase
         $this->rolAdmin = Rol::create(['nombre' => 'ADMINISTRADOR', 'descripcion' => 'Admin']);
         $this->rolDocente = Rol::create(['nombre' => 'DOCENTE', 'descripcion' => 'Docente']);
         $this->rolControl = Rol::create(['nombre' => 'CONTROL_INGRESO', 'descripcion' => 'Control']);
-        $this->rolEstudiante = Rol::create(['nombre' => 'ESTUDIANTE', 'descripcion' => 'Estudiante']);
+        $this->rolEstudiante = Rol::firstOrCreate(['nombre' => 'ESTUDIANTE'], ['descripcion' => 'Estudiante']);
 
         $this->userAdmin = Usuario::create([
             'nombre'        => 'Admin',

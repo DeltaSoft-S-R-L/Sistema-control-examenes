@@ -55,16 +55,7 @@ if ($tieneConfiguracionPendiente) {
 
         return response()->json([
             'token' => $token,
-            'usuario' => [
-                'id'        => $usuario->id_usuario,
-                'nombre'    => $usuario->nombre,
-                'apellido'  => $usuario->apellido,
-                'username'  => $usuario->username,
-                'correo'    => $usuario->correo,
-                'rol'       => $usuario->rol?->nombre,
-                'estado'    => $usuario->estado,
-                'is_active' => $usuario->is_active,
-            ],
+            'usuario' => $this->perfilUsuario($usuario),
         ]);
     }
 
@@ -77,17 +68,31 @@ if ($tieneConfiguracionPendiente) {
 
     public function me(Request $request)
     {
-        $usuario = $request->user()->load('rol');
+        return response()->json($this->perfilUsuario($request->user()));
+    }
 
-        return response()->json([
+    private function perfilUsuario(Usuario $usuario): array
+    {
+        $usuario->load('rol');
+        $rol = $usuario->rol?->nombre;
+
+        // Respaldo directo para que el perfil no pierda el rol si la
+        // relación Eloquent ya estaba cargada sin su fila relacionada.
+        if (!$rol && $usuario->id_rol) {
+            $rol = DB::table('rol')
+                ->where('id_rol', $usuario->id_rol)
+                ->value('nombre');
+        }
+
+        return [
             'id'        => $usuario->id_usuario,
             'nombre'    => $usuario->nombre,
             'apellido'  => $usuario->apellido,
             'username'  => $usuario->username,
             'correo'    => $usuario->correo,
-            'rol'       => $usuario->rol?->nombre,
+            'rol'       => $rol,
             'estado'    => $usuario->estado,
             'is_active' => $usuario->is_active,
-        ]);
+        ];
     }
 }

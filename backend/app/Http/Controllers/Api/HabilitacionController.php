@@ -35,6 +35,12 @@ class HabilitacionController extends Controller
         $data = $request->validated();
         $data['estado'] = strtoupper($data['estado'] ?? 'HABILITADO');
 
+        if (!$this->puedeGestionarEstudiante($request->user(), (int) $data['id_examen'], (int) $data['id_estudiante'])) {
+            return response()->json([
+                'message' => 'No puede habilitar estudiantes fuera de sus materias y carreras asignadas.',
+            ], 403);
+        }
+
         if ($data['estado'] === 'NO_HABILITADO') {
             $data['motivo_tipo'] = strtoupper($data['motivo_tipo'] ?? 'OTRO');
             $data['inhabilitado_por'] = auth()->id();
@@ -58,12 +64,21 @@ class HabilitacionController extends Controller
             throw $e;
         }
 
-        return response()->json($habilitacion->load(['estudiante', 'examen']), 201);
+        return response()->json($habilitacion->fresh()->load(['estudiante', 'examen']), 201);
     }
 
     public function storeMasiva(StoreHabilitacionMasivaRequest $request)
     {
         $data = $request->validated();
+
+        foreach ($data['estudiantes'] as $idEstudiante) {
+            if (!$this->puedeGestionarEstudiante($request->user(), (int) $data['id_examen'], (int) $idEstudiante)) {
+                return response()->json([
+                    'message' => 'La selección incluye estudiantes fuera de sus materias y carreras asignadas.',
+                    'errors' => ['estudiantes' => ['Revise los estudiantes seleccionados.']],
+                ], 403);
+            }
+        }
 
         $estado = strtoupper($data['estado'] ?? 'HABILITADO');
         $motivo_tipo = null;
@@ -140,26 +155,9 @@ class HabilitacionController extends Controller
         ]);
 
         if ($rol === 'DOCENTE') {
-            if (strtoupper($data['estado'] ?? '') !== 'NO_HABILITADO') {
+            if (!$this->puedeGestionarEstudiante($usuario, (int) $habilitacion->id_examen, (int) $habilitacion->id_estudiante)) {
                 return response()->json([
-                    'message' => 'Los docentes solo pueden revocar habilitaciones.',
-                ], 403);
-            }
-
-            $puedeRevocar = DB::table('habilitacion as h')
-                ->join('estudiante as e', 'e.id_estudiante', '=', 'h.id_estudiante')
-                ->join('examen as ex', 'ex.id_examen', '=', 'h.id_examen')
-                ->join('docente_asignatura as da', function ($join) {
-                    $join->on('da.id_carrera', '=', 'e.id_carrera')
-                        ->on('da.id_asignatura', '=', 'ex.id_asignatura');
-                })
-                ->where('da.id_usuario', $usuario->id_usuario)
-                ->where('h.id_habilitacion', $habilitacion->id_habilitacion)
-                ->exists();
-
-            if (!$puedeRevocar) {
-                return response()->json([
-                    'message' => 'No puede revocar habilitaciones fuera de sus materias asignadas.',
+                    'message' => 'No puede modificar habilitaciones fuera de sus materias y carreras asignadas.',
                 ], 403);
             }
         } elseif ($rol !== 'ADMINISTRADOR' && !$usuario->tienePermiso('GESTIONAR_HABILITACIONES')) {
@@ -202,6 +200,36 @@ class HabilitacionController extends Controller
     {
         Habilitacion::findOrFail($id)->delete();
         return response()->json(['message' => 'Habilitación eliminada.']);
+    }
+
+    /**
+     * El docente solo gestiona habilitaciones de estudiantes cuya carrera
+     * está vinculada a la materia del examen que tiene asignada.
+     */
+    private function puedeGestionarEstudiante($usuario, int $idExamen, int $idEstudiante): bool
+    {
+        if (!$usuario) {
+            return false;
+        }
+
+        $usuario->loadMissing('rol');
+        $rol = strtoupper((string) $usuario->rol?->nombre);
+
+        if ($rol === 'ADMINISTRADOR') {
+            return true;
+        }
+
+        if ($rol !== 'DOCENTE') {
+            return $usuario->tienePermiso('GESTIONAR_HABILITACIONES');
+        }
+
+        return DB::table('docente_asignatura as da')
+            ->join('examen as ex', 'ex.id_asignatura', '=', 'da.id_asignatura')
+            ->join('estudiante as e', 'e.id_carrera', '=', 'da.id_carrera')
+            ->where('da.id_usuario', $usuario->id_usuario)
+            ->where('ex.id_examen', $idExamen)
+            ->where('e.id_estudiante', $idEstudiante)
+            ->exists();
     }
 
     /**

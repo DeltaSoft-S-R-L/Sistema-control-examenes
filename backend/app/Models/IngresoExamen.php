@@ -29,7 +29,7 @@ class IngresoExamen extends Model
 
     public function examen(): BelongsTo
     {
-        return $this->belongsTo(Examen::class, 'id_examen', 'id_examen');
+        return $this->belongsTo(Examen::class, 'id_examen', 'id_examen')->withTrashed();
     }
 
     public function habilitacion(): BelongsTo

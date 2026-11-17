@@ -17,7 +17,7 @@ class ExamenController extends Controller
     private function docenteTieneMateria($usuario, int $idAsignatura): bool
     {
         $rol = strtoupper($usuario?->rol?->nombre ?? '');
-        if (in_array($rol, ['ADMINISTRADOR', 'ADMIN', 'CONTROL', 'CONTROL_INGRESO'], true)) {
+        if (in_array($rol, ['ADMINISTRADOR', 'ADMIN', 'CONTROL', 'CONTROL_INGRESO', 'OPERADOR'], true)) {
             return true;
         }
 
@@ -283,9 +283,7 @@ class ExamenController extends Controller
         $estadoExamen = $examen->estado;
         $idExamen = $examen->id_examen;
 
-        // Eliminar asignaciones de ambiente asociadas
-        AsignacionAmbiente::where('id_examen', $idExamen)->delete();
-
+        // Baja lógica: las asignaciones e ingresos se conservan como historial.
         $examen->delete();
 
         // ── Registro de Auditoría: Eliminación exitosa ──
@@ -295,10 +293,10 @@ class ExamenController extends Controller
             'EXAMEN',
             $idExamen,
             'EXITO',
-            "Eliminación exitosa del examen '{$nombreExamen}' (ID: {$idExamen}) que se encontraba en estado '{$estadoExamen}'."
+            "Baja lógica exitosa del examen '{$nombreExamen}' (ID: {$idExamen}) que se encontraba en estado '{$estadoExamen}'. Se conservaron los registros históricos asociados."
         );
 
-        return response()->json(['message' => 'Examen eliminado correctamente.']);
+        return response()->json(['message' => 'Examen eliminado de la lista. Se conservaron los registros históricos asociados.']);
     }
 
     // ─────────────────────────────────────────────

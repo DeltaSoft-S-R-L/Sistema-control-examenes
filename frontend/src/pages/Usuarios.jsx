@@ -28,10 +28,21 @@ export default function Usuarios() {
 
   const [buscar, setBuscar] = useState("");
   const [filtroRol, setFiltroRol] = useState("");
+  const [rolesDisponibles, setRolesDisponibles] = useState([]);
 
   const [buscarDebounced, setBuscarDebounced] = useState("");
   const solicitudActual = useRef(0);
   const [recargarUsuarios, setRecargarUsuarios] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    api.get('/roles', { signal: controller.signal })
+      .then(({ data }) => setRolesDisponibles(Array.isArray(data) ? data : []))
+      .catch(() => {
+        if (!controller.signal.aborted) setRolesDisponibles([]);
+      });
+    return () => controller.abort();
+  }, []);
 
   // Espera 300 ms antes de aplicar una búsqueda.
   useEffect(() => {
@@ -300,9 +311,13 @@ export default function Usuarios() {
                 }}
               >
                 <option value="">Todos los roles</option>
-                <option value="1">Administrador</option>
-                <option value="2">Docente</option>
-                <option value="3">Control de ingreso</option>
+                {rolesDisponibles.map((rol) => (
+                  <option key={rol.id_rol} value={rol.id_rol}>
+                    {rol.nombre === "ADMINISTRADOR" ? "Administrador" :
+                      rol.nombre === "DOCENTE" ? "Docente" :
+                        rol.nombre === "CONTROL_INGRESO" ? "Control de ingreso" : rol.nombre}
+                  </option>
+                ))}
               </select>
             </div>
           </div>

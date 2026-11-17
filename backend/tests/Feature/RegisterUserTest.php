@@ -81,6 +81,45 @@ class RegisterUserTest extends TestCase
         ], $overrides);
     }
 
+    public function test_lista_de_roles_usa_ids_reales_y_excluye_estudiante(): void
+    {
+        $rolEstudiante = Rol::firstOrCreate(
+            ['nombre' => 'ESTUDIANTE'],
+            ['descripcion' => 'Cuenta de estudiante']
+        );
+
+        $this->getJson('/api/roles', $this->authHeaders())
+            ->assertOk()
+            ->assertJsonFragment(['id_rol' => $this->rolAdmin->id_rol, 'nombre' => 'ADMINISTRADOR'])
+            ->assertJsonFragment(['id_rol' => $this->rolDocente->id_rol, 'nombre' => 'DOCENTE'])
+            ->assertJsonMissing(['id_rol' => $rolEstudiante->id_rol, 'nombre' => 'ESTUDIANTE']);
+    }
+
+    public function test_administrador_puede_cambiar_el_rol_de_un_usuario_existente(): void
+    {
+        $rolControl = Rol::create(['nombre' => 'CONTROL_INGRESO', 'descripcion' => 'Control de ingreso']);
+        $usuario = Usuario::create([
+            'nombre' => 'Docente', 'apellido' => 'Prueba',
+            'correo' => 'docente.cambio@umss.edu.bo', 'username' => 'docente_cambio',
+            'password_hash' => PasswordHasher::hash('Docente123'),
+            'id_rol' => $this->rolDocente->id_rol, 'estado' => 'ACTIVO',
+        ]);
+
+        $this->putJson("/api/usuarios/{$usuario->id_usuario}", [
+            'nombre' => $usuario->nombre, 'apellido' => $usuario->apellido,
+            'correo' => $usuario->correo, 'username' => $usuario->username,
+            'id_rol' => $rolControl->id_rol, 'estado' => 'ACTIVO',
+        ], $this->authHeaders())
+            ->assertOk()
+            ->assertJsonPath('id_rol', $rolControl->id_rol)
+            ->assertJsonPath('rol.nombre', 'CONTROL_INGRESO');
+
+        $this->assertDatabaseHas('usuario', [
+            'id_usuario' => $usuario->id_usuario,
+            'id_rol' => $rolControl->id_rol,
+        ]);
+    }
+
     // ─────────────────────────────────────────────────────────────
     // Test 1: Creación exitosa y disponibilidad inmediata
     // ─────────────────────────────────────────────────────────────

@@ -174,6 +174,7 @@ export default function StudentCard({
           <small className="text-muted text-uppercase fw-bold d-block">Estudiante escaneado</small>
           <strong className="fs-5 text-dark">{nombreCompleto}</strong>
           <div className="small mt-1">C.I.: {estudiante.ci || '—'} <span className="mx-1">·</span> Código SIS: {codigoSis}</div>
+          {estudiante.identificador && <div className="small mt-1">Identificador consultado: {estudiante.identificador}</div>}
         </div>
         <button type="button" className="btn btn-light border border-danger-subtle w-100 mt-3 py-2 fw-bold text-danger" onClick={onVerMotivo}>
           <i className="bi bi-info-circle me-2" aria-hidden="true"></i>Ver motivo

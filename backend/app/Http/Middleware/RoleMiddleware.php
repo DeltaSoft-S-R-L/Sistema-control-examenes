@@ -17,6 +17,7 @@ class RoleMiddleware
         'CONTROL'          => 'CONTROL_INGRESO',
         'PERSONAL_CONTROL' => 'CONTROL_INGRESO',
         'CONTROL_INGRESO'  => 'CONTROL_INGRESO',
+        'OPERADOR'         => 'CONTROL_INGRESO',
         'DOCENTE'          => 'DOCENTE',
     ];
 
