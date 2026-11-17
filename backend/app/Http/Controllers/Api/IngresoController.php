@@ -26,11 +26,15 @@ class IngresoController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Ingreso::with(['habilitacion.estudiante', 'asignacionAmbiente.ambiente', 'usuario', 'expulsion']);
+        // Incluir ingresos confirmados y rechazos, manteniendo el historial limitado
+        // a las materias y carreras asignadas cuando consulta un docente.
+        $queryIngresos = Ingreso::with(['habilitacion.estudiante', 'asignacionAmbiente.ambiente', 'usuario', 'expulsion']);
+        $queryIntentos = IntentoIngreso::with(['estudiante', 'usuario']);
+        $usuario = $request->user();
 
-        if (strtoupper((string) $request->user()?->rol?->nombre) === 'DOCENTE') {
-            $usuario = $request->user();
-            $query->whereIn('id_ingreso', DB::table('ingreso as i')
+        if (strtoupper((string) $usuario?->rol?->nombre) === 'DOCENTE') {
+            $idUsuario = (int) $usuario->id_usuario;
+            $queryIngresos->whereIn('id_ingreso', DB::table('ingreso as i')
                 ->join('habilitacion as h', 'h.id_habilitacion', '=', 'i.id_habilitacion')
                 ->join('examen as ex', 'ex.id_examen', '=', 'h.id_examen')
                 ->join('estudiante as e', 'e.id_estudiante', '=', 'h.id_estudiante')
@@ -38,15 +42,68 @@ class IngresoController extends Controller
                     $join->on('da.id_asignatura', '=', 'ex.id_asignatura')
                         ->on('da.id_carrera', '=', 'e.id_carrera');
                 })
-                ->where('da.id_usuario', $usuario->id_usuario)
+                ->where('da.id_usuario', $idUsuario)
                 ->select('i.id_ingreso'));
+
+            // Intentos sin estudiante identificable no se exponen a docentes.
+            $queryIntentos->whereIn('id_intento', DB::table('intento_ingreso as ii')
+                ->join('examen as ex', 'ex.id_examen', '=', 'ii.id_examen')
+                ->join('estudiante as e', 'e.id_estudiante', '=', 'ii.id_estudiante')
+                ->join('docente_asignatura as da', function ($join) {
+                    $join->on('da.id_asignatura', '=', 'ex.id_asignatura')
+                        ->on('da.id_carrera', '=', 'e.id_carrera');
+                })
+                ->where('da.id_usuario', $idUsuario)
+                ->select('ii.id_intento'));
         }
 
         if ($request->has('id_examen')) {
-            $query->where('id_examen', $request->id_examen);
+            $queryIngresos->where('id_examen', $request->id_examen);
+            $queryIntentos->where('id_examen', $request->id_examen);
         }
+        $ingresosExitosos = $queryIngresos->orderBy('fecha_hora', 'desc')->get();
+        $resourceIngresos = IngresoResource::collection($ingresosExitosos)->resolve();
 
-        return IngresoResource::collection($query->orderBy('fecha_hora', 'desc')->paginate(20));
+        // 2. Obtener los intentos de ingreso rechazados (BUG-SPR4-02)
+        $intentosRechazados = $queryIntentos->orderBy('fecha_hora', 'desc')->get();
+
+        // 3. Formatear los intentos fallidos para que el frontend los lea igual que los ingresos
+        $resourceIntentos = $intentosRechazados->map(function ($intento) {
+            return [
+                'id_ingreso' => 'INT-' . $intento->id_intento, // Prefijo para evitar colisiones
+                'id' => 'INT-' . $intento->id_intento,
+                'id_examen' => (int) $intento->id_examen,
+                'id_habilitacion' => null, // No hay habilitación válida en un intento fallido
+                'id_asignacion_ambiente' => (int) $intento->id_asignacion_ambiente,
+                'id_usuario' => (int) $intento->id_usuario,
+                'controlador_id' => (int) $intento->id_usuario,
+                'fecha_hora' => $intento->fecha_hora?->toIso8601String() ?? (string) $intento->fecha_hora,
+                // Simulamos la estructura de habilitacion.estudiante para el frontend
+                'habilitacion' => [
+                    'estudiante' => $intento->estudiante
+                ],
+                'asignacion_ambiente' => null,
+                'asignacionAmbiente' => null,
+                'usuario' => $intento->usuario,
+                'expulsion' => null,
+                'estado' => 'RECHAZADO',
+                'motivo_rechazo' => $intento->motivo
+            ];
+        })->toArray();
+
+        // 4. Unir ambas listas y ordenar por fecha descendente
+        $historialCompleto = array_merge($resourceIngresos, $resourceIntentos);
+        usort($historialCompleto, function ($a, $b) {
+            return strtotime($b['fecha_hora']) - strtotime($a['fecha_hora']);
+        });
+
+        // 5. Retornar la colección unificada respetando la estructura de paginación que espera React
+        return response()->json([
+            'data' => $historialCompleto,
+            'meta' => [
+                'total' => count($historialCompleto)
+            ]
+        ]);
     }
 
     /**

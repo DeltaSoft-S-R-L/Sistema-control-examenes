@@ -235,16 +235,12 @@ Route::get('/docente/mis-materias', [
     Route::middleware('role:CONTROL_INGRESO,ADMINISTRADOR,DOCENTE')->group(function () {
         Route::get('/ingresos', [IngresoController::class, 'index']);
         Route::get('/ingresos/{ingreso}', [IngresoController::class, 'show']);
-    });
-
-    Route::middleware('role:CONTROL_INGRESO,ADMINISTRADOR,DOCENTE')->group(function () {
         Route::post('/ingresos/confirmar', [IngresoController::class, 'store']);
         Route::post('/ingresos', [IngresoController::class, 'store']);
         Route::put('/ingresos/{ingreso}', [IngresoController::class, 'update']);
         Route::patch('/ingresos/{ingreso}', [IngresoController::class, 'update']);
         Route::delete('/ingresos/{ingreso}', [IngresoController::class, 'destroy']);
     });
-
     /*
     |--------------------------------------------------------------------------
     | Incidencias

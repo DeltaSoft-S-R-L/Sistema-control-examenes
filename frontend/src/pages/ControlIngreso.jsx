@@ -177,12 +177,14 @@ export default function ControlIngreso() {
       return;
     }
 
-    // PR #213 / BUG-SPR4-01: mostrar el rechazo aunque la API no envíe una ficha del estudiante.
+    // Mostrar el rechazo aunque la API no envíe una ficha del estudiante.
     if (responseData?.code === "NO_ASOCIADO") {
+      const documentoConsultado = metodo === "ci_sis" ? identificador : "QR Ajeno";
       const estudianteFallback = {
         nombre: "Estudiante No Asociado",
         apellido: "",
-        identificador: metodo === "ci_sis" ? identificador : "QR Ajeno",
+        documento: documentoConsultado,
+        identificador: documentoConsultado,
       };
 
       setResultado({
@@ -203,6 +205,7 @@ export default function ControlIngreso() {
     setErrorAlerta(msg);
     dispararAlertaRechazo();
   };
+
   // Verificar estudiante por CI/SIS
   const handleVerificarDocumento = async (e) => {
     if (e) e.preventDefault();
