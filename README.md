@@ -153,6 +153,15 @@ docker compose up -d
 
 ---
 
+## Acceso por rol
+
+- **Administrador:** gestiona usuarios, estudiantes, estructura académica y ambientes. No tiene acceso a exámenes, habilitaciones, control de ingreso, incidencias ni reportes de examen.
+- **Docente:** gestiona sus exámenes y habilitaciones dentro de las materias/carreras asignadas; consulta estudiantes de su ámbito y opera el ingreso, incidencias y reportes.
+- **Control de ingreso:** verifica estudiantes por QR o CI/SIS, registra ingresos e incidencias y consulta reportes. Puede consultar la información del examen necesaria para operar el acceso.
+- **Estudiante:** consulta su perfil académico, asignaturas y exámenes; puede ver y descargar su QR personal desde su panel.
+
+---
+
 ## Administrador inicial
 
 Para crear el usuario administrador inicial del sistema:

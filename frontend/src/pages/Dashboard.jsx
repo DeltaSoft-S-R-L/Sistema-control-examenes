@@ -42,11 +42,8 @@ export default function Dashboard() {
 
         if (rol === ROLES.ADMINISTRADOR) {
           peticiones = [
-            ['examenes', api.get('/examenes')],
             ['estudiantes', api.get('/estudiantes')],
             ['ambientes', api.get('/ambientes')],
-            ['ingresos', api.get('/ingresos')],
-            ['incidencias', api.get('/incidencias')],
           ];
         }
 
@@ -97,14 +94,8 @@ export default function Dashboard() {
   const configuracion = {
     [ROLES.ADMINISTRADOR]: {
       titulo: 'Panel de administración',
-      descripcion: 'Resumen y estado general del sistema de control de exámenes.',
+      descripcion: 'Resumen de usuarios, estudiantes y ambientes del sistema.',
       tarjetas: [
-        {
-          titulo: 'Exámenes',
-          valor: stats.examenes,
-          icono: 'bi-journal-check',
-          color: 'primary',
-        },
         {
           titulo: 'Estudiantes',
           valor: stats.estudiantes,
@@ -117,18 +108,6 @@ export default function Dashboard() {
           icono: 'bi-building',
           color: 'warning',
         },
-        {
-          titulo: 'Ingresos',
-          valor: stats.ingresos,
-          icono: 'bi-box-arrow-in-right',
-          color: 'info',
-        },
-        {
-          titulo: 'Incidencias',
-          valor: stats.incidencias,
-          icono: 'bi-exclamation-circle',
-          color: 'danger',
-        },
       ],
       accesos: [
         {
@@ -137,19 +116,9 @@ export default function Dashboard() {
           icono: 'bi-person-gear',
         },
         {
-          to: '/examenes',
-          label: 'Gestionar exámenes',
-          icono: 'bi-journal-check',
-        },
-        {
           to: '/ambientes',
           label: 'Gestionar ambientes',
           icono: 'bi-building',
-        },
-        {
-          to: '/reportes',
-          label: 'Consultar reportes',
-          icono: 'bi-bar-chart',
         },
       ],
     },

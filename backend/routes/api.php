@@ -165,20 +165,18 @@ Route::get('/docente/mis-materias', [
     | Exámenes
     |--------------------------------------------------------------------------
     */
-    Route::get('/examenes', [ExamenController::class, 'index']);
-    Route::get('/examenes/{id}/auditoria', [ExamenController::class, 'auditoria']);
-    Route::get('/examenes/{examene}', [ExamenController::class, 'show']);
-
-    Route::middleware('role:ADMINISTRADOR,DOCENTE,CONTROL_INGRESO')->group(function () {
+    Route::middleware('role:DOCENTE,CONTROL_INGRESO')->group(function () {
+        Route::get('/examenes', [ExamenController::class, 'index']);
+        Route::get('/examenes/{examene}', [ExamenController::class, 'show']);
         Route::get('/examenes/{id}/normas', [NormaController::class, 'index']);
     });
 
-    Route::middleware('role:ADMINISTRADOR,DOCENTE')->group(function () {
+    Route::get('/examenes/{id}/auditoria', [ExamenController::class, 'auditoria'])
+        ->middleware('role:DOCENTE');
+
+    Route::middleware('role:DOCENTE')->group(function () {
         Route::post('/examenes/{id}/normas', [NormaController::class, 'store']);
         Route::delete('/examenes/{id}/normas/{id_norma}', [NormaController::class, 'destroy']);
-    });
-
-    Route::middleware('permission:GESTIONAR_EXAMENES')->group(function () {
         Route::post('/examenes', [ExamenController::class, 'store']);
         Route::put('/examenes/{examene}', [ExamenController::class, 'update']);
         Route::patch('/examenes/{examene}', [ExamenController::class, 'update']);
@@ -205,25 +203,22 @@ Route::get('/docente/mis-materias', [
     | Habilitaciones
     |--------------------------------------------------------------------------
     */
-    Route::get('/habilitaciones', [HabilitacionController::class, 'index']);
-    Route::get('/habilitaciones/{habilitacione}', [HabilitacionController::class, 'show']);
-    // El controlador valida el alcance del docente tanto al revocar como al
-    // reactivar, siempre dentro de sus materias y carreras asignadas.
-    Route::patch('/habilitaciones/{habilitacione}', [HabilitacionController::class, 'update']);
+    Route::middleware('role:DOCENTE')->group(function () {
+        Route::get('/habilitaciones', [HabilitacionController::class, 'index']);
+        Route::get('/habilitaciones/{habilitacione}', [HabilitacionController::class, 'show']);
+        // El controlador limita al docente a sus materias y carreras asignadas.
+        Route::patch('/habilitaciones/{habilitacione}', [HabilitacionController::class, 'update']);
+        Route::post('/habilitaciones', [HabilitacionController::class, 'store'])
+            ->middleware('habilitaciones');
+        Route::post('/habilitaciones/masiva', [HabilitacionController::class, 'storeMasiva'])
+            ->middleware('habilitaciones');
+    });
 
     // Consulta del motivo de inhabilitación por estudiante y examen 
     Route::get('/examenes/{examen}/estudiantes/{estudiante}/inhabilitacion', [HabilitacionController::class, 'consultarMotivo'])
-        ->middleware('role:ADMINISTRADOR,DOCENTE,CONTROL_INGRESO');
-        
+        ->middleware('role:DOCENTE,CONTROL_INGRESO');
 
-    // El controlador limita al docente a su materia/carrera; otros roles
-    // necesitan el permiso explícito.
-    Route::middleware('habilitaciones')->group(function () {
-        Route::post('/habilitaciones', [HabilitacionController::class, 'store']);
-        Route::post('/habilitaciones/masiva', [HabilitacionController::class, 'storeMasiva']);
-    });
-
-    Route::middleware('permission:GESTIONAR_HABILITACIONES')->group(function () {
+    Route::middleware(['role:DOCENTE', 'permission:GESTIONAR_HABILITACIONES'])->group(function () {
         Route::put('/habilitaciones/{habilitacione}', [HabilitacionController::class, 'update']);
         Route::delete('/habilitaciones/{habilitacione}', [HabilitacionController::class, 'destroy']);
     });
@@ -232,7 +227,7 @@ Route::get('/docente/mis-materias', [
     | Control de ingreso
     |--------------------------------------------------------------------------
     */
-    Route::middleware('role:CONTROL_INGRESO,ADMINISTRADOR,DOCENTE')->group(function () {
+    Route::middleware('role:CONTROL_INGRESO,DOCENTE')->group(function () {
         Route::get('/ingresos', [IngresoController::class, 'index']);
         Route::get('/ingresos/{ingreso}', [IngresoController::class, 'show']);
         Route::post('/ingresos/confirmar', [IngresoController::class, 'store']);
@@ -246,28 +241,28 @@ Route::get('/docente/mis-materias', [
     | Incidencias
     |--------------------------------------------------------------------------
     */
-    Route::middleware('role:ADMINISTRADOR,DOCENTE,CONTROL_INGRESO')->group(function () {
+    Route::middleware('role:DOCENTE,CONTROL_INGRESO')->group(function () {
         Route::get('/incidencias', [IncidenciaController::class, 'index']);
         Route::get('/incidencias/{incidencia}', [IncidenciaController::class, 'show']);
     });
 
-    Route::middleware('role:ADMINISTRADOR,DOCENTE,CONTROL_INGRESO')->group(function () {
+    Route::middleware('role:DOCENTE,CONTROL_INGRESO')->group(function () {
         Route::get('/reportes/examenes', [ReporteController::class, 'examenes']);
         Route::get('/reportes/examenes/{id}/asistencia', [ReporteController::class, 'asistencia']);
         Route::get('/reportes/examenes/{id}/intentos', [ReporteController::class, 'intentos']);
     });
 
-    Route::middleware(['auth:sanctum', 'role:ADMINISTRADOR,DOCENTE,CONTROL_INGRESO'])->group(function () {
+    Route::middleware(['auth:sanctum', 'role:DOCENTE,CONTROL_INGRESO'])->group(function () {
         Route::post('/examenes/{examen}/expulsiones', [IncidenciaController::class, 'registrarExpulsion']);
         Route::post('/incidencias/expulsion', [IncidenciaController::class, 'registrarExpulsion']);
     });
 
-    Route::middleware('incidencias')->group(function () {
+    Route::middleware(['role:DOCENTE,CONTROL_INGRESO', 'incidencias'])->group(function () {
         Route::post('/incidencias/cambio-ambiente', [IncidenciaController::class, 'registrarCambioAmbiente']);
         Route::post('/incidencias', [IncidenciaController::class, 'store']);
     });
 
-    Route::middleware('permission:REGISTRAR_INCIDENCIAS')->group(function () {
+    Route::middleware(['role:DOCENTE,CONTROL_INGRESO', 'permission:REGISTRAR_INCIDENCIAS'])->group(function () {
         Route::put('/incidencias/{incidencia}', [IncidenciaController::class, 'update']);
         Route::patch('/incidencias/{incidencia}', [IncidenciaController::class, 'update']);
         Route::delete('/incidencias/{incidencia}', [IncidenciaController::class, 'destroy']);
@@ -278,9 +273,9 @@ Route::get('/docente/mis-materias', [
     |--------------------------------------------------------------------------
     */
     Route::post('/verificaciones/qr', [VerificacionController::class, 'verificarPorQr'])
-        ->middleware(['role:CONTROL_INGRESO,ADMINISTRADOR,DOCENTE', 'throttle:60,1']);
+        ->middleware(['role:CONTROL_INGRESO,DOCENTE', 'throttle:60,1']);
     Route::post('/verificaciones/documento', [VerificacionController::class, 'verificarPorDocumento'])
-        ->middleware(['role:CONTROL_INGRESO,ADMINISTRADOR,DOCENTE', 'throttle:60,1']);
+        ->middleware(['role:CONTROL_INGRESO,DOCENTE', 'throttle:60,1']);
     Route::post('/verificaciones/ambiente', [VerificacionController::class, 'verificarAmbiente'])
-        ->middleware(['role:CONTROL_INGRESO,ADMINISTRADOR', 'throttle:60,1']);
+        ->middleware(['role:CONTROL_INGRESO', 'throttle:60,1']);
 });

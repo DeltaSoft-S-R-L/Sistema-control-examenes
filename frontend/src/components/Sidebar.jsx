@@ -21,7 +21,6 @@ export default function Sidebar() {
       label: rol === ROLES.DOCENTE ? 'Mis exámenes' : 'Exámenes',
       icon: 'bi-journal-check',
       roles: [
-        ROLES.ADMINISTRADOR,
         ROLES.DOCENTE,
       ],
     },
@@ -55,7 +54,6 @@ export default function Sidebar() {
       label: 'Habilitaciones',
       icon: 'bi-person-check',
       roles: [
-        ROLES.ADMINISTRADOR,
         ROLES.DOCENTE,
       ],
     },
@@ -64,7 +62,6 @@ export default function Sidebar() {
       label: 'Control de ingreso',
       icon: 'bi-box-arrow-in-right',
       roles: [
-        ROLES.ADMINISTRADOR,
         ROLES.DOCENTE,
         ROLES.CONTROL_INGRESO,
       ],
@@ -74,7 +71,6 @@ export default function Sidebar() {
       label: 'Incidencias',
       icon: 'bi-exclamation-triangle',
       roles: [
-        ROLES.ADMINISTRADOR,
         ROLES.DOCENTE,
         ROLES.CONTROL_INGRESO,
       ],
@@ -84,7 +80,6 @@ export default function Sidebar() {
       label: 'Reportes',
       icon: 'bi-bar-chart',
       roles: [
-        ROLES.ADMINISTRADOR,
         ROLES.DOCENTE,
         ROLES.CONTROL_INGRESO,
       ],

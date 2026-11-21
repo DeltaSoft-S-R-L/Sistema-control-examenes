@@ -18,7 +18,7 @@ class ManageIncidenciasMiddleware
         $usuario->loadMissing('rol');
         $rol = strtoupper((string) $usuario->rol?->nombre);
 
-        if (in_array($rol, ['ADMINISTRADOR', 'DOCENTE'], true)
+        if (in_array($rol, ['ADMINISTRADOR', 'DOCENTE', 'CONTROL_INGRESO'], true)
             || $usuario->tienePermiso('REGISTRAR_INCIDENCIAS')) {
             return $next($request);
         }

@@ -25,7 +25,7 @@ export default function Navbar() {
       ruta: '/examenes',
       nombre: 'Exámenes',
       icono: 'bi-journal-check',
-      roles: [ROLES.ADMINISTRADOR, ROLES.DOCENTE],
+      roles: [ROLES.DOCENTE],
     },
     {
       ruta: '/estudiantes',
@@ -49,26 +49,25 @@ export default function Navbar() {
       ruta: '/habilitaciones',
       nombre: 'Habilitaciones',
       icono: 'bi-person-check',
-      roles: [ROLES.ADMINISTRADOR, ROLES.DOCENTE],
+      roles: [ROLES.DOCENTE],
     },
     {
       ruta: '/control-ingreso',
       nombre: 'Control de ingreso',
       icono: 'bi-box-arrow-in-right',
-      roles: [ROLES.ADMINISTRADOR, ROLES.DOCENTE, ROLES.CONTROL_INGRESO],
+      roles: [ROLES.DOCENTE, ROLES.CONTROL_INGRESO],
     },
     {
       ruta: '/incidencias',
       nombre: 'Incidencias',
       icono: 'bi-exclamation-triangle',
-      roles: [ROLES.ADMINISTRADOR, ROLES.DOCENTE, ROLES.CONTROL_INGRESO],
+      roles: [ROLES.DOCENTE, ROLES.CONTROL_INGRESO],
     },
     {
       ruta: '/reportes',
       nombre: 'Reportes',
       icono: 'bi-bar-chart',
       roles: [
-        ROLES.ADMINISTRADOR,
         ROLES.DOCENTE,
         ROLES.CONTROL_INGRESO,
       ],
