@@ -123,5 +123,25 @@ class DocenteControlIncidenciasTest extends TestCase
             ->assertOk()
             ->assertJsonPath('resumen.habilitados', 1)
             ->assertJsonPath('data.0.id_estudiante', $estudianteAsignado->id_estudiante);
+
+        // Registro de incidencia usando CI en vez de id_estudiante
+        $this->postJson('/api/incidencias', [
+            'id_examen' => $examen->id_examen,
+            'id_estudiante' => $estudianteAsignado->ci,
+            'tipo' => 'IDENTIFICACION',
+            'descripcion' => 'Incidencia registrada mediante CI',
+        ], $headers)
+            ->assertCreated()
+            ->assertJsonPath('id_estudiante', $estudianteAsignado->id_estudiante);
+
+        // Registro de incidencia usando código SIS
+        $this->postJson('/api/incidencias', [
+            'id_examen' => $examen->id_examen,
+            'id_estudiante' => $estudianteAsignado->codigo_universitario,
+            'tipo' => 'OTRO',
+            'descripcion' => 'Incidencia registrada mediante SIS',
+        ], $headers)
+            ->assertCreated()
+            ->assertJsonPath('id_estudiante', $estudianteAsignado->id_estudiante);
     }
 }

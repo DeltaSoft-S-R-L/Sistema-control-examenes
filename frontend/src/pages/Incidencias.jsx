@@ -43,7 +43,7 @@ export default function Incidencias() {
       const cambioAmbiente = form.tipo === 'CAMBIO_AMBIENTE';
       await api.post(cambioAmbiente ? '/incidencias/cambio-ambiente' : '/incidencias', {
         ...form,
-        id_estudiante: form.id_estudiante ? Number(form.id_estudiante) : null,
+        id_estudiante: form.id_estudiante ? form.id_estudiante.trim() : null,
         id_examen: Number(form.id_examen),
         id_asignacion_ambiente: form.id_asignacion_ambiente ? Number(form.id_asignacion_ambiente) : null,
         descripcion: form.descripcion.trim(),
@@ -52,7 +52,11 @@ export default function Incidencias() {
       setMensaje(cambioAmbiente ? 'El ambiente fue actualizado y el cambio quedó registrado.' : 'La incidencia quedó registrada.');
       await cargar();
     } catch (err) {
-      setError(err.response?.data?.message || 'No se pudo guardar la incidencia. Revise los datos y sus permisos.');
+      const respData = err.response?.data;
+      const errorMsg = respData?.errors
+        ? Object.values(respData.errors).flat().join(' ')
+        : (respData?.message || 'No se pudo guardar la incidencia. Revise los datos y sus permisos.');
+      setError(errorMsg);
     } finally { setGuardando(false); }
   };
 
@@ -63,10 +67,10 @@ export default function Incidencias() {
       <div className="col-12 col-md-6"><label className="form-label" htmlFor="inc-examen">Examen *</label><select id="inc-examen" className="form-select" required value={form.id_examen} onChange={(e) => setForm({ ...form, id_examen: e.target.value, id_asignacion_ambiente: '' })}><option value="">Seleccione un examen</option>{examenes.map((e) => <option key={e.id_examen} value={e.id_examen}>{e.nombre} · {e.fecha}</option>)}</select></div>
       <div className="col-12 col-md-3"><label className="form-label" htmlFor="inc-tipo">Tipo *</label><select id="inc-tipo" className="form-select" required value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })}><option value="">Seleccione</option>{tipos.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
       {form.tipo === 'CAMBIO_AMBIENTE' && <>
-        <div className="col-12 col-md-4"><label className="form-label" htmlFor="inc-estudiante">ID estudiante *</label><input id="inc-estudiante" className="form-control" type="number" min="1" required value={form.id_estudiante} onChange={(e) => setForm({ ...form, id_estudiante: e.target.value })} /></div>
+        <div className="col-12 col-md-4"><label className="form-label" htmlFor="inc-estudiante">Estudiante (CI, SIS o ID) *</label><input id="inc-estudiante" className="form-control" type="text" placeholder="Ej. 8787999 o 31121999" required value={form.id_estudiante} onChange={(e) => setForm({ ...form, id_estudiante: e.target.value })} /></div>
         <div className="col-12 col-md-8"><label className="form-label" htmlFor="inc-ambiente">Nuevo ambiente *</label><select id="inc-ambiente" className="form-select" required value={form.id_asignacion_ambiente} onChange={(e) => setForm({ ...form, id_asignacion_ambiente: e.target.value })}><option value="">Seleccione un ambiente del examen</option>{ambientesExamen.map((asignacion) => <option key={asignacion.id_asignacion_ambiente} value={asignacion.id_asignacion_ambiente}>{asignacion.ambiente?.nombre || 'Ambiente'} · {asignacion.ambiente?.codigo || `#${asignacion.id_ambiente}`}</option>)}</select></div>
       </>}
-      {form.tipo !== 'CAMBIO_AMBIENTE' && <div className="col-12 col-md-3"><label className="form-label" htmlFor="inc-estudiante-opcional">ID estudiante (opcional)</label><input id="inc-estudiante-opcional" className="form-control" type="number" min="1" value={form.id_estudiante} onChange={(e) => setForm({ ...form, id_estudiante: e.target.value })} /></div>}
+      {form.tipo !== 'CAMBIO_AMBIENTE' && <div className="col-12 col-md-3"><label className="form-label" htmlFor="inc-estudiante-opcional">Estudiante (CI, SIS o ID - opcional)</label><input id="inc-estudiante-opcional" className="form-control" type="text" placeholder="Ej. 8787999 o 31121999" value={form.id_estudiante} onChange={(e) => setForm({ ...form, id_estudiante: e.target.value })} /></div>}
       <div className="col-12"><label className="form-label" htmlFor="inc-descripcion">Motivo y respaldo / autoridad que autorizó *</label><textarea id="inc-descripcion" className="form-control" rows="3" maxLength="2000" required value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} placeholder="Describa lo ocurrido y la autorización recibida, si corresponde." /></div>
       <div className="col-12 d-flex justify-content-end"><button className="btn btn-primary" disabled={guardando}>{guardando ? 'Guardando…' : 'Registrar incidencia'}</button></div>
     </div></form>

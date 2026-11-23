@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Enums\AccionAuditoria;
 use App\Enums\MotivoExpulsion;
 use App\Models\Expulsion;
+use App\Models\Estudiante;
 use App\Models\Incidencia;
 use App\Models\Ingreso;
 use App\Models\Habilitacion;
@@ -29,11 +30,17 @@ class IncidenciaController extends Controller
             ], 409);
         }
 
+        $this->normalizarIdEstudiante($request);
+
         $data = $request->validate([
             'id_examen' => ['required', 'integer', 'exists:examen,id_examen'],
             'id_estudiante' => ['required', 'integer', 'exists:estudiante,id_estudiante'],
             'id_asignacion_ambiente' => ['required', 'integer', 'exists:asignacion_ambiente,id_asignacion_ambiente'],
             'descripcion' => ['required', 'string', 'max:2000'],
+        ], [
+            'id_estudiante.exists' => 'El estudiante no existe en el sistema (ingrese un ID, CI o código universitario válido).',
+            'id_estudiante.integer' => 'El identificador del estudiante no es válido.',
+            'id_examen.exists' => 'El examen seleccionado no existe.',
         ]);
 
         if (!$this->docentePuedeGestionar($request, (int) $data['id_examen'], (int) $data['id_estudiante'])) {
@@ -82,12 +89,18 @@ class IncidenciaController extends Controller
 
     public function registrarExpulsion(Request $request, ?int $examen = null)
     {
+        $this->normalizarIdEstudiante($request);
+
         $data = $request->validate([
             'id_estudiante' => ['nullable', 'integer', 'required_without:id_ingreso', 'exists:estudiante,id_estudiante'],
             'id_ingreso' => ['nullable', 'integer', 'required_without:id_estudiante', 'exists:ingreso,id_ingreso'],
             'id_examen' => ['nullable', 'integer', 'exists:examen,id_examen'],
             'motivo' => ['required', Rule::enum(MotivoExpulsion::class)],
             'descripcion' => ['nullable', 'string', 'max:1000', Rule::requiredIf(fn () => $request->input('motivo') === MotivoExpulsion::OTRO->value)],
+        ], [
+            'id_estudiante.exists' => 'El estudiante no existe en el sistema (ingrese un ID, CI o código universitario válido).',
+            'id_estudiante.integer' => 'El identificador del estudiante no es válido.',
+            'id_examen.exists' => 'El examen seleccionado no existe.',
         ]);
         $idExamen = $examen ?? ($data['id_examen'] ?? null);
         if (!$idExamen) {
@@ -196,11 +209,17 @@ class IncidenciaController extends Controller
 
     public function store(Request $request)
     {
+        $this->normalizarIdEstudiante($request);
+
         $data = $request->validate([
-            'id_estudiante' => 'nullable|exists:estudiante,id_estudiante',
-            'id_examen'     => 'required|exists:examen,id_examen',
-            'tipo'          => 'required|string|max:50',
-            'descripcion'   => 'required|string|max:2000',
+            'id_estudiante' => ['nullable', 'integer', 'exists:estudiante,id_estudiante'],
+            'id_examen'     => ['required', 'integer', 'exists:examen,id_examen'],
+            'tipo'          => ['required', 'string', 'max:50'],
+            'descripcion'   => ['required', 'string', 'max:2000'],
+        ], [
+            'id_estudiante.exists' => 'El estudiante no existe en el sistema (ingrese un ID, CI o código universitario válido).',
+            'id_estudiante.integer' => 'El identificador del estudiante no es válido.',
+            'id_examen.exists' => 'El examen seleccionado no existe.',
         ]);
 
         if (!$this->docentePuedeGestionar($request, (int) $data['id_examen'], isset($data['id_estudiante']) ? (int) $data['id_estudiante'] : null)) {
@@ -271,5 +290,23 @@ class IncidenciaController extends Controller
         }
 
         return $query->exists();
+    }
+
+    private function normalizarIdEstudiante(Request $request): void
+    {
+        if ($request->filled('id_estudiante')) {
+            $valor = trim((string) $request->input('id_estudiante'));
+            $existePorId = is_numeric($valor) && Estudiante::where('id_estudiante', (int) $valor)->exists();
+            if (!$existePorId) {
+                $estudiante = Estudiante::where('ci', $valor)
+                    ->orWhere('codigo_universitario', $valor)
+                    ->first();
+                if ($estudiante) {
+                    $request->merge(['id_estudiante' => $estudiante->id_estudiante]);
+                }
+            } else {
+                $request->merge(['id_estudiante' => (int) $valor]);
+            }
+        }
     }
 }
