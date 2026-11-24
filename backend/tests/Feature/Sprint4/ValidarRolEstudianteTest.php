@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Sprint4;
 
+use App\Models\Ambiente;
+use App\Models\AsignacionAmbiente;
 use App\Models\Asignatura;
 use App\Models\Carrera;
 use App\Models\Estudiante;
@@ -38,6 +40,8 @@ class ValidarRolEstudianteTest extends SQLiteSeguroTestCase
     private Carrera $carrera;
     private Asignatura $asignatura;
     private Examen $examen;
+    private Ambiente $ambiente;
+    private AsignacionAmbiente $asignacionAmbiente;
     private Habilitacion $habilitacion;
 
     protected function setUp(): void
@@ -109,10 +113,23 @@ class ValidarRolEstudianteTest extends SQLiteSeguroTestCase
             'estado'           => 'PROGRAMADO',
         ]);
 
+        $this->ambiente = Ambiente::create([
+            'codigo'    => 'AULA-101',
+            'nombre'    => 'Aula 101 - Edificio Central',
+            'capacidad' => 40,
+            'estado'    => 'DISPONIBLE',
+        ]);
+
+        $this->asignacionAmbiente = AsignacionAmbiente::create([
+            'id_examen'   => $this->examen->id_examen,
+            'id_ambiente' => $this->ambiente->id_ambiente,
+        ]);
+
         $this->habilitacion = Habilitacion::create([
-            'id_estudiante' => $this->estudiante->id_estudiante,
-            'id_examen'     => $this->examen->id_examen,
-            'estado'        => 'HABILITADO',
+            'id_estudiante'          => $this->estudiante->id_estudiante,
+            'id_examen'              => $this->examen->id_examen,
+            'id_asignacion_ambiente' => $this->asignacionAmbiente->id_asignacion_ambiente,
+            'estado'                 => 'HABILITADO',
         ]);
 
         $this->administrador = Usuario::create([
@@ -138,6 +155,12 @@ class ValidarRolEstudianteTest extends SQLiteSeguroTestCase
         ]);
         $this->tokenDocente = $this->docente
             ->createToken('test-docente')->plainTextToken;
+
+        DB::table('docente_asignatura')->insert([
+            'id_usuario'    => $this->docente->id_usuario,
+            'id_asignatura' => $this->asignatura->id_asignatura,
+            'id_carrera'    => $this->carrera->id_carrera,
+        ]);
 
         $this->controlIngreso = Usuario::create([
             'nombre'        => 'Carlos',
@@ -697,6 +720,64 @@ class ValidarRolEstudianteTest extends SQLiteSeguroTestCase
             ->assertJsonPath('estudiante.codigo_sis', '202612345')
             ->assertJsonPath('estudiante.nombres', 'Valentina')
             ->assertJsonPath('examen.id', $this->examen->id_examen);
+
+        // Control de Ingreso registra el ingreso físico del estudiante verificado
+        $ingresoResponse = $this->withHeaders([
+            'Authorization' => "Bearer {$this->tokenControl}",
+            'Accept'        => 'application/json',
+        ])->postJson('/api/ingresos', [
+            'id_examen'              => $this->examen->id_examen,
+            'id_habilitacion'        => $this->habilitacion->id_habilitacion,
+            'id_asignacion_ambiente' => $this->asignacionAmbiente->id_asignacion_ambiente,
+        ]);
+
+        $ingresoResponse->assertCreated()
+            ->assertJsonPath('id_habilitacion', $this->habilitacion->id_habilitacion);
+
+        $this->assertDatabaseHas('ingreso', [
+            'id_examen'              => $this->examen->id_examen,
+            'id_habilitacion'        => $this->habilitacion->id_habilitacion,
+            'id_asignacion_ambiente' => $this->asignacionAmbiente->id_asignacion_ambiente,
+        ]);
+
+        // Docente asignado consulta el reporte permitido y constata la presencia
+        auth()->forgetGuards();
+
+        $reporteDocente = $this->withHeaders([
+            'Authorization' => "Bearer {$this->tokenDocente}",
+            'Accept'        => 'application/json',
+        ])->getJson("/api/reportes/examenes/{$this->examen->id_examen}/asistencia");
+
+        $reporteDocente->assertOk()
+            ->assertJsonPath('resumen.presentes', 1)
+            ->assertJsonPath('resumen.ausentes', 0)
+            ->assertJsonFragment([
+                'id_estudiante' => $this->estudiante->id_estudiante,
+                'nombre'        => 'Valentina',
+                'apellido'      => 'Quispe',
+                'asistencia'    => 'PRESENTE',
+            ]);
+
+        // Control de Ingreso consulta el reporte permitido y verifica la presencia
+        auth()->forgetGuards();
+
+        $reporteControl = $this->withHeaders([
+            'Authorization' => "Bearer {$this->tokenControl}",
+            'Accept'        => 'application/json',
+        ])->getJson("/api/reportes/examenes/{$this->examen->id_examen}/asistencia");
+
+        $reporteControl->assertOk()
+            ->assertJsonPath('resumen.presentes', 1);
+
+        // Estudiante no tiene acceso al reporte de asistencia (bloqueo RBAC)
+        auth()->forgetGuards();
+
+        $reporteEstudiante = $this->withHeaders([
+            'Authorization' => "Bearer {$this->tokenEstudiante}",
+            'Accept'        => 'application/json',
+        ])->getJson("/api/reportes/examenes/{$this->examen->id_examen}/asistencia");
+
+        $reporteEstudiante->assertForbidden();
     }
 
     // ─────────────────────────────────────────────────────────────────
