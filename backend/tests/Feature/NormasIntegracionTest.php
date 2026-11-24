@@ -232,7 +232,7 @@ class NormasIntegracionTest extends TestCase
         $resDelete = $this->deleteJson(
             "/api/examenes/{$this->examen->id_examen}/normas/{$reglaG->id_regla_examen}",
             [],
-            $this->headers($this->tokenAdmin)
+            $this->headers($this->tokenDocente)
         );
 
         $this->assertTrue(in_array($resDelete->status(), [200, 204], true));

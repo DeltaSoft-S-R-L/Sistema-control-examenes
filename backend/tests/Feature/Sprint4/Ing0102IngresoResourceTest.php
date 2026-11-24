@@ -187,7 +187,7 @@ class Ing0102IngresoResourceTest extends TestCase
         ]);
     }
 
-    public function test_post_ingresos_con_administrador_persiste_su_id_usuario(): void
+    public function test_administrador_no_puede_registrar_ingresos(): void
     {
         $response = $this->withHeaders([
             'Authorization' => "Bearer {$this->adminToken}",
@@ -198,16 +198,33 @@ class Ing0102IngresoResourceTest extends TestCase
             'id_asignacion_ambiente' => $this->asignacionAmbiente->id_asignacion_ambiente,
         ]);
 
-        $response->assertStatus(201);
-        $response->assertJson([
-            'id_usuario' => $this->adminUser->id_usuario,
-            'controlador_id' => $this->adminUser->id_usuario,
+        $response->assertForbidden();
+        $this->assertSame(0, Ingreso::count());
+    }
+
+    public function test_administrador_no_puede_consultar_ingresos_registrados_por_control(): void
+    {
+        $registro = $this->withHeaders([
+            'Authorization' => "Bearer {$this->controlToken}",
+            'Accept' => 'application/json',
+        ])->postJson('/api/ingresos', [
+            'id_examen' => $this->examen->id_examen,
+            'id_habilitacion' => $this->habilitacion->id_habilitacion,
+            'id_asignacion_ambiente' => $this->asignacionAmbiente->id_asignacion_ambiente,
         ]);
 
+        $registro->assertCreated();
         $this->assertDatabaseHas('ingreso', [
             'id_habilitacion' => $this->habilitacion->id_habilitacion,
-            'id_usuario' => $this->adminUser->id_usuario,
+            'id_usuario' => $this->controlUser->id_usuario,
         ]);
+
+        app('auth')->forgetGuards();
+
+        $this->getJson('/api/ingresos', [
+            'Authorization' => "Bearer {$this->adminToken}",
+            'Accept' => 'application/json',
+        ])->assertForbidden();
     }
 
     public function test_usuario_docente_es_rechazado_con_403_forbidden(): void

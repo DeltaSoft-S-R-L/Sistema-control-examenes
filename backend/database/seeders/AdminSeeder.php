@@ -41,11 +41,7 @@ class AdminSeeder extends Seeder
             'GESTIONAR_USUARIOS',
             'GESTIONAR_ESTUDIANTES',
             'GESTIONAR_ASIGNATURAS',
-            'GESTIONAR_EXAMENES',
             'GESTIONAR_AMBIENTES',
-            'GESTIONAR_HABILITACIONES',
-            'REGISTRAR_INGRESOS',
-            'REGISTRAR_INCIDENCIAS',
         ];
 
         $idsPermisos = collect($permisosAdministrador)
@@ -55,7 +51,7 @@ class AdminSeeder extends Seeder
             )->id_permiso)
             ->all();
 
-        $rol->permisos()->syncWithoutDetaching($idsPermisos);
+        $rol->permisos()->sync($idsPermisos);
 
         $usuario = Usuario::firstOrNew(['username' => $username]);
         $esNuevo = !$usuario->exists;

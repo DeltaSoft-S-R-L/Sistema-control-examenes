@@ -18,8 +18,7 @@ class ManageHabilitacionesMiddleware
         $usuario->loadMissing('rol');
         $rol = strtoupper((string) $usuario->rol?->nombre);
 
-        if (in_array($rol, ['ADMINISTRADOR', 'DOCENTE'], true)
-            || $usuario->tienePermiso('GESTIONAR_HABILITACIONES')) {
+        if ($rol === 'DOCENTE') {
             return $next($request);
         }
 

@@ -154,15 +154,10 @@ class HabilitacionController extends Controller
             'motivo_detalle.max' => 'El motivo no puede superar los 500 caracteres.',
         ]);
 
-        if ($rol === 'DOCENTE') {
-            if (!$this->puedeGestionarEstudiante($usuario, (int) $habilitacion->id_examen, (int) $habilitacion->id_estudiante)) {
-                return response()->json([
-                    'message' => 'No puede modificar habilitaciones fuera de sus materias y carreras asignadas.',
-                ], 403);
-            }
-        } elseif ($rol !== 'ADMINISTRADOR' && !$usuario->tienePermiso('GESTIONAR_HABILITACIONES')) {
+        if ($rol !== 'DOCENTE'
+            || !$this->puedeGestionarEstudiante($usuario, (int) $habilitacion->id_examen, (int) $habilitacion->id_estudiante)) {
             return response()->json([
-                'message' => 'No tiene permisos para realizar esta acción.',
+                'message' => 'No puede modificar habilitaciones fuera de sus materias y carreras asignadas.',
             ], 403);
         }
 
@@ -215,12 +210,8 @@ class HabilitacionController extends Controller
         $usuario->loadMissing('rol');
         $rol = strtoupper((string) $usuario->rol?->nombre);
 
-        if ($rol === 'ADMINISTRADOR') {
-            return true;
-        }
-
         if ($rol !== 'DOCENTE') {
-            return $usuario->tienePermiso('GESTIONAR_HABILITACIONES');
+            return false;
         }
 
         return DB::table('docente_asignatura as da')

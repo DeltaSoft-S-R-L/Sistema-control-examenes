@@ -19,6 +19,7 @@ use App\Models\Rol;
 use App\Models\Usuario;
 use App\Utilities\PasswordHasher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class Ing04ValidacionAmbienteTest extends TestCase
@@ -97,6 +98,16 @@ class Ing04ValidacionAmbienteTest extends TestCase
             'codigo'      => 'SIS-101',
             'nombre'      => 'Programación I',
             'descripcion' => 'Primer semestre',
+        ]);
+
+        DB::table('carrera_asignatura')->insert([
+            'id_carrera' => $carrera->id_carrera,
+            'id_asignatura' => $asignatura->id_asignatura,
+        ]);
+        DB::table('docente_asignatura')->insert([
+            'id_usuario' => $this->docenteUser->id_usuario,
+            'id_carrera' => $carrera->id_carrera,
+            'id_asignatura' => $asignatura->id_asignatura,
         ]);
 
         // 4. Examen
@@ -452,27 +463,11 @@ class Ing04ValidacionAmbienteTest extends TestCase
     /**
      * Prueba que el sistema permite asignar múltiples ambientes a un examen al crearlo y actualizarlo.
      */
-    public function test_crear_y_actualizar_examen_con_multiples_ambientes(): void
+    public function test_docente_puede_crear_y_actualizar_examen_con_multiples_ambientes(): void
     {
-        $rolAdmin = Rol::firstOrCreate(
-            ['nombre' => 'ADMINISTRADOR'],
-            ['descripcion' => 'Administrador']
-        );
-
-        $adminUser = Usuario::create([
-            'nombre'        => 'Admin',
-            'apellido'      => 'General',
-            'correo'        => 'admin.multi@umss.edu.bo',
-            'username'      => 'admin_multi',
-            'password_hash' => PasswordHasher::hash('AdminPass123!'),
-            'id_rol'        => $rolAdmin->id_rol,
-            'estado'        => 'ACTIVO',
-        ]);
-        $adminToken = $adminUser->createToken('admin-token')->plainTextToken;
-
         // 1. Crear examen con múltiples ambientes
         $responseCreate = $this->withHeaders([
-            'Authorization' => "Bearer {$adminToken}",
+            'Authorization' => "Bearer {$this->docenteToken}",
             'Accept'        => 'application/json',
         ])->postJson('/api/examenes', [
             'id_asignatura'    => $this->examen->id_asignatura,
@@ -505,7 +500,7 @@ class Ing04ValidacionAmbienteTest extends TestCase
 
         // 2. Actualizar el examen para asignar solo 1 ambiente
         $responseUpdate = $this->withHeaders([
-            'Authorization' => "Bearer {$adminToken}",
+            'Authorization' => "Bearer {$this->docenteToken}",
             'Accept'        => 'application/json',
         ])->putJson("/api/examenes/{$nuevoExamenId}", [
             'nombre'       => 'Examen Con Múltiples Aulas Actualizado',

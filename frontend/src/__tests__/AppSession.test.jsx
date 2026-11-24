@@ -1,6 +1,6 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 const { mockGet, mockPost } = vi.hoisted(() => ({
@@ -98,7 +98,31 @@ describe('sesión y rutas protegidas', () => {
 
     expect(await screen.findByText('Panel de administración')).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem('usuario')).rol).toBe(ROLES.ADMINISTRADOR);
+    expect(screen.getAllByRole('link', { name: 'Estudiantes' }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', { name: 'Gestionar estudiantes' })).toHaveAttribute('href', '/estudiantes');
+    expect(screen.getAllByRole('link', { name: 'Usuarios' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: 'Ambientes' }).length).toBeGreaterThan(0);
+    for (const nombre of ['Exámenes', 'Habilitaciones', 'Control de ingreso', 'Incidencias', 'Reportes']) {
+      expect(screen.queryByRole('link', { name: nombre })).not.toBeInTheDocument();
+    }
+    await waitFor(() => expect(mockGet).toHaveBeenCalledWith('/usuarios'));
     expect(mockGet).not.toHaveBeenCalledWith('/me');
+  });
+
+  it('redirige al panel si un administrador abre directamente una ruta de exámenes', async () => {
+    localStorage.setItem('token', 'token-de-prueba');
+    localStorage.setItem(
+      'usuario',
+      JSON.stringify({ nombre: 'Admin', rol: ROLES.ADMINISTRADOR }),
+    );
+    window.history.replaceState({}, '', '/examenes');
+    mockGet.mockResolvedValue({ data: [] });
+
+    render(<App />);
+
+    expect(await screen.findByText('Panel de administración')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/');
+    expect(mockGet).not.toHaveBeenCalledWith('/examenes');
   });
 
   it('no pierde el rol en caché si el perfil refrescado no incluye el campo', async () => {

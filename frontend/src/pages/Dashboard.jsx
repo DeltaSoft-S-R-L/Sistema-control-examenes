@@ -26,6 +26,7 @@ export default function Dashboard() {
   const usuario = getUsuario();
 
   const [stats, setStats] = useState({
+    usuarios: 0,
     examenes: 0,
     estudiantes: 0,
     ambientes: 0,
@@ -42,11 +43,9 @@ export default function Dashboard() {
 
         if (rol === ROLES.ADMINISTRADOR) {
           peticiones = [
-            ['examenes', api.get('/examenes')],
+            ['usuarios', api.get('/usuarios')],
             ['estudiantes', api.get('/estudiantes')],
             ['ambientes', api.get('/ambientes')],
-            ['ingresos', api.get('/ingresos')],
-            ['incidencias', api.get('/incidencias')],
           ];
         }
 
@@ -69,6 +68,7 @@ export default function Dashboard() {
         );
 
         const nuevosStats = {
+          usuarios: 0,
           examenes: 0,
           estudiantes: 0,
           ambientes: 0,
@@ -97,12 +97,12 @@ export default function Dashboard() {
   const configuracion = {
     [ROLES.ADMINISTRADOR]: {
       titulo: 'Panel de administración',
-      descripcion: 'Resumen y estado general del sistema de control de exámenes.',
+      descripcion: 'Resumen de usuarios, estudiantes y ambientes del sistema.',
       tarjetas: [
         {
-          titulo: 'Exámenes',
-          valor: stats.examenes,
-          icono: 'bi-journal-check',
+          titulo: 'Usuarios',
+          valor: stats.usuarios,
+          icono: 'bi-person-gear',
           color: 'primary',
         },
         {
@@ -117,18 +117,6 @@ export default function Dashboard() {
           icono: 'bi-building',
           color: 'warning',
         },
-        {
-          titulo: 'Ingresos',
-          valor: stats.ingresos,
-          icono: 'bi-box-arrow-in-right',
-          color: 'info',
-        },
-        {
-          titulo: 'Incidencias',
-          valor: stats.incidencias,
-          icono: 'bi-exclamation-circle',
-          color: 'danger',
-        },
       ],
       accesos: [
         {
@@ -137,19 +125,14 @@ export default function Dashboard() {
           icono: 'bi-person-gear',
         },
         {
-          to: '/examenes',
-          label: 'Gestionar exámenes',
-          icono: 'bi-journal-check',
-        },
-        {
           to: '/ambientes',
           label: 'Gestionar ambientes',
           icono: 'bi-building',
         },
         {
-          to: '/reportes',
-          label: 'Consultar reportes',
-          icono: 'bi-bar-chart',
+          to: '/estudiantes',
+          label: 'Gestionar estudiantes',
+          icono: 'bi-people',
         },
       ],
     },

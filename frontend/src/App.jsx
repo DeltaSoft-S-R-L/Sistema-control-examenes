@@ -99,7 +99,7 @@ function RutasConSesion() {
               <Route path="/" element={<Dashboard />} />
             </Route>
 
-            {/* Administrador y docente */}
+            {/* Administrador y docente: gestión de estudiantes */}
             <Route
               element={
                 <ProtectedRoute
@@ -107,8 +107,14 @@ function RutasConSesion() {
                 />
               }
             >
-              <Route path="/examenes" element={<Examenes />} />
               <Route path="/estudiantes" element={<Estudiantes />} />
+            </Route>
+
+            {/* Gestión académica de exámenes y habilitaciones: solo docente */}
+            <Route
+              element={<ProtectedRoute rolesPermitidos={[ROLES.DOCENTE]} />}
+            >
+              <Route path="/examenes" element={<Examenes />} />
               <Route path="/habilitaciones" element={<Habilitaciones />} />
             </Route>
 
@@ -122,11 +128,11 @@ function RutasConSesion() {
               <Route path="/ambientes" element={<Ambientes />} />
             </Route>
 
-            {/* Administrador y personal de control */}
+            {/* Docente y personal de control: operación del examen */}
             <Route
               element={
                 <ProtectedRoute
-                  rolesPermitidos={[ROLES.ADMINISTRADOR, ROLES.DOCENTE, ROLES.CONTROL_INGRESO]}
+                  rolesPermitidos={[ROLES.DOCENTE, ROLES.CONTROL_INGRESO]}
                 />
               }
             >
@@ -143,12 +149,11 @@ function RutasConSesion() {
               />
             </Route>
 
-            {/* Reportes: usuarios administrativos y operativos */}
+            {/* Reportes de examen: docentes y personal de control */}
             <Route
               element={
                 <ProtectedRoute
                   rolesPermitidos={[
-                    ROLES.ADMINISTRADOR,
                     ROLES.DOCENTE,
                     ROLES.CONTROL_INGRESO,
                   ]}
