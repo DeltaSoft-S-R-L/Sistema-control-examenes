@@ -2,18 +2,20 @@
 
 namespace Tests\Feature;
 
-use App\Models\Permiso;
+use App\Models\Carrera;
+use App\Models\Facultad;
 use App\Models\Rol;
 use App\Models\Usuario;
 use App\Utilities\PasswordHasher;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
-use RuntimeException;
 use Tests\TestCase;
 
 class TraslapeAmbienteTest extends TestCase
 {
+    private int $idCarrera;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -24,9 +26,7 @@ class TraslapeAmbienteTest extends TestCase
         $motor = $conexion->getDriverName();
 
         if ($motor !== 'pgsql') {
-            throw new RuntimeException(
-                'Pruebas detenidas: el motor no es PostgreSQL.'
-            );
+            $this->markTestSkipped('Esta prueba requiere PostgreSQL.');
         }
 
         $nombreBase = $conexion->selectOne(
@@ -34,19 +34,13 @@ class TraslapeAmbienteTest extends TestCase
         )->nombre;
 
         if ($nombreBase !== 'control_examenes_pruebas') {
-            throw new RuntimeException(
-                'Pruebas detenidas: base de datos no autorizada.'
-            );
+            $this->markTestSkipped('Esta prueba solo usa control_examenes_pruebas.');
         }
 
         // Iniciar la transacción después de verificar la base.
         $conexion->beginTransaction();
 
         // Cada prueba prepara las referencias que consume; no depende de seeders.
-        DB::table('permiso')->updateOrInsert(
-            ['nombre' => 'GESTIONAR_EXAMENES'],
-            ['descripcion' => 'Gestionar exámenes']
-        );
         DB::table('asignatura')->updateOrInsert(
             ['id_asignatura' => 1],
             ['codigo' => 'TEST-TRASLAPE', 'nombre' => 'Asignatura de prueba']
@@ -59,6 +53,22 @@ class TraslapeAmbienteTest extends TestCase
             ['id_ambiente' => 2],
             ['codigo' => 'TEST-TRASLAPE-2', 'nombre' => 'Aula de prueba 2', 'capacidad' => 30, 'estado' => 'DISPONIBLE']
         );
+
+        $sufijo = strtolower(Str::random(8));
+        $facultad = Facultad::create([
+            'codigo' => 'FTR' . $sufijo,
+            'nombre' => 'Facultad de prueba de traslapes',
+        ]);
+        $carrera = Carrera::create([
+            'id_facultad' => $facultad->id_facultad,
+            'codigo' => 'CTR' . $sufijo,
+            'nombre' => 'Carrera de prueba de traslapes',
+        ]);
+        $this->idCarrera = $carrera->id_carrera;
+        DB::table('carrera_asignatura')->insert([
+            'id_carrera' => $this->idCarrera,
+            'id_asignatura' => 1,
+        ]);
 
         // Revertir los cambios al finalizar cada prueba.
         $this->beforeApplicationDestroyed(function () use ($conexion) {
@@ -82,7 +92,7 @@ class TraslapeAmbienteTest extends TestCase
 
     public function test_rechaza_examen_con_horario_traslapado(): void
 {
-    $this->autenticarUsuarioConPermiso();
+    $this->autenticarDocenteAsignado();
 
     $fecha = now()->addDays(7)->format('Y-m-d');
 
@@ -118,7 +128,7 @@ class TraslapeAmbienteTest extends TestCase
 
 public function test_permite_examenes_con_horarios_consecutivos(): void
 {
-    $this->autenticarUsuarioConPermiso();
+    $this->autenticarDocenteAsignado();
 
     $fecha = now()->addDays(8)->format('Y-m-d');
 
@@ -152,7 +162,7 @@ public function test_permite_examenes_con_horarios_consecutivos(): void
 
 public function test_permite_mismo_horario_en_ambientes_diferentes(): void
 {
-    $this->autenticarUsuarioConPermiso();
+    $this->autenticarDocenteAsignado();
 
     $fecha = now()->addDays(9)->format('Y-m-d');
 
@@ -185,7 +195,7 @@ public function test_permite_mismo_horario_en_ambientes_diferentes(): void
 
 public function test_rechaza_traslape_al_actualizar_examen(): void
 {
-    $this->autenticarUsuarioConPermiso();
+    $this->autenticarDocenteAsignado();
 
     $fecha = now()->addDays(10)->format('Y-m-d');
 
@@ -230,28 +240,28 @@ public function test_rechaza_traslape_al_actualizar_examen(): void
     $respuesta->assertStatus(422)
         ->assertJsonValidationErrors(['id_ambiente']);
 }
-    private function autenticarUsuarioConPermiso(): void
+    private function autenticarDocenteAsignado(): void
     {
-        $permiso = Permiso::firstOrCreate(
-            ['nombre' => 'GESTIONAR_EXAMENES'],
-            ['descripcion' => 'Gestionar exámenes']
-        );
         $sufijo = strtolower(Str::random(8));
         $rol = Rol::firstOrCreate(
-            ['nombre' => 'CONTROL_INGRESO'],
-            ['descripcion' => 'Personal de control de ingreso']
+            ['nombre' => 'DOCENTE'],
+            ['descripcion' => 'Docente']
         );
-        $rol->permisos()->syncWithoutDetaching([$permiso->id_permiso]);
 
-        // El observer de auditoría exige que el usuario exista en la BD.
         $usuario = Usuario::create([
-            'nombre' => 'Usuario',
+            'nombre' => 'Docente',
             'apellido' => 'Prueba',
             'correo' => "traslape_{$sufijo}@example.test",
             'username' => "traslape_{$sufijo}",
             'password_hash' => PasswordHasher::hash('Password123'),
             'id_rol' => $rol->id_rol,
             'estado' => 'ACTIVO',
+        ]);
+
+        DB::table('docente_asignatura')->insert([
+            'id_usuario' => $usuario->id_usuario,
+            'id_carrera' => $this->idCarrera,
+            'id_asignatura' => 1,
         ]);
 
         Sanctum::actingAs($usuario);

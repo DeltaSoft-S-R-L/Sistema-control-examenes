@@ -113,7 +113,7 @@ class NormaControllerTest extends TestCase
         ]);
     }
 
-    public function test_admin_y_docente_pueden_crear_norma_general(): void
+    public function test_docente_puede_crear_norma_general(): void
     {
         $response = $this->withHeader('Authorization', "Bearer {$this->tokenDocente}")
             ->postJson("/api/examenes/{$this->examen->id_examen}/normas", [
@@ -138,9 +138,9 @@ class NormaControllerTest extends TestCase
         ]);
     }
 
-    public function test_admin_y_docente_pueden_crear_norma_particular(): void
+    public function test_docente_puede_crear_norma_particular(): void
     {
-        $response = $this->withHeader('Authorization', "Bearer {$this->tokenAdmin}")
+        $response = $this->withHeader('Authorization', "Bearer {$this->tokenDocente}")
             ->postJson("/api/examenes/{$this->examen->id_examen}/normas", [
                 'tipo'            => 'PARTICULAR',
                 'descripcion'     => 'Permitido el uso de computadora portátil con autorización médica.',
@@ -170,7 +170,7 @@ class NormaControllerTest extends TestCase
     public function test_valida_campos_obligatorios_y_longitud_maxima_1000(): void
     {
         // 1. Tipo faltante y descripcion vacia
-        $responseVacio = $this->withHeader('Authorization', "Bearer {$this->tokenAdmin}")
+        $responseVacio = $this->withHeader('Authorization', "Bearer {$this->tokenDocente}")
             ->postJson("/api/examenes/{$this->examen->id_examen}/normas", [
                 'tipo'        => '',
                 'descripcion' => '',
@@ -180,7 +180,7 @@ class NormaControllerTest extends TestCase
             ->assertJsonValidationErrors(['tipo', 'descripcion']);
 
         // 2. Descripcion excede 1000 caracteres
-        $responseLargo = $this->withHeader('Authorization', "Bearer {$this->tokenAdmin}")
+        $responseLargo = $this->withHeader('Authorization', "Bearer {$this->tokenDocente}")
             ->postJson("/api/examenes/{$this->examen->id_examen}/normas", [
                 'tipo'        => 'GENERAL',
                 'descripcion' => str_repeat('A', 1001),
@@ -190,7 +190,7 @@ class NormaControllerTest extends TestCase
             ->assertJsonValidationErrors(['descripcion']);
 
         // 3. Particular sin estudiante valido
-        $responseSinEstudiante = $this->withHeader('Authorization', "Bearer {$this->tokenAdmin}")
+        $responseSinEstudiante = $this->withHeader('Authorization', "Bearer {$this->tokenDocente}")
             ->postJson("/api/examenes/{$this->examen->id_examen}/normas", [
                 'tipo'        => 'PARTICULAR',
                 'descripcion' => 'Uso de calculadora',
@@ -228,11 +228,11 @@ class NormaControllerTest extends TestCase
     {
         $regla = ReglaExamen::create([
             'id_examen'   => $this->examen->id_examen,
-            'descripcion' => 'Norma para eliminar por admin',
+            'descripcion' => 'Norma para eliminar por docente',
             'estado'      => 'ACTIVA',
         ]);
 
-        $response = $this->withHeader('Authorization', "Bearer {$this->tokenAdmin}")
+        $response = $this->withHeader('Authorization', "Bearer {$this->tokenDocente}")
             ->deleteJson("/api/examenes/{$this->examen->id_examen}/normas/{$regla->id_regla_examen}");
 
         $response->assertStatus(200)
@@ -241,6 +241,32 @@ class NormaControllerTest extends TestCase
         $this->assertDatabaseMissing('regla_examen', [
             'id_regla_examen' => $regla->id_regla_examen,
         ]);
+    }
+
+    public function test_administrador_no_puede_consultar_o_modificar_normas_de_examen(): void
+    {
+        $regla = ReglaExamen::create([
+            'id_examen' => $this->examen->id_examen,
+            'descripcion' => 'Norma protegida',
+            'estado' => 'ACTIVA',
+        ]);
+
+        $this->withHeader('Authorization', "Bearer {$this->tokenAdmin}")
+            ->getJson("/api/examenes/{$this->examen->id_examen}/normas")
+            ->assertForbidden();
+
+        $this->withHeader('Authorization', "Bearer {$this->tokenAdmin}")
+            ->postJson("/api/examenes/{$this->examen->id_examen}/normas", [
+                'tipo' => 'GENERAL',
+                'descripcion' => 'Intento no autorizado',
+            ])
+            ->assertForbidden();
+
+        $this->withHeader('Authorization', "Bearer {$this->tokenAdmin}")
+            ->deleteJson("/api/examenes/{$this->examen->id_examen}/normas/{$regla->id_regla_examen}")
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('regla_examen', ['id_regla_examen' => $regla->id_regla_examen]);
     }
 
     public function test_listar_normas_retorna_generales_y_particulares(): void

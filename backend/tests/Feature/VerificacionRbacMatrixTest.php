@@ -8,6 +8,7 @@ use App\Models\Estudiante;
 use App\Models\Examen;
 use App\Models\Facultad;
 use App\Models\Habilitacion;
+use App\Models\Permiso;
 use App\Models\Rol;
 use App\Models\Usuario;
 use App\Services\QrTokenService;
@@ -221,7 +222,7 @@ class VerificacionRbacMatrixTest extends TestCase
 
     /*
     |--------------------------------------------------------------------------
-    | Matriz Fila 2: POST /api/verificaciones/qr (CONTROL_INGRESO y ADMINISTRADOR)
+    | Matriz Fila 2: POST /api/verificaciones/qr (CONTROL_INGRESO y DOCENTE)
     |--------------------------------------------------------------------------
     */
 
@@ -280,7 +281,7 @@ class VerificacionRbacMatrixTest extends TestCase
             ]);
     }
 
-    public function test_verificaciones_qr_rol_admin_retorna_200(): void
+    public function test_verificaciones_qr_rol_admin_retorna_403(): void
     {
         $response = $this->withHeaders([
             'Authorization' => "Bearer {$this->adminToken}",
@@ -290,22 +291,12 @@ class VerificacionRbacMatrixTest extends TestCase
             'examen_id' => $this->examen->id_examen,
         ]);
 
-        $response->assertStatus(200)
-            ->assertJson([
-                'metodo' => 'QR',
-                'estudiante' => [
-                    'id' => $this->estudiante->id_estudiante,
-                    'ci' => '4589210',
-                ],
-                'examen' => [
-                    'id' => $this->examen->id_examen,
-                ],
-            ]);
+        $response->assertForbidden();
     }
 
     /*
     |--------------------------------------------------------------------------
-    | Matriz Fila 3: POST /api/verificaciones/documento (CONTROL_INGRESO y ADMINISTRADOR)
+    | Matriz Fila 3: POST /api/verificaciones/documento (CONTROL_INGRESO y DOCENTE)
     |--------------------------------------------------------------------------
     */
 
@@ -367,7 +358,7 @@ class VerificacionRbacMatrixTest extends TestCase
             ]);
     }
 
-    public function test_verificaciones_documento_rol_admin_retorna_200(): void
+    public function test_verificaciones_documento_rol_admin_retorna_403(): void
     {
         $response = $this->withHeaders([
             'Authorization' => "Bearer {$this->adminToken}",
@@ -378,17 +369,172 @@ class VerificacionRbacMatrixTest extends TestCase
             'examen_id' => $this->examen->id_examen,
         ]);
 
-        $response->assertStatus(200)
-            ->assertJson([
-                'metodo' => 'SIS',
-                'estudiante' => [
-                    'id'         => $this->estudiante->id_estudiante,
-                    'codigo_sis' => '202001111',
-                ],
-                'examen' => [
-                    'id' => $this->examen->id_examen,
-                ],
-            ]);
+        $response->assertForbidden();
+    }
+
+    public function test_administrador_puede_consultar_sus_modulos_de_gestion(): void
+    {
+        $this->attachAdminManagementPermissions();
+
+        foreach ([
+            '/api/roles',
+            '/api/usuarios',
+            '/api/estudiantes',
+            '/api/facultades',
+            '/api/carreras',
+            '/api/asignaturas',
+            '/api/ambientes',
+        ] as $path) {
+            $this->withHeaders([
+                'Authorization' => "Bearer {$this->adminToken}",
+                'Accept' => 'application/json',
+            ])->getJson($path)->assertOk();
+        }
+    }
+
+    public function test_administrador_puede_persistir_estructura_academica_y_ambientes(): void
+    {
+        $this->attachAdminManagementPermissions();
+        $headers = [
+            'Authorization' => "Bearer {$this->adminToken}",
+            'Accept' => 'application/json',
+        ];
+
+        $facultad = $this->withHeaders($headers)->postJson('/api/facultades', [
+            'codigo' => 'FCT-ADMIN',
+            'nombre' => 'Facultad de prueba administrativa',
+        ])->assertCreated()->json();
+
+        $carrera = $this->withHeaders($headers)->postJson('/api/carreras', [
+            'id_facultad' => $facultad['id_facultad'],
+            'codigo' => 'SIS-ADMIN',
+            'nombre' => 'Carrera de prueba administrativa',
+        ])->assertCreated()->json();
+
+        $asignatura = $this->withHeaders($headers)->postJson('/api/asignaturas', [
+            'codigo' => 'SIS-ADMIN-101',
+            'nombre' => 'Asignatura de prueba administrativa',
+            'descripcion' => 'Registro de prueba',
+        ])->assertCreated()->json();
+
+        DB::table('carrera_asignatura')->insert([
+            'id_carrera' => $carrera['id_carrera'],
+            'id_asignatura' => $asignatura['id_asignatura'],
+        ]);
+
+        $this->withHeaders($headers)
+            ->getJson("/api/carreras/{$carrera['id_carrera']}")
+            ->assertOk()
+            ->assertJsonPath('asignaturas.0.id_asignatura', $asignatura['id_asignatura']);
+
+        $this->withHeaders($headers)
+            ->getJson("/api/asignaturas?id_carrera={$carrera['id_carrera']}")
+            ->assertOk()
+            ->assertJsonFragment(['id_asignatura' => $asignatura['id_asignatura']]);
+
+        $this->withHeaders($headers)->patchJson("/api/carreras/{$carrera['id_carrera']}", [
+            'nombre' => 'Carrera actualizada por administración',
+        ])->assertOk()->assertJsonPath('nombre', 'Carrera actualizada por administración');
+
+        $this->withHeaders($headers)->putJson("/api/asignaturas/{$asignatura['id_asignatura']}", [
+            'descripcion' => 'Descripción actualizada',
+        ])->assertOk()->assertJsonPath('descripcion', 'Descripción actualizada');
+
+        $ambiente = $this->withHeaders($headers)->postJson('/api/ambientes', [
+            'codigo' => 'A-ADMIN',
+            'nombre' => 'Aula administrativa de prueba',
+            'ubicacion' => 'Bloque de prueba',
+            'capacidad' => 25,
+            'estado' => 'DISPONIBLE',
+        ])->assertCreated()->json();
+
+        $this->withHeaders($headers)->patchJson("/api/ambientes/{$ambiente['id_ambiente']}", [
+            'capacidad' => 30,
+        ])->assertOk()->assertJsonPath('capacidad', 30);
+
+        $this->assertDatabaseHas('ambiente', [
+            'id_ambiente' => $ambiente['id_ambiente'],
+            'capacidad' => 30,
+        ]);
+
+        $this->withHeaders($headers)->postJson('/api/ambientes', [
+            'codigo' => 'A-ADMIN-INVALIDO',
+            'nombre' => 'Aula inválida',
+            'capacidad' => 0,
+            'estado' => 'DISPONIBLE',
+        ])->assertUnprocessable()->assertJsonValidationErrors(['capacidad']);
+    }
+
+    public function test_administrador_no_puede_consultar_o_operar_modulos_de_examen(): void
+    {
+        $habilitacion = Habilitacion::query()->firstOrFail();
+        $permisosAntiguos = collect([
+            'GESTIONAR_EXAMENES',
+            'GESTIONAR_HABILITACIONES',
+            'REGISTRAR_INGRESOS',
+            'REGISTRAR_INCIDENCIAS',
+        ])->map(fn (string $nombre) => Permiso::create([
+            'nombre' => $nombre,
+            'descripcion' => $nombre,
+        ])->id_permiso);
+        $this->adminUser->rol->permisos()->attach($permisosAntiguos->all());
+
+        $headers = [
+            'Authorization' => "Bearer {$this->adminToken}",
+            'Accept' => 'application/json',
+        ];
+
+        foreach ([
+            '/api/examenes',
+            "/api/examenes/{$this->examen->id_examen}",
+            "/api/examenes/{$this->examen->id_examen}/normas",
+            "/api/examenes/{$this->examen->id_examen}/auditoria",
+            '/api/habilitaciones',
+            "/api/habilitaciones/{$habilitacion->id_habilitacion}",
+            "/api/examenes/{$this->examen->id_examen}/estudiantes/{$this->estudiante->id_estudiante}/inhabilitacion",
+            '/api/ingresos',
+            '/api/incidencias',
+            '/api/reportes/examenes',
+            "/api/reportes/examenes/{$this->examen->id_examen}/asistencia",
+            "/api/reportes/examenes/{$this->examen->id_examen}/intentos",
+        ] as $path) {
+            $this->withHeaders($headers)->getJson($path)->assertForbidden();
+        }
+
+        foreach ([
+            ['/api/habilitaciones', []],
+            ['/api/ingresos', []],
+            ['/api/incidencias', []],
+            ["/api/examenes/{$this->examen->id_examen}/expulsiones", []],
+            ['/api/verificaciones/qr', ['token' => $this->validQrToken, 'examen_id' => $this->examen->id_examen]],
+            ['/api/verificaciones/documento', ['tipo' => 'CI', 'valor' => '4589210', 'examen_id' => $this->examen->id_examen]],
+            ['/api/verificaciones/ambiente', []],
+        ] as [$path, $payload]) {
+            $this->withHeaders($headers)->postJson($path, $payload)->assertForbidden();
+        }
+
+        $this->withHeaders($headers)
+            ->deleteJson("/api/examenes/{$this->examen->id_examen}")
+            ->assertForbidden();
+
+        $this->withHeaders($headers)
+            ->patchJson("/api/habilitaciones/{$habilitacion->id_habilitacion}", ['estado' => 'NO_HABILITADO'])
+            ->assertForbidden();
+    }
+
+    private function attachAdminManagementPermissions(): void
+    {
+        $permisos = collect([
+            'GESTIONAR_USUARIOS',
+            'GESTIONAR_ESTUDIANTES',
+            'GESTIONAR_ASIGNATURAS',
+            'GESTIONAR_AMBIENTES',
+        ])->map(fn (string $nombre) => Permiso::firstOrCreate(
+            ['nombre' => $nombre],
+            ['descripcion' => $nombre]
+        )->id_permiso);
+
+        $this->adminUser->rol->permisos()->sync($permisos->all());
     }
 
     /*

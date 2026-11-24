@@ -233,7 +233,7 @@ class NormaExamenApiTest extends TestCase
         $this->assertArrayNotHasKey('updated_at', $segunda);
     }
 
-    public function test_admin_y_control_pueden_listar_normas(): void
+    public function test_administrador_no_puede_listar_normas(): void
     {
         NormaExamen::create([
             'id_examen' => $this->examen1->id_examen,
@@ -243,17 +243,19 @@ class NormaExamenApiTest extends TestCase
             'created_by' => $this->docenteUser->id_usuario,
         ]);
 
-        $responseAdmin = $this->getJson(
-            "/api/examenes/{$this->examen1->id_examen}/normas",
-            $this->headers($this->adminToken)
-        );
-        $responseAdmin->assertStatus(200);
+        $responseAdmin = $this->withToken($this->adminToken)
+            ->getJson("/api/examenes/{$this->examen1->id_examen}/normas");
+        $responseAdmin->assertForbidden();
+    }
 
-        $responseControl = $this->getJson(
+    public function test_control_puede_listar_normas(): void
+    {
+        $response = $this->getJson(
             "/api/examenes/{$this->examen1->id_examen}/normas",
             $this->headers($this->controlToken)
         );
-        $responseControl->assertStatus(200);
+
+        $response->assertOk();
     }
 
     public function test_usuario_sin_rol_autorizado_es_rechazado_con_403_al_listar(): void
@@ -412,7 +414,7 @@ class NormaExamenApiTest extends TestCase
         ]);
     }
 
-    public function test_admin_puede_crear_norma_particular(): void
+    public function test_docente_puede_crear_norma_particular(): void
     {
         $payload = [
             'tipo' => 'PARTICULAR',
@@ -423,7 +425,7 @@ class NormaExamenApiTest extends TestCase
         $response = $this->postJson(
             "/api/examenes/{$this->examen1->id_examen}/normas",
             $payload,
-            $this->headers($this->adminToken)
+            $this->headers($this->docenteToken)
         );
 
         $response->assertStatus(201)
@@ -432,13 +434,13 @@ class NormaExamenApiTest extends TestCase
             ->assertJsonPath('estudiante.nombres', 'Maria')
             ->assertJsonPath('estudiante.apellidos', 'Lopez')
             ->assertJsonPath('estudiante.CI', '7654321')
-            ->assertJsonPath('created_by', 'Admin');
+            ->assertJsonPath('created_by', 'Roberto');
 
         $this->assertDatabaseHas('norma_examen', [
             'id_examen' => $this->examen1->id_examen,
             'id_estudiante' => $this->estudiante2->id_estudiante,
             'tipo' => 'PARTICULAR',
-            'created_by' => $this->adminUser->id_usuario,
+            'created_by' => $this->docenteUser->id_usuario,
         ]);
     }
 
@@ -554,7 +556,7 @@ class NormaExamenApiTest extends TestCase
         ]);
     }
 
-    public function test_admin_puede_eliminar_norma_de_un_examen_retorna_204(): void
+    public function test_administrador_no_puede_eliminar_norma_de_un_examen(): void
     {
         $norma = NormaExamen::create([
             'id_examen' => $this->examen1->id_examen,
@@ -570,8 +572,8 @@ class NormaExamenApiTest extends TestCase
             $this->headers($this->adminToken)
         );
 
-        $response->assertStatus(204);
-        $this->assertDatabaseMissing('norma_examen', [
+        $response->assertForbidden();
+        $this->assertDatabaseHas('norma_examen', [
             'id_norma_examen' => $norma->id_norma_examen,
         ]);
     }

@@ -18,7 +18,7 @@ export default function Sidebar() {
     },
     {
       to: '/examenes',
-      label: rol === ROLES.DOCENTE ? 'Mis exámenes' : 'Exámenes',
+      label: 'Mis exámenes',
       icon: 'bi-journal-check',
       roles: [
         ROLES.DOCENTE,

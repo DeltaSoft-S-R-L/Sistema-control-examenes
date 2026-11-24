@@ -16,6 +16,7 @@ use App\Models\Rol;
 use App\Models\Usuario;
 use App\Utilities\PasswordHasher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class ExamenEliminacionTest extends TestCase
@@ -23,6 +24,7 @@ class ExamenEliminacionTest extends TestCase
     use RefreshDatabase;
 
     private Usuario $admin;
+    private Usuario $docente;
 
     protected function setUp(): void
     {
@@ -36,10 +38,25 @@ class ExamenEliminacionTest extends TestCase
             'username' => 'admin_borrado', 'password_hash' => PasswordHasher::hash('Clave123!'),
             'id_rol' => $rol->id_rol, 'estado' => 'ACTIVO',
         ]);
+        $rolDocente = Rol::create(['nombre' => 'DOCENTE', 'descripcion' => 'Docente']);
+        $this->docente = Usuario::create([
+            'nombre' => 'Docente', 'apellido' => 'Prueba', 'correo' => 'docente.borrado@test.bo',
+            'username' => 'docente_borrado', 'password_hash' => PasswordHasher::hash('Clave123!'),
+            'id_rol' => $rolDocente->id_rol, 'estado' => 'ACTIVO',
+        ]);
 
         $facultad = Facultad::create(['codigo' => 'FCT', 'nombre' => 'Facultad de prueba']);
         $carrera = Carrera::create(['codigo' => 'SIS', 'nombre' => 'Sistemas', 'id_facultad' => $facultad->id_facultad]);
         $asignatura = Asignatura::create(['codigo' => 'SIS-101', 'nombre' => 'Programación']);
+        DB::table('carrera_asignatura')->insert([
+            'id_carrera' => $carrera->id_carrera,
+            'id_asignatura' => $asignatura->id_asignatura,
+        ]);
+        DB::table('docente_asignatura')->insert([
+            'id_usuario' => $this->docente->id_usuario,
+            'id_carrera' => $carrera->id_carrera,
+            'id_asignatura' => $asignatura->id_asignatura,
+        ]);
         $ambiente = Ambiente::create(['codigo' => 'A-1', 'nombre' => 'Aula 1', 'capacidad' => 30, 'estado' => 'DISPONIBLE']);
         $estudiante = Estudiante::create([
             'ci' => '1234567', 'nombre' => 'Ana', 'apellido' => 'Prueba',
@@ -56,14 +73,14 @@ class ExamenEliminacionTest extends TestCase
         $asignacion = $examen->asignacionesAmbiente()->firstOrFail();
         $ingresoId = Ingreso::query()->where('id_examen', $examen->id_examen)->value('id_ingreso');
 
-        $this->actingAs($this->admin)->deleteJson("/api/examenes/{$examen->id_examen}")
+        $this->actingAs($this->docente)->deleteJson("/api/examenes/{$examen->id_examen}")
             ->assertOk()
             ->assertJsonPath('message', 'Examen eliminado de la lista. Se conservaron los registros históricos asociados.');
 
         $this->assertSoftDeleted('examen', ['id_examen' => $examen->id_examen]);
         $this->assertDatabaseHas('asignacion_ambiente', ['id_asignacion_ambiente' => $asignacion->id_asignacion_ambiente]);
         $this->assertDatabaseHas('ingreso', ['id_ingreso' => $ingresoId]);
-        $this->actingAs($this->admin)->getJson('/api/examenes')->assertOk()->assertJsonMissing(['id_examen' => $examen->id_examen]);
+        $this->actingAs($this->docente)->getJson('/api/examenes')->assertOk()->assertJsonMissing(['id_examen' => $examen->id_examen]);
     }
 
     public function test_rechaza_eliminacion_si_examen_no_esta_programado_ni_cancelado(): void
@@ -73,7 +90,7 @@ class ExamenEliminacionTest extends TestCase
             'fecha' => '2026-11-20', 'hora_inicio' => '10:00:00', 'duracion_minutos' => 60, 'estado' => 'EN_CURSO',
         ]);
 
-        $this->actingAs($this->admin)->deleteJson("/api/examenes/{$examen->id_examen}")
+        $this->actingAs($this->docente)->deleteJson("/api/examenes/{$examen->id_examen}")
             ->assertStatus(409);
 
         $this->assertDatabaseHas('examen', ['id_examen' => $examen->id_examen, 'deleted_at' => null]);
@@ -86,9 +103,22 @@ class ExamenEliminacionTest extends TestCase
             'fecha' => '2026-11-20', 'hora_inicio' => '11:00:00', 'duracion_minutos' => 60, 'estado' => 'PROGRAMADO',
         ]);
 
-        $this->actingAs($this->admin)->deleteJson("/api/examenes/{$examen->id_examen}")->assertOk();
+        $this->actingAs($this->docente)->deleteJson("/api/examenes/{$examen->id_examen}")->assertOk();
 
         $this->assertSoftDeleted('examen', ['id_examen' => $examen->id_examen]);
+    }
+
+    public function test_administrador_no_puede_eliminar_examen_aunque_conserve_permiso_antiguo(): void
+    {
+        $examen = Examen::query()->where('estado', 'CANCELADO')->firstOrFail();
+
+        $this->actingAs($this->admin)->deleteJson("/api/examenes/{$examen->id_examen}")
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('examen', [
+            'id_examen' => $examen->id_examen,
+            'deleted_at' => null,
+        ]);
     }
 
     private function crearExamenConIngreso(Asignatura $asignatura, Ambiente $ambiente, Estudiante $estudiante, string $estado): Examen
@@ -104,7 +134,7 @@ class ExamenEliminacionTest extends TestCase
         ]);
         Ingreso::create([
             'id_examen' => $examen->id_examen, 'id_habilitacion' => $habilitacion->id_habilitacion,
-            'id_asignacion_ambiente' => $asignacion->id_asignacion_ambiente, 'id_usuario' => $this->admin->id_usuario,
+            'id_asignacion_ambiente' => $asignacion->id_asignacion_ambiente, 'id_usuario' => $this->docente->id_usuario,
         ]);
 
         return $examen;

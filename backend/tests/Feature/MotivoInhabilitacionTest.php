@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use Illuminate\Support\Facades\DB;
-use RuntimeException;
 use Tests\TestCase;
 use App\Models\Asignatura;
 use App\Models\Carrera;
@@ -24,17 +23,13 @@ class MotivoInhabilitacionTest extends TestCase
         parent::setUp();
 
         $connection = DB::connection();
-        $database = $connection->selectOne(
-            'SELECT current_database() AS nombre'
-        )->nombre;
+        if ($connection->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Esta prueba requiere PostgreSQL.');
+        }
 
-        if (
-            $connection->getDriverName() !== 'pgsql' ||
-            $database !== 'control_examenes_pruebas'
-        ) {
-            throw new RuntimeException(
-                'Pruebas detenidas: la conexion no es la base autorizada.'
-            );
+        $database = $connection->selectOne('SELECT current_database() AS nombre')->nombre;
+        if ($database !== 'control_examenes_pruebas') {
+            $this->markTestSkipped('Esta prueba solo usa control_examenes_pruebas.');
         }
 
         DB::beginTransaction();
@@ -82,6 +77,22 @@ class MotivoInhabilitacionTest extends TestCase
 
         $token = $usuario->createToken('test-token')->plainTextToken;
 
+        $rolDocente = Rol::firstOrCreate(
+            ['nombre' => 'DOCENTE'],
+            ['descripcion' => 'Docente']
+        );
+        $rolDocente->permisos()->syncWithoutDetaching([$permiso->id_permiso]);
+        $docente = Usuario::create([
+            'nombre' => 'Docente',
+            'apellido' => 'Test',
+            'correo' => "docente_{$sufijo}@example.com",
+            'username' => "docente_{$sufijo}",
+            'password_hash' => PasswordHasher::hash('Password123'),
+            'id_rol' => $rolDocente->id_rol,
+            'estado' => 'ACTIVO',
+        ]);
+        $tokenDocente = $docente->createToken('test-docente-token')->plainTextToken;
+
         $facultad = Facultad::create([
             'codigo' => 'F' . $sufijo,
             'nombre' => 'Facultad Test'
@@ -96,6 +107,16 @@ class MotivoInhabilitacionTest extends TestCase
         $asignatura = Asignatura::create([
             'codigo' => 'A' . $sufijo,
             'nombre' => 'Asignatura Test',
+        ]);
+
+        DB::table('carrera_asignatura')->insert([
+            'id_carrera' => $carrera->id_carrera,
+            'id_asignatura' => $asignatura->id_asignatura,
+        ]);
+        DB::table('docente_asignatura')->insert([
+            'id_usuario' => $docente->id_usuario,
+            'id_carrera' => $carrera->id_carrera,
+            'id_asignatura' => $asignatura->id_asignatura,
         ]);
 
         $examen = Examen::create([
@@ -117,7 +138,7 @@ class MotivoInhabilitacionTest extends TestCase
             'estado' => 'ACTIVO',
         ]);
 
-        return [$examen, $estudiante, $token, $usuario];
+        return [$examen, $estudiante, $token, $usuario, $tokenDocente];
     }
 
     public function test_retorna_401_sin_token(): void
@@ -211,14 +232,14 @@ class MotivoInhabilitacionTest extends TestCase
 
     public function test_habilitar_estudiante_limpia_el_motivo(): void
     {
-        [$examen, $estudiante, $token, $usuario] = $this->crearDatosBase();
+        [$examen, $estudiante, , $usuario, $tokenDocente] = $this->crearDatosBase();
 
         $habilitacion = Habilitacion::create([
             'id_examen' => $examen->id_examen, 'id_estudiante' => $estudiante->id_estudiante,
             'estado' => 'NO_HABILITADO', 'motivo_tipo' => 'MORA', 'inhabilitado_por' => $usuario->id_usuario
         ]);
 
-        $this->putJson("/api/habilitaciones/{$habilitacion->id_habilitacion}", ['estado' => 'HABILITADO'], ['Authorization' => "Bearer {$token}"])
+        $this->putJson("/api/habilitaciones/{$habilitacion->id_habilitacion}", ['estado' => 'HABILITADO'], ['Authorization' => "Bearer {$tokenDocente}"])
              ->assertStatus(200);
 
         $this->assertDatabaseHas('habilitacion', [
@@ -229,13 +250,13 @@ class MotivoInhabilitacionTest extends TestCase
 
     public function test_inhabilitar_sin_motivo_guarda_otro_por_defecto(): void
     {
-        [$examen, $estudiante, $token] = $this->crearDatosBase();
+        [$examen, $estudiante, $token, , $tokenDocente] = $this->crearDatosBase();
 
         $this->postJson('/api/habilitaciones', [
             'id_examen' => $examen->id_examen,
             'id_estudiante' => $estudiante->id_estudiante,
             'estado' => 'NO_HABILITADO'
-        ], ['Authorization' => "Bearer {$token}"]);
+        ], ['Authorization' => "Bearer {$tokenDocente}"]);
 
         $this->assertDatabaseHas('habilitacion', [
             'id_examen' => $examen->id_examen,

@@ -26,6 +26,7 @@ export default function Dashboard() {
   const usuario = getUsuario();
 
   const [stats, setStats] = useState({
+    usuarios: 0,
     examenes: 0,
     estudiantes: 0,
     ambientes: 0,
@@ -42,6 +43,7 @@ export default function Dashboard() {
 
         if (rol === ROLES.ADMINISTRADOR) {
           peticiones = [
+            ['usuarios', api.get('/usuarios')],
             ['estudiantes', api.get('/estudiantes')],
             ['ambientes', api.get('/ambientes')],
           ];
@@ -66,6 +68,7 @@ export default function Dashboard() {
         );
 
         const nuevosStats = {
+          usuarios: 0,
           examenes: 0,
           estudiantes: 0,
           ambientes: 0,
@@ -97,6 +100,12 @@ export default function Dashboard() {
       descripcion: 'Resumen de usuarios, estudiantes y ambientes del sistema.',
       tarjetas: [
         {
+          titulo: 'Usuarios',
+          valor: stats.usuarios,
+          icono: 'bi-person-gear',
+          color: 'primary',
+        },
+        {
           titulo: 'Estudiantes',
           valor: stats.estudiantes,
           icono: 'bi-people',
@@ -119,6 +128,11 @@ export default function Dashboard() {
           to: '/ambientes',
           label: 'Gestionar ambientes',
           icono: 'bi-building',
+        },
+        {
+          to: '/estudiantes',
+          label: 'Gestionar estudiantes',
+          icono: 'bi-people',
         },
       ],
     },

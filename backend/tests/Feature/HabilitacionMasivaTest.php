@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use Illuminate\Support\Facades\DB;
-use RuntimeException;
 use Tests\TestCase;
 use App\Models\Asignatura;
 use App\Models\Carrera;
@@ -11,7 +10,6 @@ use App\Models\Estudiante;
 use App\Models\Examen;
 use App\Models\Facultad;
 use App\Models\Habilitacion;
-use App\Models\Permiso;
 use App\Models\Rol;
 use App\Models\Usuario;
 use App\Utilities\PasswordHasher;
@@ -24,17 +22,14 @@ class HabilitacionMasivaTest extends TestCase
     parent::setUp();
 
     $connection = DB::connection();
-    $database = $connection->selectOne(
-        'SELECT current_database() AS nombre'
-    )->nombre;
 
-    if (
-        $connection->getDriverName() !== 'pgsql' ||
-        $database !== 'control_examenes_pruebas'
-    ) {
-        throw new RuntimeException(
-            'Pruebas detenidas: la conexion no es la base autorizada.'
-        );
+    if ($connection->getDriverName() !== 'pgsql') {
+        $this->markTestSkipped('Esta prueba requiere PostgreSQL.');
+    }
+
+    $database = $connection->selectOne('SELECT current_database() AS nombre')->nombre;
+    if ($database !== 'control_examenes_pruebas') {
+        $this->markTestSkipped('Esta prueba solo usa control_examenes_pruebas.');
     }
 
     DB::beginTransaction();
@@ -62,18 +57,11 @@ protected function tearDown(): void
 {
     $sufijo = strtolower(\Illuminate\Support\Str::random(10));
 
-    // Crear un usuario con permiso para gestionar habilitaciones.
-    $permiso = Permiso::firstOrCreate(
-        ['nombre' => 'GESTIONAR_HABILITACIONES'],
-        ['descripcion' => 'Gestionar habilitaciones de estudiantes']
+    // Habilitaciones se gestionan desde el rol DOCENTE.
+    $rol = Rol::firstOrCreate(
+        ['nombre' => 'DOCENTE'],
+        ['descripcion' => 'Docente']
     );
-
-    $rol = Rol::create([
-        'nombre' => 'TEST_HAB_' . $sufijo,
-        'descripcion' => 'Rol temporal para pruebas',
-    ]);
-
-    $rol->permisos()->attach($permiso->id_permiso);
 
     $usuario = Usuario::create([
         'nombre' => 'Usuario',
@@ -103,6 +91,16 @@ protected function tearDown(): void
         'codigo' => 'A' . $sufijo,
         'nombre' => 'Asignatura de Prueba',
         'descripcion' => 'Asignatura temporal',
+    ]);
+
+    DB::table('carrera_asignatura')->insert([
+        'id_carrera' => $carrera->id_carrera,
+        'id_asignatura' => $asignatura->id_asignatura,
+    ]);
+    DB::table('docente_asignatura')->insert([
+        'id_usuario' => $usuario->id_usuario,
+        'id_carrera' => $carrera->id_carrera,
+        'id_asignatura' => $asignatura->id_asignatura,
     ]);
 
     $examen = Examen::create([
