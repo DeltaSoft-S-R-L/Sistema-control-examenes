@@ -88,7 +88,7 @@ export default function ControlIngreso() {
 
   const cargarExamenes = async () => {
     try {
-      const res = await api.get("/examenes");
+      const res = await api.get("/examenes", { params: { per_page: 100 } });
       const lista = res.data.data || res.data || [];
 
       setExamenes(lista);

@@ -26,7 +26,7 @@ export default function Habilitaciones() {
 
   const cargarExamenes = async () => {
     try {
-      const respuesta = await api.get('/examenes');
+      const respuesta = await api.get('/examenes', { params: { per_page: 100 } });
       setExamenes(obtenerDatos(respuesta));
     } catch (error) {
       console.error('Error al obtener exámenes:', error);
@@ -34,11 +34,18 @@ export default function Habilitaciones() {
     }
   };
 
-  const cargarEstudiantes = async (termino = '', paginaActual = 1) => {
+  const examenActual = useMemo(
+    () => examenes.find((examen) => String(examen.id_examen) === String(idExamen)) || null,
+    [examenes, idExamen],
+  );
+  const idAsignaturaExamen = examenActual?.id_asignatura ? Number(examenActual.id_asignatura) : null;
+
+  const cargarEstudiantes = async (termino = '', paginaActual = 1, idAsignatura = null) => {
     try {
       setLoading(true);
       const params = { page: paginaActual, estado: 'ACTIVO' };
       if (termino) params.buscar = termino;
+      if (idAsignatura) params.id_asignatura = idAsignatura;
 
       const respuesta = await api.get('/estudiantes', { params });
       setEstudiantes(obtenerDatos(respuesta));
@@ -57,8 +64,8 @@ export default function Habilitaciones() {
   }, []);
 
   useEffect(() => {
-    cargarEstudiantes(terminoAplicado, pagina);
-  }, [pagina, terminoAplicado]);
+    cargarEstudiantes(terminoAplicado, pagina, idAsignaturaExamen);
+  }, [pagina, terminoAplicado, idAsignaturaExamen]);
 
   const cargarHabilitaciones = useCallback(async () => {
     if (!idExamen) {
@@ -94,6 +101,7 @@ export default function Habilitaciones() {
 
   const cambiarExamen = (event) => {
     setIdExamen(event.target.value);
+    setPagina(1);
     setSeleccionados([]);
     setMensaje(null);
   };

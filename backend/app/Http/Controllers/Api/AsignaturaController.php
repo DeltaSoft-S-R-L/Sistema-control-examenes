@@ -10,12 +10,24 @@ class AsignaturaController extends Controller
 {
     public function index(Request $request)
     {
-    $query = Asignatura::orderBy('nombre');
+        $usuario = $request->user();
+        $usuario?->loadMissing('rol');
+        $rol = strtoupper((string) $usuario?->rol?->nombre);
 
-    if ($request->filled('id_carrera')) {
-        $query->whereHas('carreras', function ($q) use ($request) {
-            $q->where('carrera.id_carrera', $request->id_carrera);
-        });
+        $query = Asignatura::orderBy('nombre');
+
+        if ($rol === 'DOCENTE') {
+            $query->whereIn('id_asignatura', function ($sub) use ($usuario) {
+                $sub->select('id_asignatura')
+                    ->from('docente_asignatura')
+                    ->where('id_usuario', $usuario->id_usuario);
+            });
+        }
+
+        if ($request->filled('id_carrera')) {
+            $query->whereHas('carreras', function ($q) use ($request) {
+                $q->where('carrera.id_carrera', $request->id_carrera);
+            });
         }
 
         return response()->json($query->get());

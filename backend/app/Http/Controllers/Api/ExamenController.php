@@ -76,7 +76,9 @@ class ExamenController extends Controller
             });
         }
 
-        return response()->json($query->orderBy('fecha', 'desc')->paginate(20));
+        $perPage = min(max((int) $request->input('per_page', 20), 1), 100);
+
+        return response()->json($query->orderBy('fecha', 'desc')->paginate($perPage));
     }
 
     // ─────────────────────────────────────────────

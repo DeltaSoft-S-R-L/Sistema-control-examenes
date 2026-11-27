@@ -201,7 +201,8 @@ export default function EditarExamenModal({ isOpen, examen, onClose, onSuccess }
                     type="number"
                     name="duracion_minutos"
                     className="form-control"
-                    min="1"
+                    min="15"
+                    max="300"
                     placeholder="90"
                     value={formData.duracion_minutos}
                     onChange={handleChange}
