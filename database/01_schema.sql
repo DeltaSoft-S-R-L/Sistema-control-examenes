@@ -114,9 +114,9 @@ CREATE TABLE public.habilitacion (
     motivo_tipo character varying(50),
     inhabilitado_por bigint,
     inhabilitado_at timestamp without time zone,
-    CONSTRAINT ck_habilitacion_estado CHECK (((estado)::text = ANY ((ARRAY['HABILITADO'::character varying, 'NO_HABILITADO'::character varying])::text[]))),
-    CONSTRAINT ck_habilitacion_motivo CHECK ((((estado)::text = 'HABILITADO'::text) OR (motivo_detalle IS NOT NULL))),
-    CONSTRAINT ck_habilitacion_motivo_tipo CHECK (((estado)::text = 'HABILITADO'::text OR (motivo_tipo)::text = ANY ((ARRAY['ACADEMICO'::character varying, 'MORA'::character varying, 'DOCUMENTACION'::character varying, 'OTRO'::character varying])::text[])))
+    CONSTRAINT ck_habilitacion_estado CHECK (((estado)::text = ANY ((ARRAY['HABILITADO'::character varying, 'NO_HABILITADO'::character varying, 'EXPULSADO'::character varying])::text[]))),
+    CONSTRAINT ck_habilitacion_motivo CHECK ((((estado)::text = ANY (ARRAY['HABILITADO'::text, 'EXPULSADO'::text])) OR (motivo_detalle IS NOT NULL))),
+    CONSTRAINT ck_habilitacion_motivo_tipo CHECK (((estado)::text = ANY (ARRAY['HABILITADO'::text, 'EXPULSADO'::text]) OR (motivo_tipo)::text = ANY ((ARRAY['ACADEMICO'::character varying, 'MORA'::character varying, 'DOCUMENTACION'::character varying, 'OTRO'::character varying])::text[])))
 );
 
 

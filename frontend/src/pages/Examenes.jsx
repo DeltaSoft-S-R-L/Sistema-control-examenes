@@ -25,16 +25,37 @@ export default function Examenes() {
   const [buscar, setBuscar] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroFecha, setFiltroFecha] = useState('');
+  const [pagina, setPagina] = useState(1);
+  const [totalPaginas, setTotalPaginas] = useState(1);
 
-  const fetchExamenes = async (params = {}) => {
+  const construirFiltros = () => {
+    const params = {};
+    if (buscar.trim()) params.buscar = buscar.trim();
+    if (filtroEstado) params.estado = filtroEstado;
+    if (filtroFecha) params.fecha = filtroFecha;
+
+
+
+
+    return params;
+  };
+
+  const fetchExamenes = async (params = {}, paginaActual = 1) => {
     try {
       setLoading(true);
       setError(null);
-      const res = await api.get('/examenes', { params });
+      const res = await api.get('/examenes', { params: { ...params, page: paginaActual } });
+
       setExamenes(res.data.data || res.data || []);
+      setPagina(res.data.current_page ?? paginaActual);
+      setTotalPaginas(res.data.last_page ?? 1);
+
     } catch (err) {
       console.error('Error al cargar exámenes:', err);
-      setError('No se pudieron cargar los exámenes. Verifique la conexión con el servidor.');
+      setError(
+        err.response?.data?.message ||
+          'No se pudieron cargar los exámenes. Verifique la conexión con el servidor.'
+      );
     } finally {
       setLoading(false);
     }
@@ -46,11 +67,11 @@ export default function Examenes() {
 
   const handleFiltrar = (e) => {
     e.preventDefault();
-    const params = {};
-    if (buscar.trim()) params.buscar = buscar.trim();
-    if (filtroEstado) params.estado = filtroEstado;
-    if (filtroFecha) params.fecha = filtroFecha;
-    fetchExamenes(params);
+
+
+
+
+    fetchExamenes(construirFiltros(), 1);
   };
 
   const handleLimpiarFiltros = () => {
@@ -89,7 +110,7 @@ export default function Examenes() {
       setError(null);
       const res = await api.delete(`/examenes/${id}`);
       setMensaje(res.data?.message || 'Examen eliminado correctamente.');
-      fetchExamenes();
+      fetchExamenes(construirFiltros(), pagina);
       setTimeout(() => setMensaje(null), 4000);
     } catch (err) {
       setError(
@@ -389,12 +410,35 @@ export default function Examenes() {
       </div>
 
       {/* Modal Nuevo Examen */}
+      {!loading && totalPaginas > 1 && (
+        <div className="d-flex justify-content-center align-items-center gap-2 mt-3">
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-secondary"
+            disabled={pagina <= 1}
+            onClick={() => fetchExamenes(construirFiltros(), pagina - 1)}
+          >
+            Anterior
+          </button>
+          <span className="small text-muted">
+            Página {pagina} de {totalPaginas}
+          </span>
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-secondary"
+            disabled={pagina >= totalPaginas}
+            onClick={() => fetchExamenes(construirFiltros(), pagina + 1)}
+          >
+            Siguiente
+          </button>
+        </div>
+      )}
       <NuevoExamenModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={() => {
           setMensaje('Examen creado con éxito.');
-          fetchExamenes();
+          fetchExamenes(construirFiltros(), pagina);
           setTimeout(() => setMensaje(null), 4000);
         }}
       />
@@ -409,7 +453,7 @@ export default function Examenes() {
         }}
         onSuccess={(msg) => {
           setMensaje(msg || 'Examen actualizado con éxito.');
-          fetchExamenes();
+          fetchExamenes(construirFiltros(), pagina);
           setTimeout(() => setMensaje(null), 4000);
         }}
       />

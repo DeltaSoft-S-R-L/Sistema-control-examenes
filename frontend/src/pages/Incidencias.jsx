@@ -34,7 +34,7 @@ export default function Incidencias() {
     } finally { setCargando(false); }
   }, [examenFiltro, buscar]);
 
-  useEffect(() => { api.get('/examenes').then(({ data }) => setExamenes(data.data || data || [])).catch(() => setError('No se pudieron cargar los exámenes.')); }, []);
+  useEffect(() => { api.get('/examenes', { params: { per_page: 100 } }).then(({ data }) => setExamenes(data.data || data || [])).catch(() => setError('No se pudieron cargar los exámenes.')); }, []);
   useEffect(() => { cargar(); }, [cargar]);
 
   const enviar = async (event) => {

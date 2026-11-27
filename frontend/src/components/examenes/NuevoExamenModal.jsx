@@ -90,6 +90,9 @@ export default function NuevoExamenModal({ isOpen, onClose, onSuccess }) {
     }
   };
 
+  const hoy = new Date();
+  const fechaMinima = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+
   if (!isOpen) return null;
 
   return (
@@ -159,6 +162,7 @@ export default function NuevoExamenModal({ isOpen, onClose, onSuccess }) {
                   <input
                     type="date"
                     name="fecha"
+                    min={fechaMinima}
                     className="form-control"
                     value={formData.fecha}
                     onChange={handleChange}
@@ -184,7 +188,8 @@ export default function NuevoExamenModal({ isOpen, onClose, onSuccess }) {
                     type="number"
                     name="duracion_minutos"
                     className="form-control"
-                    min="1"
+                    min="15"
+                    max="300"
                     placeholder="90"
                     value={formData.duracion_minutos}
                     onChange={handleChange}
